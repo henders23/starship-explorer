@@ -101,11 +101,12 @@ is every system on the map satisfying all constraints they currently *trust*.
 type Constraint =
   | { kind: 'direction';  of: SystemId; dir: 'coreward'|'rimward'|'spinward'|'trailing' }
   | { kind: 'proximity';  of: SystemId; op: 'within'|'beyond'; jumps: number }
-  | { kind: 'starType';   is: StarType; negated?: boolean }   // binary, neutron, red giant…
-  | { kind: 'contains';   feature: SystemFeature; negated?: boolean } // gas giant, ring world, belt, derelict beacon
-  | { kind: 'adjacency';  faction: FactionId; negated?: boolean }     // borders territory of…
-  | { kind: 'isolation';  op: 'atMost'|'atLeast'; neighbours: number }
-  | { kind: 'anomaly';    signature: AnomalyTag }             // "the same song as the rift that swallowed you"
+  | { kind: 'starType';   is: StarType; negated: boolean }    // binary, neutron, red giant…
+  | { kind: 'contains';   feature: SystemFeature; negated: boolean } // gas giant, ring world, belt, derelict beacon
+  | { kind: 'adjacency';  faction: FactionId; negated: boolean }     // borders territory of…
+  | { kind: 'region';     is: RegionId; negated: boolean }    // "somewhere beyond the Xenoline"
+  | { kind: 'isolation';  op: 'atMost'|'atLeast'; lanes: number }
+  | { kind: 'anomaly' }                                       // the same rift echo that took us
 
 interface Clue {
   id: ClueId
@@ -129,11 +130,25 @@ Gateway and drafting clues it runs the filter itself and asserts:
 - **Not a slog:** ~8 true clues should get the player to a shortlist of ≤ 3.
 - **Falsifiable:** 2–4 false clues exist. Each false clue is *consistent with a decoy
   system*, so a player who trusts it lands somewhere plausible rather than nowhere.
-- **Reachable:** every clue's source location is reachable within the fuel economy
-  from the start, and enough clues are reachable to solve without perfect play.
-  Target: ~1.6× the minimum required clues exist in the galaxy.
+  The decoy must satisfy ≥50% of the honest evidence, or the deception never gets
+  off the ground.
+- **Catchable:** every false clue must be exposable by combining it with **at most
+  two** honest clues. A lie the player can never catch is a trap, not a puzzle —
+  and this clause is what makes gathering *redundant* evidence the counter-play.
+- **Reachable:** every clue's source is reachable from the start, and a greedy
+  nearest-source gathering tour collects enough evidence to solve within the fuel
+  budget (≤60 jumps). Redundancy: ≥1.6× the minimum required clues exist.
 
 If any assertion fails the generator rerolls. Worldgen is cheap; broken runs are not.
+
+The proof must be a pure function of the puzzle it is proving. The "not a slog"
+clause samples random clue orderings, and if that sampling drew on caller-supplied
+randomness the generator could accept a puzzle an independent re-prover then
+rejects — so the sampling stream is derived from the puzzle's own content.
+
+**Status: implemented and passing.** See [MYSTERY.md](./MYSTERY.md) for the
+prototype, its measured behaviour across 10,000 seeds, and how to inspect a
+generated puzzle.
 
 ### 4.3 Where clues come from
 
