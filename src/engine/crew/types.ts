@@ -15,8 +15,10 @@ export type OfficerStatus = 'fit' | 'injured' | 'dead'
 
 export interface Officer {
   role: OfficerRole
-  /** Full styled name, e.g. "Dr. Ilsa Reven". Generated per seed. */
+  /** Full styled name, e.g. "Dr. Isabella Corelli". Cast per seed. */
   name: string
+  /** Asset path of the officer's portrait. Absent only in pre-portrait saves. */
+  portrait?: string
   /** 1–5. Founding officers start at 3; promoted replacements at 2. */
   skill: number
   status: OfficerStatus

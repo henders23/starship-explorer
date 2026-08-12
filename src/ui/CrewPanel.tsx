@@ -79,12 +79,21 @@ function OfficerRow({ officer, day }: { officer: Officer; day: number }) {
         : 'text-ink-dim'
 
   return (
-    <div className="flex items-baseline justify-between gap-2 text-[11px]">
-      <span className={tone}>
-        {officer.name}
-        {officer.origin === 'promoted' && (
-          <span className="text-ink-faint no-underline"> (promoted)</span>
+    <div className="flex items-center justify-between gap-2 text-[11px]">
+      <span className={`flex items-center gap-2 ${tone}`}>
+        {officer.portrait && (
+          <img
+            src={officer.portrait}
+            alt=""
+            className={`roster-portrait ${officer.status === 'dead' ? 'is-dead' : ''}`}
+          />
         )}
+        <span>
+          {officer.name}
+          {officer.origin === 'promoted' && (
+            <span className="text-ink-faint no-underline"> (promoted)</span>
+          )}
+        </span>
       </span>
       <span className="flex items-center gap-2">
         <span className="text-amber-dim tracking-widest">
