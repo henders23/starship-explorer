@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StarMap } from './StarMap.js'
+import { StartScreen } from './StartScreen.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
@@ -19,6 +20,8 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
   const [screen, setScreen] = useState<Screen>('ship')
+  const [started, setStarted] = useState(false)
+  const ambientRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
     const navigate = (event: Event) => {
@@ -28,6 +31,33 @@ export function App() {
     window.addEventListener('starship:navigate', navigate)
     return () => window.removeEventListener('starship:navigate', navigate)
   }, [])
+
+  // The ship's ambience runs only while the cutaway is on screen. Playback
+  // must begin inside the "Take command" click — browsers refuse audio that
+  // was never sanctioned by a user gesture.
+  const begin = () => {
+    const ambient = ambientRef.current ?? new Audio('/assets/audio/ship-ambient.mp3')
+    ambientRef.current = ambient
+    ambient.loop = true
+    ambient.volume = 0.15
+    void ambient.play().catch(() => {})
+    setStarted(true)
+  }
+
+  useEffect(() => {
+    const ambient = ambientRef.current
+    if (!ambient) return
+    if (started && screen === 'ship') void ambient.play().catch(() => {})
+    else ambient.pause()
+  }, [started, screen])
+
+  if (!started) {
+    return (
+      <div className="crt app-shell h-full">
+        <StartScreen onBegin={begin} />
+      </div>
+    )
+  }
 
   return (
     <div className="crt app-shell flex h-full flex-col">

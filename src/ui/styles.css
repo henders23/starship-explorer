@@ -159,6 +159,50 @@ button:disabled {
 .primary-action:disabled { opacity: .35; }
 .secondary-action { justify-content: center; margin-top: 8px; border-color: var(--color-rule); background: transparent; color: var(--color-ink-faint); }
 
+/* Start screen */
+.start-screen { position: relative; height: 100%; overflow: hidden; background: #010507; }
+.start-art {
+  position: absolute;
+  inset: -3%;
+  background: url('/assets/start-screen.png') center / cover no-repeat;
+  animation: start-drift 45s ease-in-out infinite alternate;
+}
+.start-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, rgb(1 4 6 / .94), rgb(1 4 6 / .35) 34%, transparent 55%),
+    linear-gradient(90deg, rgb(1 5 7 / .6), transparent 42%);
+}
+.start-copy { position: absolute; bottom: 11%; left: 7%; z-index: 2; max-width: 560px; }
+.start-copy h1 {
+  margin: 10px 0 0;
+  color: var(--color-ink);
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-weight: 300;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  font-size: clamp(36px, 4.8vw, 62px);
+  line-height: 1.05;
+}
+.start-copy h1 em { font-style: normal; color: var(--color-amber); }
+.start-copy p { margin: 16px 0 26px; max-width: 430px; color: var(--color-ink-dim); font-size: 12px; line-height: 1.75; }
+.start-begin {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 13px 22px;
+  border: 1px solid var(--color-amber-dim);
+  background: linear-gradient(90deg, rgb(156 99 28 / 0.2), transparent);
+  color: var(--color-amber);
+  font-size: 11px;
+  letter-spacing: .18em;
+  text-transform: uppercase;
+}
+.start-begin:hover { background: rgb(173 112 30 / 0.28); border-color: var(--color-amber); box-shadow: 0 0 24px rgb(242 179 75 / .25); }
+.start-begin span { font-size: 16px; }
+@keyframes start-drift { from { transform: scale(1); } to { transform: scale(1.06); } }
+
 /* Ship hub */
 .ship-hub { background: #010507; }
 .hub-backdrop {
