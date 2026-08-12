@@ -1,19 +1,56 @@
-# The mystery generator (Milestone 2)
+# The mystery and the Nav Plot (Milestone 2)
 
 The deduction puzzle is the spine of Starship Explorer, so it is the first thing
-built. This document covers what exists, how it behaves, and what is not done.
+built — generator, solvability proof, and the screen the player reasons on.
+The game is winnable end to end: gather evidence, work out who is lying, commit.
 
-Everything here is pure TypeScript with no React, no I/O and no `Math.random`.
+The engine is pure TypeScript with no React, no I/O and no `Math.random`.
 
 ## Try it
 
 ```bash
 npm install
+npm run dev                                       # the Nav Plot
 npm run mystery -- --seed voyager --walkthrough   # inspect one puzzle
 npm run mystery -- --sweep 300                    # distribution across 300 seeds
 npm test                                          # includes a 400-seed contract sweep
 MYSTERY_SEEDS=10000 npx vitest run tests/mystery-contract.test.ts
 ```
+
+## The Nav Plot
+
+Search a ringed star on the chart to collect the accounts held there. Trust or
+doubt each one. The chart shows live which stars remain consistent, and when the
+trusted set collapses to nothing the contradiction panel names the groups that
+cannot all be true. When you are sure, commit to the Long Jump.
+
+Three rules the screen obeys:
+
+- **No progress bar.** The candidate count is the progress bar, and it goes *up*
+  when the player withdraws trust. "7 of 12 clues found" would turn a deduction
+  into a shopping list.
+- **Ruled-out stars stay on the chart**, dimmed. Knowing what you have
+  eliminated is half of knowing anything.
+- **The UI cannot see the answer.** Components are handed `PlayerClue`, which
+  has no `truth` field, so leaking it is a compile error rather than a
+  code-review question. Everything derived comes from an engine selector.
+
+### A playtest finding worth keeping
+
+Driving the finished screen turned up a trap the design did not anticipate.
+Listing bare clue ids in the contradiction panel is *actively misleading*: one
+honest account that contradicts three separate lies appears in every conflict,
+so the obvious "the common factor must be the liar" reading points straight at
+the truth. Doubting it resolved the plot to a single confident candidate — the
+decoy. The player wins the argument and loses the game.
+
+The fix was not to weaken the trap but to stop the interface arguing for the
+wrong side: each conflict now shows the source reliability beside each account,
+so the signal that actually discriminates sits next to the one that does not.
+Playing "doubt the least reliable account in each conflict" now removes exactly
+the lies. Playing "doubt the one named most often" still loses, which is as it
+should be — but it is now a judgement the player makes rather than one the
+screen makes for them.
 
 ## How it works
 
@@ -113,7 +150,12 @@ gate and being impossible.
 
 ## Not done yet
 
-- Clue sources are placed but there is no travel, fuel or economy to reach them (M1)
-- No Nav Plot UI — the CLI walkthrough stands in for it (M2)
-- Crew, skill-gated decoding and degraded constraints (M3)
-- The Long Jump and its consequences (M2)
+- **No travel or fuel.** Searching a system is a click from anywhere; distance is
+  shown but costs nothing. The gathering tour the proof checks is therefore a
+  constraint on paper only until M1 lands.
+- **A failed Long Jump has no teeth.** It is logged and the star is struck off,
+  but the drive damage, morale collapse and displacement in DESIGN §4.5 are not
+  implemented, so guessing is currently free.
+- **Every clue decodes perfectly.** Skill-gated decoding, degraded constraints
+  and loyalty-gated crew hints arrive with the crew in M3.
+- **No onboarding.** The screen assumes you have read this page.

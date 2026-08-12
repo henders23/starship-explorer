@@ -1,0 +1,104 @@
+@import 'tailwindcss';
+
+/*
+ * A single committed look: amber-on-black CRT, thin rules, generous space.
+ * No light theme — this is a ship's instrument, not a document.
+ */
+@theme {
+  --color-void: #07080a;
+  --color-panel: #0c0f12;
+  --color-rule: #1e2731;
+
+  --color-amber: #e8a33d;
+  --color-amber-dim: #8a6224;
+  --color-phosphor: #6fe3a8;
+  --color-phosphor-dim: #2f6b4f;
+  --color-alarm: #e8593d;
+  --color-alarm-dim: #7a2f20;
+
+  --color-ink: #cfd6dd;
+  --color-ink-dim: #7c8894;
+  --color-ink-faint: #47525d;
+
+  --font-mono: 'IBM Plex Mono', 'SFMono-Regular', ui-monospace, 'Menlo', monospace;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  background: var(--color-void);
+  color: var(--color-ink);
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* The faint scanline wash that makes the whole thing read as a screen. */
+.crt::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  z-index: 50;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgb(255 255 255 / 0.016) 0 1px,
+    transparent 1px 3px
+  );
+}
+
+.panel {
+  background: var(--color-panel);
+  border: 1px solid var(--color-rule);
+}
+
+.label {
+  font-size: 10px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--color-ink-faint);
+}
+
+/* Scrollbars that belong to the instrument rather than the operating system. */
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+*::-webkit-scrollbar-thumb {
+  background: var(--color-rule);
+  border-radius: 0;
+}
+*::-webkit-scrollbar-thumb:hover {
+  background: var(--color-ink-faint);
+}
+
+@keyframes pulse-ring {
+  0%,
+  100% {
+    opacity: 0.35;
+    r: 9;
+  }
+  50% {
+    opacity: 0.9;
+    r: 11.5;
+  }
+}
+
+.site-ring {
+  animation: pulse-ring 2.6s ease-in-out infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .site-ring {
+    animation: none;
+    opacity: 0.7;
+  }
+}

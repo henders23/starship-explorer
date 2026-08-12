@@ -1,16 +1,17 @@
 import type { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import type { SystemId } from '../worldgen/types.js'
 import { admitsSystem, candidates, countCandidates } from './constraints.js'
-import type { Clue, ClueId, Contradiction } from './types.js'
+import type { ClueFacts, ClueId, Contradiction } from './types.js'
 
 /**
  * The player-facing side of the mystery. Everything here works only from
- * clues and the galaxy — none of it may consult `Clue.truth`, which is the
- * generator's business alone.
+ * clues and the galaxy. It is typed against `ClueFacts`, which has no `truth`
+ * field at all, so leaking the answer here is a compile error rather than a
+ * code-review question.
  */
 
 /** Systems still consistent with every clue the player currently trusts. */
-export function candidatesFor(clues: readonly Clue[], index: GalaxyIndex): SystemId[] {
+export function candidatesFor(clues: readonly ClueFacts[], index: GalaxyIndex): SystemId[] {
   return candidates(
     clues.filter((c) => c.state === 'trusted').map((c) => c.constraint),
     index,
@@ -18,17 +19,17 @@ export function candidatesFor(clues: readonly Clue[], index: GalaxyIndex): Syste
 }
 
 /** Systems consistent with an arbitrary set of clues, regardless of state. */
-export function candidatesForAll(clues: readonly Clue[], index: GalaxyIndex): SystemId[] {
+export function candidatesForAll(clues: readonly ClueFacts[], index: GalaxyIndex): SystemId[] {
   return candidates(clues.map((c) => c.constraint), index)
 }
 
 /** How many systems a set of clues admits, without materialising the list. */
-export function countCandidatesForAll(clues: readonly Clue[], index: GalaxyIndex): number {
+export function countCandidatesForAll(clues: readonly ClueFacts[], index: GalaxyIndex): number {
   return countCandidates(clues.map((c) => c.constraint), index)
 }
 
 /** Whether a specific system survives a set of clues. */
-export function admitsFor(clues: readonly Clue[], systemId: SystemId, index: GalaxyIndex): boolean {
+export function admitsFor(clues: readonly ClueFacts[], systemId: SystemId, index: GalaxyIndex): boolean {
   return admitsSystem(clues.map((c) => c.constraint), systemId, index)
 }
 
@@ -41,7 +42,7 @@ export function admitsFor(clues: readonly Clue[], systemId: SystemId, index: Gal
  * about, and because the search is exponential.
  */
 export function findContradictions(
-  clues: readonly Clue[],
+  clues: readonly ClueFacts[],
   index: GalaxyIndex,
   maxSize = 3,
 ): Contradiction[] {
@@ -59,7 +60,7 @@ export function findContradictions(
     return false
   }
 
-  const test = (subset: Clue[]): void => {
+  const test = (subset: ClueFacts[]): void => {
     const ids = subset.map((c) => c.id)
     if (containsKnownConflict(ids)) return
     if (countCandidatesForAll(subset, index) === 0) {
@@ -100,16 +101,16 @@ function forEachCombination<T>(
  * single system. Used by the generator to size the evidence pool, and by the
  * UI to tell the player roughly how close their trusted set is to decisive.
  */
-export function greedyMinimalSubset(
-  clues: readonly Clue[],
+export function greedyMinimalSubset<T extends ClueFacts>(
+  clues: readonly T[],
   index: GalaxyIndex,
-): Clue[] {
-  const chosen: Clue[] = []
+): T[] {
+  const chosen: T[] = []
   const remaining = [...clues]
   let current = index.systems.map((s) => s.id)
 
   while (current.length > 1 && remaining.length > 0) {
-    let best: { clue: Clue; at: number; size: number } | null = null
+    let best: { clue: T; at: number; size: number } | null = null
 
     for (let i = 0; i < remaining.length; i++) {
       const clue = remaining[i]!
@@ -132,11 +133,11 @@ export function greedyMinimalSubset(
  * set is down to `target` or fewer. `Infinity` if the order never gets there.
  */
 export function cluesToNarrow(
-  ordered: readonly Clue[],
+  ordered: readonly ClueFacts[],
   index: GalaxyIndex,
   target: number,
 ): number {
-  const filed: Clue[] = []
+  const filed: ClueFacts[] = []
   for (let i = 0; i < ordered.length; i++) {
     filed.push(ordered[i]!)
     if (countCandidatesForAll(filed, index) <= target) return i + 1
@@ -150,7 +151,7 @@ export function cluesToNarrow(
  * corroborated clue is safe to trust — this is the player's reward for
  * gathering redundant evidence instead of merely sufficient evidence.
  */
-export function corroboratedIds(clues: readonly Clue[]): Set<ClueId> {
+export function corroboratedIds(clues: readonly ClueFacts[]): Set<ClueId> {
   const out = new Set<ClueId>()
   for (const clue of clues) {
     if (clue.corroborates.length > 0) {

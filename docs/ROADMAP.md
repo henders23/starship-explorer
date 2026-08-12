@@ -34,7 +34,7 @@ playable, not something merely built.
 
 ---
 
-## M2 — Clues and deduction ★
+## M2 — Clues and deduction ★  — **done**
 
 *Goal: the game is winnable. This is the milestone that matters.*
 
@@ -48,6 +48,11 @@ playable, not something merely built.
 
 **Done when:** a playtester with no combat, no crew and no story can reason their
 way home from evidence — and can also get it wrong.
+
+**Status:** met. The contract holds across 10,000 seeds, and the Nav Plot plays
+end to end — gather, file, catch the liars, commit, win. See
+[MYSTERY.md](./MYSTERY.md), including the playtest finding on how the
+contradiction panel was quietly arguing for the wrong answer.
 
 ---
 

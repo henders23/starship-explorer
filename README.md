@@ -13,11 +13,13 @@ When you think you know where home is, you commit everything to one jump.
 
 ## Status
 
-**Milestone 2 in progress** — the deduction puzzle. The generator and its
-solvability proof are built and tested; there is no game around them yet.
+**Milestone 2 complete** — the deduction is playable and winnable. Gather
+accounts of the anomaly, decide who to believe, catch the liars by their
+contradictions, and commit to the Long Jump. No travel, crew or combat yet.
 
 ```bash
 npm install
+npm run dev                                       # play the Nav Plot
 npm run mystery -- --seed voyager --walkthrough   # inspect a generated puzzle
 npm run mystery -- --sweep 300                    # generation statistics
 npm test
@@ -27,7 +29,7 @@ npm test
 
 - **[Design document](docs/DESIGN.md)** — systems, mechanics, architecture
 - **[Roadmap](docs/ROADMAP.md)** — build order, milestones, risks
-- **[The mystery generator](docs/MYSTERY.md)** — what M2 does, how it behaves, what it doesn't do yet
+- **[The mystery and the Nav Plot](docs/MYSTERY.md)** — what M2 does, how it behaves, what it doesn't do yet
 
 ## Stack
 
