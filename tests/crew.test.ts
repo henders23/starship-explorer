@@ -13,6 +13,15 @@ import type { Action, GameState } from '../src/engine/state/types.js'
 
 const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).state
 
+/**
+ * Test-only relocation: put the ship at the site with a full-enough tank.
+ * These suites are about crew and missions, not fuel; travel has its own.
+ */
+const at = (from: GameState, system: string): GameState => ({
+  ...from,
+  ship: { at: system, fuel: 999 },
+})
+
 /** First system holding evidence behind the given hazard filter. */
 function hazardousSystem(state: GameState): string | null {
   for (const system of new Set(state.mystery.clues.map((c) => c.source.at))) {
@@ -122,43 +131,52 @@ describe('away missions', () => {
     const state = newGame(SEED)
     const system = hazardousSystem(state)
     if (!system) return
+    const placed = at(state, system)
     const team: AwayTeam = { captain: false, officers: ['security'], escorts: 2, hands: 0 }
-    const action = missionAction(state, system, team)
-    const a = reduce(state, action)
-    const b = reduce(state, action)
+    const action = missionAction(placed, system, team)
+    const a = reduce(placed, action)
+    const b = reduce(placed, action)
     expect(a.state).toEqual(b.state)
     expect(a.events).toEqual(b.events)
   })
 
-  it('rejects illegal teams and wrong approaches', () => {
+  it('rejects illegal teams, wrong approaches, and acting from a distance', () => {
     const state = newGame(SEED)
     const system = hazardousSystem(state)
     if (!system) return
+    const placed = at(state, system)
 
     // More escorts than the pool holds.
     const bloated: AwayTeam = { captain: false, officers: [], escorts: 99, hands: 0 }
-    expect(reduce(state, missionAction(state, system, bloated, false)).state).toBe(state)
+    expect(reduce(placed, missionAction(placed, system, bloated, false)).state).toBe(placed)
 
     // An approach whose specialist is not on the team.
-    const { site } = sitePlan(state, system)!
+    const { site } = sitePlan(placed, system)!
     const gated = approachesFor(site!).find((a) => a.needs !== null)
     if (gated) {
-      const { state: after } = reduce(state, {
+      const { state: after } = reduce(placed, {
         type: 'runMission',
         system,
         team: { captain: false, officers: [], escorts: 0, hands: 0 },
         approach: gated.id,
       })
-      expect(after).toBe(state)
+      expect(after).toBe(placed)
+    }
+
+    // A mission at a system the ship is not at.
+    if (state.ship.at !== system) {
+      const team: AwayTeam = { captain: false, officers: [], escorts: 0, hands: 0 }
+      expect(reduce(state, missionAction(state, system, team, false)).state).toBe(state)
     }
   })
 
   it('under fire, generics die before officers, and the pools shrink to match', () => {
     // Run missions across seeds until one goes wrong, then check the ledger.
     for (let i = 0; i < 60; i++) {
-      const state = newGame(`redshirts-${i}`)
-      const system = hazardousSystem(state)
+      const seedState = newGame(`redshirts-${i}`)
+      const system = hazardousSystem(seedState)
       if (!system) continue
+      const state = at(seedState, system)
       const team: AwayTeam = { captain: false, officers: ['security'], escorts: 4, hands: 2 }
       const { state: after, events } = reduce(state, missionAction(state, system, team, false))
 
@@ -182,9 +200,10 @@ describe('away missions', () => {
 
   it('a disaster recovers nothing and leaves the site collectable', () => {
     for (let i = 0; i < 120; i++) {
-      const state = newGame(`disaster-${i}`)
-      const system = hazardousSystem(state)
+      const seedState = newGame(`disaster-${i}`)
+      const system = hazardousSystem(seedState)
       if (!system) continue
+      const state = at(seedState, system)
       const team: AwayTeam = { captain: false, officers: [], escorts: 0, hands: 0 }
       const { state: after, events } = reduce(state, missionAction(state, system, team, false))
       const resolved = events.find((e) => e.type === 'missionResolved')
@@ -204,6 +223,7 @@ describe('away missions', () => {
       let state = newGame(`officer-death-${i}`)
       const system = hazardousSystem(state)
       if (!system) continue
+      state = at(state, system)
 
       // Send officers with no generic shield, repeatedly, until one dies.
       for (let attempt = 0; attempt < 20 && state.outcome === 'seeking'; attempt++) {
@@ -245,6 +265,7 @@ describe('away missions', () => {
       let state = newGame(`captain-${i}`)
       const system = hazardousSystem(state)
       if (!system) continue
+      state = at(state, system)
       for (let attempt = 0; attempt < 15 && state.outcome === 'seeking'; attempt++) {
         if (state.searched.includes(system)) break
         const team: AwayTeam = { captain: true, officers: [], escorts: 0, hands: 0 }
@@ -276,7 +297,7 @@ describe('decoding', () => {
   }
 
   function collectWithoutScience(state: GameState, system: string): GameState {
-    let current = state
+    let current = at(state, system)
     for (let attempt = 0; attempt < 30 && !current.searched.includes(system); attempt++) {
       const team: AwayTeam = { captain: false, officers: ['security'], escorts: 4, hands: 0 }
       current = run(current, missionAction(current, system, team, false))
@@ -329,7 +350,7 @@ describe('decoding', () => {
     const state = newGame(SEED)
     const system = artefactSystem(state)
     if (!system) return
-    let current = state
+    let current = at(state, system)
     for (let attempt = 0; attempt < 30 && !current.searched.includes(system); attempt++) {
       const team: AwayTeam = { captain: false, officers: ['security', 'science'], escorts: 4, hands: 0 }
       current = run(current, missionAction(current, system, team, false))
@@ -344,6 +365,7 @@ describe('injury and recovery', () => {
       let state = newGame(`injury-${i}`)
       const system = hazardousSystem(state)
       if (!system) continue
+      state = at(state, system)
 
       for (let attempt = 0; attempt < 12 && state.outcome === 'seeking'; attempt++) {
         if (state.searched.includes(system)) break
@@ -358,7 +380,7 @@ describe('injury and recovery', () => {
           // An injured officer cannot be sent down.
           const refused = reduce(state, {
             type: 'runMission',
-            system: hazardousSystem(state) ?? system,
+            system,
             team: { captain: false, officers: ['security'], escorts: 0, hands: 0 },
             approach: 'breach',
           })

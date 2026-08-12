@@ -28,6 +28,12 @@ beforeEach(() => {
 /** Drives the reducer, returning only the resulting state. */
 const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).state
 
+/** Test-only relocation with a full tank; travel proper has its own suite. */
+const at = (from: GameState, system: string): GameState => ({
+  ...from,
+  ship: { at: system, fuel: 999 },
+})
+
 /**
  * Sweeps every system holding evidence, as a player eventually would: plain
  * searches where the source is social, full-strength away missions where it
@@ -48,6 +54,7 @@ function fullTeam(from: GameState): AwayTeam {
 function gatherEverything(from: GameState): GameState {
   let current = from
   for (const system of new Set(current.mystery.clues.map((c) => c.source.at))) {
+    current = at(current, system)
     // Retry on disaster: the site stays, the dice move on with missionsRun.
     for (let attempt = 0; attempt < 25 && !current.searched.includes(system); attempt++) {
       if (current.outcome !== 'seeking') return current
@@ -99,7 +106,7 @@ describe('searching for evidence', () => {
     const site = socialSite(state)
     const expected = state.mystery.clues.filter((c) => c.source.at === site).map((c) => c.id)
 
-    const { state: after, events } = reduce(state, { type: 'search', system: site })
+    const { state: after, events } = reduce(at(state, site), { type: 'search', system: site })
 
     expect(after.collected).toEqual(expect.arrayContaining(expected))
     expect(after.searched).toContain(site)
@@ -117,8 +124,9 @@ describe('searching for evidence', () => {
       (system) => sitePlan(state, system).site !== null,
     )
     if (!hazardous) return // seed had no hazardous sites; nothing to assert
-    const { state: after, events } = reduce(state, { type: 'search', system: hazardous })
-    expect(after).toBe(state)
+    const placed = at(state, hazardous)
+    const { state: after, events } = reduce(placed, { type: 'search', system: hazardous })
+    expect(after).toBe(placed)
     expect(events).toEqual([])
   })
 
@@ -126,7 +134,8 @@ describe('searching for evidence', () => {
     const barren = index.systems.find(
       (s) => !state.mystery.clues.some((c) => c.source.at === s.id),
     )!
-    const { state: after, events } = reduce(state, { type: 'search', system: barren.id })
+    const placed = at(state, barren.id)
+    const { state: after, events } = reduce(placed, { type: 'search', system: barren.id })
 
     expect(after.collected).toEqual([])
     expect(after.searched).toContain(barren.id)
@@ -135,7 +144,7 @@ describe('searching for evidence', () => {
 
   it('does not yield the same evidence twice', () => {
     const site = socialSite(state)
-    const once = run(state, { type: 'search', system: site })
+    const once = run(at(state, site), { type: 'search', system: site })
     const twice = run(once, { type: 'search', system: site })
     expect(twice.collected).toEqual(once.collected)
     expect(twice.log).toHaveLength(once.log.length)
@@ -229,10 +238,12 @@ describe('the Long Jump', () => {
 
     expect(after.outcome).toBe('seeking')
     expect(after.jumps).toEqual([{ target: wrong, correct: false }])
-    expect(events).toEqual([{ type: 'jumpFailed', target: wrong, attempt: 1 }])
+    expect(events).toHaveLength(1)
+    expect(events[0]).toMatchObject({ type: 'jumpFailed', target: wrong, attempt: 1 })
 
-    // And a second attempt is still possible.
-    const again = reduce(after, { type: 'plotTheJump', target: after.mystery.gateway })
+    // And a second attempt is still possible once the tank allows it.
+    const refuelled: GameState = { ...after, ship: { ...after.ship, fuel: 60 } }
+    const again = reduce(refuelled, { type: 'plotTheJump', target: after.mystery.gateway })
     expect(again.state.outcome).toBe('home')
   })
 
@@ -262,7 +273,7 @@ describe('the player view', () => {
   it('shows only evidence actually collected', () => {
     expect(heldClues(state)).toEqual([])
     const site = socialSite(state)
-    const after = run(state, { type: 'search', system: site })
+    const after = run(at(state, site), { type: 'search', system: site })
     expect(heldClues(after).map((c) => c.id).sort()).toEqual(after.collected.slice().sort())
   })
 })

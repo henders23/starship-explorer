@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { sitePlan } from '../engine/state/reducer.js'
+import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { MissionPanel } from './MissionPanel.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
@@ -30,6 +31,12 @@ export function Inspector() {
   const hasEvidence = sites.has(system.id)
   const alreadyTried = jumps.some((j) => j.target === system.id)
   const { site } = sitePlan(gameState, system.id)
+  const ship = gameState.ship
+  const here = ship.at === system.id
+  const route = useMemo(
+    () => (here ? null : routeTo(index, ship.at, system.id)),
+    [here, index, ship.at, system.id],
+  )
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
@@ -44,7 +51,9 @@ export function Inspector() {
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[11px]">
         <Row label="Star">{STAR_NAMES[system.star]}</Row>
         <Row label="Lanes">{index.degree(system.id)}</Row>
-        <Row label="Distance">{index.jumps(start, system.id)} jumps from arrival</Row>
+        <Row label="Distance">
+          {here ? 'you are here' : `${index.jumps(ship.at, system.id)} jumps from the ship`}
+        </Row>
         <Row label="Claimed by">
           {system.faction ? index.factionName(system.faction) : 'nobody'}
         </Row>
@@ -67,7 +76,33 @@ export function Inspector() {
             : 'Ruled out by your plot.'}
       </div>
 
-      {hasEvidence && site === null && (
+      {!here && outcome === 'seeking' && (
+        <button
+          disabled={!route || route.cost > ship.fuel}
+          onClick={() => dispatch({ type: 'travel', to: system.id })}
+          className={`border px-3 py-1.5 text-[11px] ${
+            route && route.cost <= ship.fuel
+              ? 'border-amber-dim text-amber hover:bg-amber-dim/15'
+              : 'border-rule text-ink-faint'
+          }`}
+        >
+          {route
+            ? `Travel here — ${route.path.length - 1} ${route.path.length - 1 === 1 ? 'jump' : 'jumps'}, ${route.cost} fuel` +
+              (route.cost > ship.fuel ? ' (not enough)' : '')
+            : 'No lane route reaches this system'}
+        </button>
+      )}
+
+      {here && canScoop(index, system.id) && ship.fuel < FUEL_MAX && outcome === 'seeking' && (
+        <button
+          onClick={() => dispatch({ type: 'scoop' })}
+          className="border-phosphor-dim text-phosphor hover:bg-phosphor-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Scoop the gas giant — refill the tank
+        </button>
+      )}
+
+      {here && hasEvidence && site === null && (
         <button
           onClick={() => dispatch({ type: 'search', system: system.id })}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
@@ -76,13 +111,19 @@ export function Inspector() {
         </button>
       )}
 
-      {hasEvidence && site !== null && (
+      {here && hasEvidence && site !== null && (
         <button
           onClick={() => setPlanning(true)}
           className="border-alarm-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Send an away team — {site.label.toLowerCase()}
         </button>
+      )}
+
+      {!here && hasEvidence && (
+        <div className="text-ink-faint text-[10px]">
+          Evidence waits here, but the ship must arrive before anyone collects it.
+        </div>
       )}
 
       {planning && site !== null && (
@@ -98,6 +139,7 @@ export function Inspector() {
           name={system.name}
           isCandidate={isCandidate}
           alreadyTried={alreadyTried}
+          fuel={ship.fuel}
           confirming={confirming}
           setConfirming={setConfirming}
           onCommit={() => {
@@ -127,6 +169,7 @@ function LongJump({
   name,
   isCandidate,
   alreadyTried,
+  fuel,
   confirming,
   setConfirming,
   onCommit,
@@ -134,6 +177,7 @@ function LongJump({
   name: string
   isCandidate: boolean
   alreadyTried: boolean
+  fuel: number
   confirming: boolean
   setConfirming: (v: boolean) => void
   onCommit: () => void
@@ -146,13 +190,21 @@ function LongJump({
     )
   }
 
+  if (fuel < LONG_JUMP_RESERVE) {
+    return (
+      <div className="border-rule text-ink-faint border px-2 py-1 text-[10px]">
+        The Long Jump takes a reserve of {LONG_JUMP_RESERVE} fuel. The tank holds {fuel}.
+      </div>
+    )
+  }
+
   if (!confirming) {
     return (
       <button
         onClick={() => setConfirming(true)}
         className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
       >
-        Plot the Long Jump to {name}
+        Plot the Long Jump to {name} — {LONG_JUMP_RESERVE} fuel
       </button>
     )
   }
@@ -160,8 +212,8 @@ function LongJump({
   return (
     <div className="border-amber-dim border px-3 py-2">
       <p className="text-ink-dim mb-2 text-[11px] leading-relaxed">
-        Committing burns the reserve and strains the drive. If you are wrong we are further out
-        than we were, with less to look with.
+        Committing burns the {LONG_JUMP_RESERVE}-fuel reserve. If you are wrong, the rift throws
+        the ship somewhere far from here with almost nothing in the tank.
         {!isCandidate && (
           <span className="text-alarm">
             {' '}

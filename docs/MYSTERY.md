@@ -173,13 +173,30 @@ excluded from the Nav Plot until a fit science officer decodes it. Lose your
 science officer with an empty promotion pool and those artefacts stay dark
 for the rest of the run. That is the strategic wound the design asked for.
 
+## Travel and the fuel clock (M1)
+
+The ship is a place on the chart, and nothing happens at a distance: searching,
+missions and scooping all require being there. Lanes cost fuel by length (the
+tank holds 80); routes are plotted cheapest-first and drawn on the chart before
+you commit to them. Gas giants refill the tank for free — the pumps of this
+galaxy — and a swept derelict's tanks are worth 8 more.
+
+The Long Jump takes a 30-fuel reserve. A wrong guess now has teeth: the rift
+throws the ship at least five jumps from where it aimed, with 25 in the tank
+and the chart to replot from a strange sky.
+
+**Stranded is the loss condition**, and it is not "low on fuel" — it is *no
+move remains*: no affordable lane, nothing here to scoop, the rift out of
+reach, and no derelict left at this system whose tanks a mission could drain.
+It is declared on the exact transition that closes the trap, and the run ends
+in the long silence.
+
 ## Not done yet
 
-- **No travel or fuel.** Reaching a system is a click from anywhere; distance is
-  shown but costs nothing. The gathering tour the proof checks is therefore a
-  constraint on paper only until M1 lands.
-- **A failed Long Jump has no teeth.** It is logged and the star is struck off,
-  but the drive damage, morale collapse and displacement in DESIGN §4.5 are not
-  implemented, so guessing costs only your away teams' blood, not the ship's.
-- **No morale, consumables or ship systems.** The rest of M3.
+- **A failed Long Jump does not damage the ship.** Displacement and fuel loss
+  are in; drive scarring and the morale collapse await ship systems and morale
+  (rest of M3).
+- **No morale, consumables or ship subsystems.** The rest of M3.
+- **No fog of war.** System contents are visible from the catalogue; M1's
+  deferred piece, revisited alongside sensors.
 - **No onboarding.** The screen assumes you have read this page.

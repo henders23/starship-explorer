@@ -29,6 +29,9 @@ export interface GameState {
   /** The system currently under inspection on the chart. */
   selected: SystemId | null
 
+  /** Where the ship is and what is in the tank. Everything else orbits this. */
+  ship: { at: SystemId; fuel: number }
+
   /** The captain and department officers — the named people. */
   roster: Officer[]
   /** The generic pools: alive counts, nothing more. */
@@ -41,7 +44,7 @@ export interface GameState {
   casualties: { generics: number; officers: string[] }
 
   jumps: JumpAttempt[]
-  outcome: 'seeking' | 'home' | 'lost'
+  outcome: 'seeking' | 'home' | 'lost' | 'stranded'
   log: LogEntry[]
 }
 
@@ -52,11 +55,22 @@ export interface JumpAttempt {
 
 export interface LogEntry {
   id: number
-  kind: 'arrival' | 'evidence' | 'mission' | 'crew' | 'filing' | 'contradiction' | 'jump' | 'ending'
+  kind:
+    | 'arrival'
+    | 'travel'
+    | 'evidence'
+    | 'mission'
+    | 'crew'
+    | 'filing'
+    | 'contradiction'
+    | 'jump'
+    | 'ending'
   text: string
 }
 
 export type Action =
+  | { type: 'travel'; to: SystemId }
+  | { type: 'scoop' }
   | { type: 'search'; system: SystemId }
   | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
   | { type: 'decode'; clue: ClueId }
@@ -71,6 +85,10 @@ export type Action =
  * this for free.
  */
 export type GameEvent =
+  | { type: 'traveled'; from: SystemId; to: SystemId; fuelSpent: number }
+  | { type: 'scooped'; at: SystemId }
+  | { type: 'fuelSalvaged'; amount: number }
+  | { type: 'strandedDeclared' }
   | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId; undecoded: ClueId[] }
   | { type: 'nothingFound'; at: SystemId }
   | { type: 'missionResolved'; at: SystemId; outcome: 'clean' | 'messy' | 'disaster' }
@@ -82,7 +100,7 @@ export type GameEvent =
   | { type: 'clueDecoded'; clue: ClueId }
   | { type: 'clueFiled'; clue: ClueId; state: ClueState }
   | { type: 'jumpSucceeded'; target: SystemId }
-  | { type: 'jumpFailed'; target: SystemId; attempt: number }
+  | { type: 'jumpFailed'; target: SystemId; attempt: number; displacedTo: SystemId }
 
 export interface Transition {
   state: GameState

@@ -7,6 +7,15 @@ import {
   needsDecoding,
   type Site,
 } from '../missions/sites.js'
+import {
+  canScoop,
+  cheapestLaneOut,
+  DERELICT_FUEL_SALVAGE,
+  FUEL_MAX,
+  LONG_JUMP_RESERVE,
+  routeTo,
+} from '../travel/travel.js'
+import { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import { generatePuzzle, type MysteryOptions } from '../mystery/generate.js'
 import type { Clue, ClueId, ClueState, PlayerClue } from '../mystery/types.js'
 import { toPlayerClue } from '../mystery/types.js'
@@ -33,6 +42,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     undecoded: [],
     searched: [],
     selected: puzzle.galaxy.start,
+    ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX },
     roster: generateRoster(seed),
     pools: { ...STARTING_POOLS },
     missionsRun: 0,
@@ -57,6 +67,10 @@ export function reduce(state: GameState, action: Action): Transition {
   switch (action.type) {
     case 'select':
       return { state: { ...state, selected: action.system }, events: [] }
+    case 'travel':
+      return travel(state, action.to)
+    case 'scoop':
+      return scoop(state)
     case 'search':
       return search(state, action.system)
     case 'runMission':
@@ -109,6 +123,7 @@ export function sitePlan(
  */
 function search(state: GameState, systemId: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.ship.at !== systemId) return { state, events: [] }
   if (state.searched.includes(systemId)) return { state, events: [] }
   if (sitePlan(state, systemId).site !== null) return { state, events: [] }
 
@@ -177,6 +192,99 @@ function collectClues(
 }
 
 /* ------------------------------------------------------------------------ *
+ * Travel and fuel
+ * ------------------------------------------------------------------------ */
+
+function travel(state: GameState, to: SystemId): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  if (to === state.ship.at) return { state, events: [] }
+
+  const index = new GalaxyIndex(state.galaxy)
+  const route = routeTo(index, state.ship.at, to)
+  if (!route || route.cost > state.ship.fuel) return { state, events: [] }
+
+  const from = state.ship.at
+  const next: GameState = {
+    ...state,
+    ship: { at: to, fuel: state.ship.fuel - route.cost },
+    selected: to,
+    log: appendLog(state.log, {
+      kind: 'travel',
+      text:
+        `${systemName(state, to)}: arrived, ${route.path.length - 1} ` +
+        `${route.path.length - 1 === 1 ? 'jump' : 'jumps'}, ${route.cost} fuel spent. ` +
+        `${state.ship.fuel - route.cost} in the tank.`,
+    }),
+  }
+
+  const events: GameEvent[] = [{ type: 'traveled', from, to, fuelSpent: route.cost }]
+  return declareIfStranded(next, index, events)
+}
+
+function scoop(state: GameState): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  const index = new GalaxyIndex(state.galaxy)
+  if (!canScoop(index, state.ship.at)) return { state, events: [] }
+  if (state.ship.fuel >= FUEL_MAX) return { state, events: [] }
+
+  return {
+    state: {
+      ...state,
+      ship: { ...state.ship, fuel: FUEL_MAX },
+      log: appendLog(state.log, {
+        kind: 'travel',
+        text:
+          `Three slow orbits through the gas giant's outer envelope with the scoop fields wide. ` +
+          `The tank reads full for the first time in a while.`,
+      }),
+    },
+    events: [{ type: 'scooped', at: state.ship.at }],
+  }
+}
+
+/**
+ * The loss condition (ROADMAP M1): stranded is not "low on fuel", it is
+ * "no move remains". No lane affordable, nothing to scoop here, the Long
+ * Jump out of reach, and no derelict left at this system whose tanks a
+ * mission could still drain. Detected on the transition that causes it, so
+ * the ending lands the moment the trap closes rather than one click later.
+ */
+export function isStranded(state: GameState, index: GalaxyIndex): boolean {
+  if (state.outcome !== 'seeking') return false
+  if (canScoop(index, state.ship.at)) return false
+  if (state.ship.fuel >= LONG_JUMP_RESERVE) return false
+  if (state.ship.fuel >= cheapestLaneOut(index, state.ship.at)) return false
+
+  // A derelict here could still be drained for fuel by an away mission.
+  const derelictHere = cluesAt(state, state.ship.at).some(
+    (c) => c.source.kind === 'derelict-log',
+  )
+  return !derelictHere
+}
+
+function declareIfStranded(
+  state: GameState,
+  index: GalaxyIndex,
+  events: GameEvent[],
+): Transition {
+  if (!isStranded(state, index)) return { state, events }
+  return {
+    state: {
+      ...state,
+      outcome: 'stranded',
+      log: appendLog(state.log, {
+        kind: 'ending',
+        text:
+          `The tank will not carry us to any star on the chart, and there is nothing here to ` +
+          `scoop, drain or trade. The ship is sound. The crew are alive. Neither of those things ` +
+          `is going to change what this is. Entries in this log may become intermittent.`,
+      }),
+    },
+    events: [...events, { type: 'strandedDeclared' }],
+  }
+}
+
+/* ------------------------------------------------------------------------ *
  * Away missions
  * ------------------------------------------------------------------------ */
 
@@ -207,6 +315,7 @@ function runMission(
   approachId: string,
 ): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.ship.at !== systemId) return { state, events: [] }
   if (state.searched.includes(systemId)) return { state, events: [] }
 
   const { site } = sitePlan(state, systemId)
@@ -236,12 +345,15 @@ function runMission(
   if (outcome === 'clean') {
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
+    const salvage = applyDerelictSalvage(next, site, events)
+    next = salvage
     const collected = collectClues(
       next,
       found,
       team.officers.includes('science'),
       `${system} — ${site.label.toLowerCase()}: the team is back aboard, all counted. ` +
-        `${found.length === 1 ? 'One account' : `${found.length} accounts`} of the anomaly recovered.`,
+        `${found.length === 1 ? 'One account' : `${found.length} accounts`} of the anomaly recovered.` +
+        (site.type === 'derelict' ? ` The wreck's tanks gave up ${DERELICT_FUEL_SALVAGE} fuel.` : ''),
     )
     return { state: collected.state, events: [...events, ...collected.events] }
   }
@@ -274,6 +386,7 @@ function runMission(
     // Hurt, but the job got done.
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
+    next = applyDerelictSalvage(next, site, events)
     const collected = collectClues(
       next,
       found,
@@ -298,6 +411,16 @@ function runMission(
       }),
     },
     events,
+  }
+}
+
+/** A swept derelict's tanks are worth draining — occasionally decisively so. */
+function applyDerelictSalvage(state: GameState, site: Site, events: GameEvent[]): GameState {
+  if (site.type !== 'derelict') return state
+  events.push({ type: 'fuelSalvaged', amount: DERELICT_FUEL_SALVAGE })
+  return {
+    ...state,
+    ship: { ...state.ship, fuel: Math.min(FUEL_MAX, state.ship.fuel + DERELICT_FUEL_SALVAGE) },
   }
 }
 
@@ -468,6 +591,7 @@ function file(state: GameState, clueId: ClueId, clueState: ClueState): Transitio
 
 function plotTheJump(state: GameState, target: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.ship.fuel < LONG_JUMP_RESERVE) return { state, events: [] }
 
   const correct = target === state.mystery.gateway
   const jumps = [...state.jumps, { target, correct }]
@@ -490,20 +614,36 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
     }
   }
 
-  return {
-    state: {
-      ...state,
-      jumps,
-      log: appendLog(state.log, {
-        kind: 'jump',
-        text:
-          `${name}. We burned the reserve and committed, and the anomaly was not there. ` +
-          `The drive is scarred and the crew have done the arithmetic on what that cost. ` +
-          `Attempt ${jumps.length}. We are still out here.`,
-      }),
-    },
-    events: [{ type: 'jumpFailed', target, attempt: jumps.length }],
+  // Wrong. The rift takes its price and throws the ship somewhere far from
+  // where it thought it was going (DESIGN §4.5): the reserve is gone, the
+  // tank is nearly dry, and the chart has to be replotted from a strange sky.
+  const index = new GalaxyIndex(state.galaxy)
+  const rng = createRng(`${state.seed}:longjump:${jumps.length}`)
+  const distances = index.distancesFrom(target)
+  const farSystems = index.systems
+    .filter((s) => (distances.get(s.id) ?? 0) >= 5 && s.id !== target)
+    .map((s) => s.id)
+    .sort()
+  const displacedTo = farSystems.length > 0 ? rng.pick(farSystems) : state.ship.at
+
+  const next: GameState = {
+    ...state,
+    jumps,
+    ship: { at: displacedTo, fuel: Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25) },
+    selected: displacedTo,
+    log: appendLog(state.log, {
+      kind: 'jump',
+      text:
+        `${name}. We burned the reserve and committed, and the anomaly was not there. ` +
+        `The rift spat us out at ${systemName(state, displacedTo)} with ` +
+        `${Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25)} fuel and a scarred drive. ` +
+        `Attempt ${jumps.length}. We are still out here.`,
+    }),
   }
+
+  return declareIfStranded(next, index, [
+    { type: 'jumpFailed', target, attempt: jumps.length, displacedTo },
+  ])
 }
 
 /* ------------------------------------------------------------------------ */

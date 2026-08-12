@@ -20,17 +20,26 @@ playable, not something merely built.
 
 ---
 
-## M1 — The galaxy and the fuel clock
+## M1 — The galaxy and the fuel clock — **done**
 
 *Goal: fly around a generated map and run out of fuel.*
 
-- Worldgen: 70–110 systems, lane graph, regions, star/planet properties
-- Fog of war; scanning reveals system contents
-- Travel: jump costs, drive charge, fuel economy, refuelling (scoop/refine/buy)
-- Star map UI (SVG): lanes, range rings, selection, jump execution
-- Loss condition: stranded with no fuel and no means to get more
+- Worldgen: 70–110 systems, lane graph, regions, star/planet properties ✓ (built in M2)
+- Travel: the ship is a place on the map; every action requires presence;
+  lane costs scale with length; routes plotted by cheapest fuel ✓
+- Refuelling: scoop at gas giants (full tank, free), drain swept derelicts
+  (+8 as mission salvage) ✓ — refining and buying deferred to M7's economy
+- The Long Jump takes a 30-fuel reserve; a wrong guess displaces the ship at
+  least five jumps from the target with 25 in the tank ✓
+- Loss condition: stranded — no affordable lane, nothing to scoop, the rift
+  out of reach, and no derelict left to drain. Declared on the transition
+  that closes the trap ✓
+- Deferred: fog of war over system *contents*, drive charge time, and the
+  Drift counter (rest of M3)
 
 **Done when:** you can plan a 20-jump route and strand yourself by planning badly.
+**Status:** met — arriving at a barren dead-end with an empty tank ends the run
+in "the long silence"; the stranding test constructs exactly that trap.
 
 ---
 

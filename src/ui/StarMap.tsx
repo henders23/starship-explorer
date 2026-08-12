@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import { routeTo } from '../engine/travel/travel.js'
 import type { StarSystem, SystemId } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
@@ -23,6 +24,7 @@ export function StarMap() {
   const searched = useGame((s) => s.state.searched)
   const start = useGame((s) => s.state.galaxy.start)
   const jumps = useGame((s) => s.state.jumps)
+  const ship = useGame((s) => s.state.ship)
   const { candidateSet, sites, clues } = useNavPlot()
   const [hovered, setHovered] = useState<SystemId | null>(null)
 
@@ -46,6 +48,13 @@ export function StarMap() {
   const failedJumps = new Set(jumps.filter((j) => !j.correct).map((j) => j.target))
   const anyTrusted = candidateSet.size < index.systems.length
 
+  // The plotted course to whatever is selected, drawn on the chart so the
+  // player sees what a trip costs before the Inspector says it in words.
+  const route = useMemo(() => {
+    if (!selected || selected === ship.at) return null
+    return routeTo(index, ship.at, selected)
+  }, [index, ship.at, selected])
+
   return (
     <div className="relative h-full w-full overflow-hidden">
       <svg viewBox={viewBox} className="h-full w-full" role="img" aria-label="Star chart">
@@ -56,6 +65,21 @@ export function StarMap() {
             return <line key={`${a}-${b}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
           })}
         </g>
+
+        {route && route.path.length > 1 && (
+          <polyline
+            points={route.path
+              .map((id) => {
+                const p = project(index.system(id))
+                return `${p.x},${p.y}`
+              })
+              .join(' ')}
+            fill="none"
+            stroke="var(--color-amber-dim)"
+            strokeWidth={1.4}
+            strokeDasharray="4 3"
+          />
+        )}
 
         {index.systems.map((system) => {
           const { x, y } = project(system)
@@ -112,6 +136,15 @@ export function StarMap() {
                   fill="none"
                   stroke="var(--color-ink-dim)"
                   strokeWidth={0.9}
+                />
+              )}
+
+              {ship.at === system.id && (
+                <path
+                  d={`M ${x} ${y - 8} L ${x + 6} ${y} L ${x} ${y + 8} L ${x - 6} ${y} Z`}
+                  fill="none"
+                  stroke="var(--color-amber)"
+                  strokeWidth={1.3}
                 />
               )}
 
@@ -172,6 +205,12 @@ export function StarMap() {
 function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }) {
   return (
     <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1 text-[10px]">
+      <div className="flex items-center gap-2">
+        <svg width={14} height={14}>
+          <path d="M 7 1.5 L 12 7 L 7 12.5 L 2 7 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
+        </svg>
+        <span className="text-ink-faint">the Indefatigable</span>
+      </div>
       <LegendRow colour="var(--color-phosphor)" label="consistent with your plot" />
       <LegendRow colour="var(--color-ink-faint)" label="ruled out" />
       <LegendRow colour="var(--color-amber)" label={`unsearched evidence (${evidenceCount})`} ring />

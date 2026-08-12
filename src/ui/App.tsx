@@ -33,6 +33,7 @@ export function App() {
       <CaptainsLog />
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
+      {outcome === 'stranded' && <StrandedEnding />}
     </div>
   )
 }
@@ -51,6 +52,7 @@ function Header() {
       </div>
 
       <div className="flex items-center gap-3">
+        <FuelGauge />
         {jumps.length > 0 && (
           <span className="text-alarm-dim text-[10px]">
             {jumps.length} failed {jumps.length === 1 ? 'attempt' : 'attempts'}
@@ -154,6 +156,26 @@ function CandidateList() {
   )
 }
 
+function FuelGauge() {
+  const fuel = useGame((s) => s.state.ship.fuel)
+  const max = 80
+  const filled = Math.round((fuel / max) * 12)
+  const tone = fuel <= 20 ? 'text-alarm' : fuel <= 40 ? 'text-amber' : 'text-phosphor'
+
+  return (
+    <span className="flex items-center gap-2 text-[10px]">
+      <span className="label">Fuel</span>
+      <span className={`tracking-tighter ${tone}`}>
+        {'▮'.repeat(Math.max(0, filled))}
+        <span className="text-ink-faint/40">{'▮'.repeat(Math.max(0, 12 - filled))}</span>
+      </span>
+      <span className="text-ink-dim">
+        {fuel}/{max}
+      </span>
+    </span>
+  )
+}
+
 function CaptainsLog() {
   const log = useGame((s) => s.state.log)
   const latest = log[log.length - 1]
@@ -220,6 +242,34 @@ function Ending() {
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Another galaxy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Out of fuel, out of options, out here. The long silence. */
+function StrandedEnding() {
+  const restart = useGame((s) => s.restart)
+  const seed = useGame((s) => s.state.seed)
+  const at = useGame((s) => s.state.ship.at)
+  const name = useGame((s) => s.state.galaxy.systems.find((x) => x.id === at)?.name ?? at)
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
+      <div className="panel border-rule max-w-lg px-6 py-5">
+        <div className="label mb-2">The long silence</div>
+        <h2 className="text-ink-dim mb-3 text-[18px]">The tank is dry at {name}.</h2>
+        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
+          No lane the ship can afford, nothing here to scoop, and not enough left for the rift.
+          The plot on the board may even be right — someone should check it, someday, whoever
+          finds the log. The ship keeps its orbit. The orbit keeps its ship.
+        </p>
+        <button
+          onClick={() => restart(`${seed}-again`)}
+          className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
         </button>
