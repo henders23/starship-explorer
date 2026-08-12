@@ -1,8 +1,19 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { candidatesFor, findContradictions } from '../src/engine/mystery/deduce.js'
-import { evidenceSites, heldClues, newGame, reduce, reduceAll } from '../src/engine/state/reducer.js'
+import {
+  evidenceSites,
+  heldClues,
+  newGame,
+  reduce,
+  reduceAll,
+  sitePlan,
+  usableClues,
+} from '../src/engine/state/reducer.js'
 import type { Action, GameState } from '../src/engine/state/types.js'
 import { GalaxyIndex } from '../src/engine/worldgen/index-galaxy.js'
+
+import { approachesFor } from '../src/engine/missions/sites.js'
+import type { AwayTeam } from '../src/engine/crew/types.js'
 
 const SEED = 'navplot-tests'
 
@@ -17,11 +28,40 @@ beforeEach(() => {
 /** Drives the reducer, returning only the resulting state. */
 const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).state
 
-/** Sweeps every system holding evidence, as a player eventually would. */
+/**
+ * Sweeps every system holding evidence, as a player eventually would: plain
+ * searches where the source is social, full-strength away missions where it
+ * is not, retrying on disaster until the site yields.
+ */
+/** Everyone who is fit goes down, so approaches and decoding stay available. */
+function fullTeam(from: GameState): AwayTeam {
+  const fit = (role: 'security' | 'science' | 'medical') =>
+    from.roster.some((o) => o.role === role && o.status === 'fit')
+  return {
+    captain: false,
+    officers: (['security', 'science', 'medical'] as const).filter(fit),
+    escorts: Math.min(4, from.pools.security),
+    hands: 0,
+  }
+}
+
 function gatherEverything(from: GameState): GameState {
   let current = from
-  for (const site of new Set(current.mystery.clues.map((c) => c.source.at))) {
-    current = run(current, { type: 'search', system: site })
+  for (const system of new Set(current.mystery.clues.map((c) => c.source.at))) {
+    // Retry on disaster: the site stays, the dice move on with missionsRun.
+    for (let attempt = 0; attempt < 25 && !current.searched.includes(system); attempt++) {
+      if (current.outcome !== 'seeking') return current
+      const { site } = sitePlan(current, system)
+      if (!site) {
+        current = run(current, { type: 'search', system })
+        continue
+      }
+      const team = fullTeam(current)
+      const approach =
+        approachesFor(site).find((a) => a.needs !== null && team.officers.includes(a.needs)) ??
+        approachesFor(site).find((a) => a.needs === null)!
+      current = run(current, { type: 'runMission', system, team, approach: approach.id })
+    }
   }
   return current
 }
@@ -45,17 +85,41 @@ describe('starting a game', () => {
   })
 })
 
+/** A system whose evidence is social: no away mission needed. */
+function socialSite(from: GameState): string {
+  const site = new Set(from.mystery.clues.map((c) => c.source.at))
+  for (const system of site) {
+    if (sitePlan(from, system).site === null) return system
+  }
+  throw new Error('seed produced no social evidence site; pick another test seed')
+}
+
 describe('searching for evidence', () => {
-  it('collects the clues held at a system', () => {
-    const site = state.mystery.clues[0]!.source.at
+  it('collects the clues held at a walk-in system', () => {
+    const site = socialSite(state)
     const expected = state.mystery.clues.filter((c) => c.source.at === site).map((c) => c.id)
 
     const { state: after, events } = reduce(state, { type: 'search', system: site })
 
     expect(after.collected).toEqual(expect.arrayContaining(expected))
     expect(after.searched).toContain(site)
-    expect(events).toContainEqual({ type: 'evidenceFound', clues: expected, at: site })
+    expect(events).toContainEqual({
+      type: 'evidenceFound',
+      clues: expected,
+      at: site,
+      undecoded: [],
+    })
     for (const id of expected) expect(after.clueStates[id]).toBe('unfiled')
+  })
+
+  it('refuses a plain search where the evidence is defended', () => {
+    const hazardous = [...new Set(state.mystery.clues.map((c) => c.source.at))].find(
+      (system) => sitePlan(state, system).site !== null,
+    )
+    if (!hazardous) return // seed had no hazardous sites; nothing to assert
+    const { state: after, events } = reduce(state, { type: 'search', system: hazardous })
+    expect(after).toBe(state)
+    expect(events).toEqual([])
   })
 
   it('reports honestly when a system holds nothing', () => {
@@ -70,7 +134,7 @@ describe('searching for evidence', () => {
   })
 
   it('does not yield the same evidence twice', () => {
-    const site = state.mystery.clues[0]!.source.at
+    const site = socialSite(state)
     const once = run(state, { type: 'search', system: site })
     const twice = run(once, { type: 'search', system: site })
     expect(twice.collected).toEqual(once.collected)
@@ -121,7 +185,7 @@ describe('the deduction', () => {
         current = run(current, { type: 'file', clue: clue.id, state: 'trusted' })
       }
     }
-    expect(candidatesFor(heldClues(current), index)).toEqual([current.mystery.gateway])
+    expect(candidatesFor(usableClues(current), index)).toEqual([current.mystery.gateway])
   })
 
   it('collapses when the player trusts the lies too, and says which clues conflict', () => {
@@ -197,7 +261,7 @@ describe('the player view', () => {
 
   it('shows only evidence actually collected', () => {
     expect(heldClues(state)).toEqual([])
-    const site = state.mystery.clues[0]!.source.at
+    const site = socialSite(state)
     const after = run(state, { type: 'search', system: site })
     expect(heldClues(after).map((c) => c.id).sort()).toEqual(after.collected.slice().sort())
   })

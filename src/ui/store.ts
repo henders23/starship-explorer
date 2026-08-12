@@ -2,7 +2,7 @@ import { useMemo } from 'react'
 import { create } from 'zustand'
 import { candidatesFor, corroboratedIds, findContradictions } from '../engine/mystery/deduce.js'
 import type { ClueId, ClueState, PlayerClue } from '../engine/mystery/types.js'
-import { evidenceSites, heldClues, newGame, reduce } from '../engine/state/reducer.js'
+import { evidenceSites, heldClues, newGame, reduce, usableClues } from '../engine/state/reducer.js'
 import type { Action, GameEvent, GameState } from '../engine/state/types.js'
 import { GalaxyIndex } from '../engine/worldgen/index-galaxy.js'
 import type { SystemId } from '../engine/worldgen/types.js'
@@ -45,6 +45,10 @@ export interface NavPlotView {
   /** Every clue the player holds, answer key stripped. */
   clues: PlayerClue[]
   trusted: PlayerClue[]
+  /** Held artefacts that cannot be read until a science officer decodes them. */
+  undecoded: Set<ClueId>
+  /** Whether anyone aboard can currently decode. */
+  canDecode: boolean
   /** Systems consistent with everything currently trusted. */
   candidates: SystemId[]
   candidateSet: Set<SystemId>
@@ -71,8 +75,9 @@ export function useNavPlot(): NavPlotView {
 
   return useMemo(() => {
     const clues = heldClues(state)
-    const trusted = clues.filter((c) => c.state === 'trusted')
-    const candidates = candidatesFor(clues, index)
+    const readable = usableClues(state)
+    const trusted = readable.filter((c) => c.state === 'trusted')
+    const candidates = candidatesFor(readable, index)
     const contradictions = findContradictions(trusted, index, 3)
 
     const conflicted = new Set<ClueId>()
@@ -83,6 +88,8 @@ export function useNavPlot(): NavPlotView {
     return {
       clues,
       trusted,
+      undecoded: new Set(state.undecoded),
+      canDecode: state.roster.some((o) => o.role === 'science' && o.status === 'fit'),
       candidates,
       candidateSet: new Set(candidates),
       contradictions,

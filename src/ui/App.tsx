@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { CrewPanel } from './CrewPanel.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { StarMap } from './StarMap.js'
@@ -15,6 +16,9 @@ export function App() {
           <StarMap />
         </main>
         <aside className="flex w-[380px] shrink-0 flex-col overflow-hidden">
+          <Section title="Crew">
+            <CrewPanel />
+          </Section>
           <Section title="System">
             <Inspector />
           </Section>
@@ -28,6 +32,7 @@ export function App() {
       </div>
       <CaptainsLog />
       {outcome === 'home' && <Ending />}
+      {outcome === 'lost' && <LostEnding />}
     </div>
   )
 }
@@ -166,27 +171,83 @@ function Ending() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
   const jumps = useGame((s) => s.state.jumps)
+  const roster = useGame((s) => s.state.roster)
+  const pools = useGame((s) => s.state.pools)
+  const casualties = useGame((s) => s.state.casualties)
   const { clues } = useNavPlot()
   const failed = jumps.filter((j) => !j.correct).length
+  const cleanRun = casualties.generics === 0 && casualties.officers.length === 0
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/85 px-6">
       <div className="panel max-w-lg px-6 py-5">
         <div className="label mb-2">Charted space</div>
-        <h2 className="text-phosphor mb-3 text-[18px]">We are going home.</h2>
-        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
+        <h2 className="text-phosphor mb-3 text-[18px]">
+          {cleanRun ? 'Home, with everyone.' : 'We are going home.'}
+        </h2>
+        <p className="text-ink-dim mb-3 text-[12px] leading-relaxed">
           You found it with {clues.length} accounts in hand
           {failed > 0
             ? ` and ${failed} wasted ${failed === 1 ? 'attempt' : 'attempts'} behind you.`
-            : ' and no wasted attempts.'}{' '}
-          In the finished game this is where the epilogue names the crew, one by one, and says
-          what became of each of them.
+            : ' and no wasted attempts.'}
         </p>
+        <div className="text-ink-dim mb-4 flex flex-col gap-1 text-[12px] leading-relaxed">
+          {roster
+            .filter((o) => o.status !== 'dead')
+            .map((o) => (
+              <div key={o.role}>
+                <span className="text-ink">{o.name}</span>{' '}
+                {o.origin === 'promoted'
+                  ? 'steps off the ship with a rank nobody can take back.'
+                  : o.status === 'injured'
+                    ? 'walks down the ramp unaided, against medical advice.'
+                    : 'goes home.'}
+              </div>
+            ))}
+          {casualties.officers.map((name) => (
+            <div key={name}>
+              <span className="text-alarm-dim">{name}</span> does not. Their name is read out at
+              the memorial, first among the others.
+            </div>
+          ))}
+          <div className="text-ink-faint">
+            Of the ship's company, {pools.security + pools.crew} of 24 come home
+            {casualties.generics > 0
+              ? `; ${casualties.generics} ${casualties.generics === 1 ? 'does' : 'do'} not.`
+              : '.'}
+          </div>
+        </div>
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** The captain led from the front once too often. */
+function LostEnding() {
+  const restart = useGame((s) => s.restart)
+  const seed = useGame((s) => s.state.seed)
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
+      <div className="panel border-alarm-dim max-w-lg px-6 py-5">
+        <div className="label mb-2">Final entry — hand unknown</div>
+        <h2 className="text-alarm mb-3 text-[18px]">The captain did not come back.</h2>
+        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
+          The ship is still out here. The evidence is still on the plot, and somebody else is
+          reading it now. Whatever happens to the {' '}
+          <em>Indefatigable</em> next, it happens without you.
+        </p>
+        <button
+          onClick={() => restart(`${seed}-again`)}
+          className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Another captain, another galaxy
         </button>
       </div>
     </div>

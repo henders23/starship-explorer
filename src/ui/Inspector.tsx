@@ -1,5 +1,7 @@
 import { useState } from 'react'
+import { sitePlan } from '../engine/state/reducer.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
+import { MissionPanel } from './MissionPanel.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
@@ -14,8 +16,10 @@ export function Inspector() {
   const outcome = useGame((s) => s.state.outcome)
   const jumps = useGame((s) => s.state.jumps)
   const start = useGame((s) => s.state.galaxy.start)
+  const gameState = useGame((s) => s.state)
   const { candidateSet, sites, trusted } = useNavPlot()
   const [confirming, setConfirming] = useState(false)
+  const [planning, setPlanning] = useState(false)
 
   if (!selectedId) {
     return <div className="text-ink-faint px-4 py-6 text-[11px]">Select a star on the chart.</div>
@@ -25,6 +29,7 @@ export function Inspector() {
   const isCandidate = candidateSet.has(system.id)
   const hasEvidence = sites.has(system.id)
   const alreadyTried = jumps.some((j) => j.target === system.id)
+  const { site } = sitePlan(gameState, system.id)
 
   return (
     <div className="flex flex-col gap-3 px-4 py-3">
@@ -62,13 +67,26 @@ export function Inspector() {
             : 'Ruled out by your plot.'}
       </div>
 
-      {hasEvidence && (
+      {hasEvidence && site === null && (
         <button
           onClick={() => dispatch({ type: 'search', system: system.id })}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Search this system
         </button>
+      )}
+
+      {hasEvidence && site !== null && (
+        <button
+          onClick={() => setPlanning(true)}
+          className="border-alarm-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Send an away team — {site.label.toLowerCase()}
+        </button>
+      )}
+
+      {planning && site !== null && (
+        <MissionPanel system={system.id} site={site} onClose={() => setPlanning(false)} />
       )}
 
       {!hasEvidence && searched.includes(system.id) && (

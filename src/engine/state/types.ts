@@ -1,10 +1,11 @@
+import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 
 /**
- * The Milestone 2 slice of game state: enough to gather evidence, reason about
- * it, and commit to a jump. Travel, fuel and crew arrive in M1/M3 and will
- * extend this rather than replace it.
+ * The M2+M3 slice of game state: gather evidence with a crew that can be
+ * hurt doing it, reason about the evidence, and commit to a jump. Travel and
+ * fuel arrive in M1 and will extend this rather than replace it.
  *
  * The whole object is serialisable — no class instances, no functions — so
  * save/load is `JSON.stringify` and replay is a seed plus an action log.
@@ -21,12 +22,26 @@ export interface GameState {
   collected: ClueId[]
   /** The player's own call on each clue: unfiled, trusted, or doubted. */
   clueStates: Record<ClueId, ClueState>
+  /** Artefacts recovered without a science officer: held, but unreadable. */
+  undecoded: ClueId[]
   /** Systems whose evidence has been taken, so sites do not repeat. */
   searched: SystemId[]
   /** The system currently under inspection on the chart. */
   selected: SystemId | null
+
+  /** The captain and department officers — the named people. */
+  roster: Officer[]
+  /** The generic pools: alive counts, nothing more. */
+  pools: CrewPools
+  /** Missions attempted, successful or not. Drives injury recovery and RNG. */
+  missionsRun: number
+  /** How many promotions have happened, to seed replacement names. */
+  promotions: number
+  /** The butcher's bill, for the epilogue. */
+  casualties: { generics: number; officers: string[] }
+
   jumps: JumpAttempt[]
-  outcome: 'seeking' | 'home'
+  outcome: 'seeking' | 'home' | 'lost'
   log: LogEntry[]
 }
 
@@ -37,12 +52,15 @@ export interface JumpAttempt {
 
 export interface LogEntry {
   id: number
-  kind: 'arrival' | 'evidence' | 'filing' | 'contradiction' | 'jump' | 'ending'
+  kind: 'arrival' | 'evidence' | 'mission' | 'crew' | 'filing' | 'contradiction' | 'jump' | 'ending'
   text: string
 }
 
 export type Action =
   | { type: 'search'; system: SystemId }
+  | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
+  | { type: 'decode'; clue: ClueId }
+  | { type: 'promote'; role: Exclude<OfficerRole, 'captain'> }
   | { type: 'file'; clue: ClueId; state: ClueState }
   | { type: 'select'; system: SystemId | null }
   | { type: 'plotTheJump'; target: SystemId }
@@ -53,8 +71,15 @@ export type Action =
  * this for free.
  */
 export type GameEvent =
-  | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId }
+  | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId; undecoded: ClueId[] }
   | { type: 'nothingFound'; at: SystemId }
+  | { type: 'missionResolved'; at: SystemId; outcome: 'clean' | 'messy' | 'disaster' }
+  | { type: 'genericsLost'; count: number }
+  | { type: 'officerInjured'; role: OfficerRole; name: string }
+  | { type: 'officerDied'; role: OfficerRole; name: string }
+  | { type: 'captainLost' }
+  | { type: 'promoted'; role: OfficerRole; name: string }
+  | { type: 'clueDecoded'; clue: ClueId }
   | { type: 'clueFiled'; clue: ClueId; state: ClueState }
   | { type: 'jumpSucceeded'; target: SystemId }
   | { type: 'jumpFailed'; target: SystemId; attempt: number }

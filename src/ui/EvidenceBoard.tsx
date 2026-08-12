@@ -13,7 +13,8 @@ import { fileClue, useDispatch, useGalaxyIndex, useNavPlot } from './store.js'
  * a shopping list.
  */
 export function EvidenceBoard() {
-  const { clues, contradictions, conflicted, corroborated, impossible } = useNavPlot()
+  const { clues, contradictions, conflicted, corroborated, impossible, undecoded, canDecode } =
+    useNavPlot()
 
   if (clues.length === 0) {
     return (
@@ -47,14 +48,18 @@ export function EvidenceBoard() {
       )}
 
       <div className="divide-rule min-h-0 flex-1 divide-y overflow-y-auto">
-        {clues.map((clue) => (
-          <ClueCard
-            key={clue.id}
-            clue={clue}
-            conflicted={conflicted.has(clue.id)}
-            corroborated={corroborated.has(clue.id)}
-          />
-        ))}
+        {clues.map((clue) =>
+          undecoded.has(clue.id) ? (
+            <UndecodedCard key={clue.id} clue={clue} canDecode={canDecode} />
+          ) : (
+            <ClueCard
+              key={clue.id}
+              clue={clue}
+              conflicted={conflicted.has(clue.id)}
+              corroborated={corroborated.has(clue.id)}
+            />
+          ),
+        )}
       </div>
     </div>
   )
@@ -122,6 +127,42 @@ function Conflicts({
         Weigh the sources, not the tally: one honest witness contradicts every liar it meets, so
         the account named most often is often the truthful one.
       </div>
+    </div>
+  )
+}
+
+/**
+ * An artefact brought back without a science officer on the ground. The
+ * player holds it, and cannot read it: no constraint, no prose, no filing.
+ * This card is the visible cost of an empty science chair.
+ */
+function UndecodedCard({ clue, canDecode }: { clue: PlayerClue; canDecode: boolean }) {
+  const index = useGalaxyIndex()
+  const dispatch = useDispatch()
+  const site = index.system(clue.source.at)
+
+  return (
+    <div className="border-l-amber-dim border-l-2 px-3 py-3 opacity-80">
+      <div className="mb-1.5 flex items-baseline justify-between gap-2">
+        <span className="text-amber-dim text-[12px]">Undecoded artefact</span>
+        <span className="text-ink-faint shrink-0 text-[10px]">{clue.id}</span>
+      </div>
+      <p className="text-ink-dim mb-2 text-[11px] leading-relaxed italic">
+        Recovered from {site.name}. Whatever it says about the way home, nobody aboard has
+        read it yet.
+      </p>
+      {canDecode ? (
+        <button
+          onClick={() => dispatch({ type: 'decode', clue: clue.id })}
+          className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-2 py-0.5 text-[10px]"
+        >
+          Put the science officer on it
+        </button>
+      ) : (
+        <div className="text-alarm-dim text-[10px]">
+          No fit science officer aboard. It stays dark until there is one.
+        </div>
+      )}
     </div>
   )
 }

@@ -56,19 +56,34 @@ contradiction panel was quietly arguing for the wrong answer.
 
 ---
 
-## M3 — Crew, ship and pressure
+## M3 — Crew, ship and pressure — **first slice done**
 
 *Goal: the ship becomes a thing you care about.*
 
-- Crew roster: skills, traits, health, morale, loyalty, permadeath
+Shipped in the first slice (officers-and-redshirts model):
+- Named roster: the captain (the player) plus security, science and medical
+  officers; two generic pools (12 crew, 12 security staff), numbers only
+- Away missions to collect defended evidence: team selection, skill-gated
+  approaches, legible odds, casualties, injuries with a healing clock
+- Harm ladder: generics absorb losses before officers; the captain can lead
+  in person and dying out there ends the run
+- Promotion: a generic steps up into a dead officer's chair, gaining a name
+  and starting weaker — the ship keeps a science officer, not that one
+- Skill-gated decoding: artefacts recovered without science arrive unreadable
+  and stay off the Nav Plot until a fit science officer decodes them
+- Per-crew epilogues in both endings
+
+Still to come in M3:
 - Ship subsystems, integrity, damage, repair, power allocation
 - Consumables (food, medicine, parts) and the hold-space trade-off
-- Morale thresholds → refused orders → mutiny event
-- **Consult the Bridge** and unprompted officer hints; loyalty-gated clue release
-- Skill-gated clue decoding: artefact → constraint, with degradation on weak rolls
+- Morale, loyalty, refused orders → mutiny; loyalty-gated clue release
+- **Consult the Bridge** and unprompted officer hints
+- Constraint degradation on weak decode rolls
 - Drift counter and escalating Rift Surge events
 
 **Done when:** losing your xenolinguist visibly hurts your chances of getting home.
+**Status of that bar:** met by the slice — kill the science officer with an empty
+crew pool and every undecoded artefact aboard goes permanently dark.
 
 ---
 

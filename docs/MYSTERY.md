@@ -148,14 +148,38 @@ once into bitmasks over systems and intersected word-wise, cached off the
 which is the difference between a 10,000-seed property test being a release
 gate and being impossible.
 
+## The crew (M3, first slice)
+
+Four named people and twenty-four numbers. The captain is the player; the
+security, science and medical officers are the specialists; the generic pools
+are exactly that — counts, no names — until one is promoted into a dead
+officer's chair and becomes a person the epilogue will name.
+
+Evidence held by traders, archives and castaways is a walk. Evidence inside
+derelicts, ruins, holdouts and listening posts takes an **away mission**: pick
+the team, pick an approach, read the odds, launch. The numbers shown are the
+numbers rolled. Officers unlock approaches (security cuts in, science walks in
+quiet, medical talks the holdouts down); generics soak the harm first; the
+captain can lead in person for +8% — and if the captain dies out there, the
+run ends.
+
+A **costly** landing still recovers the evidence. A **disaster** recovers
+nothing, and the site remains — it must, because a destroyable clue could
+silently break the solvability contract.
+
+Artefact evidence (logs, tablets, signals) recovered without the science
+officer on the ground arrives **undecoded**: held, visible, unreadable, and
+excluded from the Nav Plot until a fit science officer decodes it. Lose your
+science officer with an empty promotion pool and those artefacts stay dark
+for the rest of the run. That is the strategic wound the design asked for.
+
 ## Not done yet
 
-- **No travel or fuel.** Searching a system is a click from anywhere; distance is
+- **No travel or fuel.** Reaching a system is a click from anywhere; distance is
   shown but costs nothing. The gathering tour the proof checks is therefore a
   constraint on paper only until M1 lands.
 - **A failed Long Jump has no teeth.** It is logged and the star is struck off,
   but the drive damage, morale collapse and displacement in DESIGN §4.5 are not
-  implemented, so guessing is currently free.
-- **Every clue decodes perfectly.** Skill-gated decoding, degraded constraints
-  and loyalty-gated crew hints arrive with the crew in M3.
+  implemented, so guessing costs only your away teams' blood, not the ship's.
+- **No morale, consumables or ship systems.** The rest of M3.
 - **No onboarding.** The screen assumes you have read this page.

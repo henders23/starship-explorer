@@ -13,9 +13,13 @@ When you think you know where home is, you commit everything to one jump.
 
 ## Status
 
-**Milestone 2 complete** — the deduction is playable and winnable. Gather
-accounts of the anomaly, decide who to believe, catch the liars by their
-contradictions, and commit to the Long Jump. No travel, crew or combat yet.
+**Milestone 2 complete, M3 crew slice in** — the deduction is playable and
+winnable, and now it costs people. Defended evidence takes an away team:
+officers unlock approaches, generics absorb the harm, artefacts come back
+unreadable without your science officer, and a dead officer's chair is filled
+by promoting a nameless crew member who then has a name. The captain can lead
+missions in person; captains who die in person end the run. No travel or
+ship combat yet.
 
 ```bash
 npm install
