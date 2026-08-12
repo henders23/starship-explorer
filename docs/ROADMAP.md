@@ -65,34 +65,47 @@ contradiction panel was quietly arguing for the wrong answer.
 
 ---
 
-## M3 — Crew, ship and pressure — **first slice done**
+## M3 — Crew, ship and pressure — **done**
 
 *Goal: the ship becomes a thing you care about.*
 
-Shipped in the first slice (officers-and-redshirts model):
+Shipped:
 - Named roster: the captain (the player) plus security, science and medical
   officers; two generic pools (12 crew, 12 security staff), numbers only
-- Away missions to collect defended evidence: team selection, skill-gated
-  approaches, legible odds, casualties, injuries with a healing clock
-- Harm ladder: generics absorb losses before officers; the captain can lead
-  in person and dying out there ends the run
+- Away missions with skill-gated approaches, legible odds, and a harm ladder
+  (generics before officers, injuries before deaths, the captain last)
+- **The medbay on a day clock**: wounded officers are out of action for 6
+  days with a fit medical officer aboard, 12 without, shown as "medbay Nd"
+  on the roster. Travel, scooping, missions and decoding all spend days
 - Promotion: a generic steps up into a dead officer's chair, gaining a name
-  and starting weaker — the ship keeps a science officer, not that one
-- Skill-gated decoding: artefacts recovered without science arrive unreadable
-  and stay off the Nav Plot until a fit science officer decodes them
-- Per-crew epilogues in both endings
+  and starting weaker
+- Skill-gated decoding: artefacts recovered without science arrive
+  unreadable; a dead science chair with an empty pool leaves them dark
+- **Morale** in four bands. A fractious crew caps volunteers at 2 per detail
+  and works worse on the ground; Mutinous arms a two-stage fuse — the next
+  loss takes the ship, and the run ends in the Mutiny ending
+- **Supplies** drain a point a day and bleed morale at 2/day once empty;
+  restock (2 days) at habitable or faction systems
+- **Drive scarring**: a failed Long Jump (or a late Rift Surge) scars the
+  drive for +30% lane costs until a 4-day refit in a faction yard
+- **Rift Surges** on a seeded, escalating schedule: fuel venting, spoiled
+  stores, an officer injured, then drive scarring — the design's soft clock
+- **Consult the Bridge**: science points at the nearest uncollected thread,
+  medical reads the medbay and stores, security counts what is left. A
+  mutinous crew gives the captain nothing
 
-Still to come in M3:
-- Ship subsystems, integrity, damage, repair, power allocation
-- Consumables (food, medicine, parts) and the hold-space trade-off
-- Morale, loyalty, refused orders → mutiny; loyalty-gated clue release
-- **Consult the Bridge** and unprompted officer hints
-- Constraint degradation on weak decode rolls
-- Drift counter and escalating Rift Surge events
+Deferred beyond M3, with reasons:
+- Power allocation and per-subsystem damage — belongs with ship combat (M5),
+  where the reactor budget becomes a per-round decision
+- Per-crew loyalty and loyalty-gated clue release — the generic pools have
+  no individuals to be loyal; revisit if the roster model ever deepens
+- Constraint degradation on weak decode rolls — the undecoded-artefact gate
+  covers the same strategic ground with less risk to puzzle solvability
 
 **Done when:** losing your xenolinguist visibly hurts your chances of getting home.
-**Status of that bar:** met by the slice — kill the science officer with an empty
-crew pool and every undecoded artefact aboard goes permanently dark.
+**Status:** met, twice over — undecoded artefacts go dark without a science
+officer, and the calendar the medbay runs on is the same one the Rift's
+surge schedule and the supplies drain are counting.
 
 ---
 

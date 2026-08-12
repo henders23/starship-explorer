@@ -13,15 +13,15 @@ When you think you know where home is, you commit everything to one jump.
 
 ## Status
 
-**Milestones 1 and 2 complete, M3 crew slice in** — the deduction is playable
-and winnable, and it now costs fuel and people. The ship is a place on the
-chart: every lane burns fuel, gas giants refill the tank, and evidence is
-collected where the ship is, not where the cursor is. Defended evidence takes
-an away team: officers unlock approaches, generics absorb the harm, artefacts
-come back unreadable without your science officer, and dead officers' chairs
-are filled by promoting nameless crew who then have names. A wrong Long Jump
-flings the ship across the chart with a near-dry tank; running out of moves
-entirely ends the run in the long silence. No ship combat yet.
+**Milestones 1–3 complete** — the deduction is playable and winnable, and it
+costs fuel, days and people. Every jump burns fuel and a day; supplies drain
+and hungry crews sour; wounded officers sit in the medbay by the calendar;
+the Rift surges on its own escalating schedule; and a crew pushed past
+Mutinous takes the ship. Defended evidence takes an away team whose
+composition sets your options and your odds; artefacts come back unreadable
+without your science officer; the bridge, consulted, gives real answers.
+Four ways for a run to end: home, the captain dead on the ground, the long
+silence, or the mutiny. No ship combat yet.
 
 ```bash
 npm install

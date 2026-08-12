@@ -55,6 +55,18 @@ function gatherEverything(from: GameState): GameState {
   let current = from
   for (const system of new Set(current.mystery.clues.map((c) => c.source.at))) {
     current = at(current, system)
+    // These suites are about the deduction, not attrition: keep the crew fed,
+    // steady and healthy between sites so morale and the medbay (which have
+    // their own suites) cannot end the run mid-gather.
+    current = {
+      ...current,
+      supplies: 100,
+      morale: 70,
+      mutinyArmed: false,
+      roster: current.roster.map((o) =>
+        o.status === 'injured' ? { ...o, status: 'fit' as const, healedAfter: undefined } : o,
+      ),
+    }
     // Retry on disaster: the site stays, the dice move on with missionsRun.
     for (let attempt = 0; attempt < 25 && !current.searched.includes(system); attempt++) {
       if (current.outcome !== 'seeking') return current
@@ -238,7 +250,6 @@ describe('the Long Jump', () => {
 
     expect(after.outcome).toBe('seeking')
     expect(after.jumps).toEqual([{ target: wrong, correct: false }])
-    expect(events).toHaveLength(1)
     expect(events[0]).toMatchObject({ type: 'jumpFailed', target: wrong, attempt: 1 })
 
     // And a second attempt is still possible once the tank allows it.

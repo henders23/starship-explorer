@@ -34,6 +34,7 @@ export function App() {
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
       {outcome === 'stranded' && <StrandedEnding />}
+      {outcome === 'mutiny' && <MutinyEnding />}
     </div>
   )
 }
@@ -158,20 +159,39 @@ function CandidateList() {
 
 function FuelGauge() {
   const fuel = useGame((s) => s.state.ship.fuel)
+  const day = useGame((s) => s.state.day)
+  const supplies = useGame((s) => s.state.supplies)
+  const scarred = useGame((s) => s.state.driveScarred)
   const max = 80
   const filled = Math.round((fuel / max) * 12)
   const tone = fuel <= 20 ? 'text-alarm' : fuel <= 40 ? 'text-amber' : 'text-phosphor'
+  const suppliesTone = supplies === 0 ? 'text-alarm' : supplies <= 25 ? 'text-amber' : 'text-ink-dim'
 
   return (
-    <span className="flex items-center gap-2 text-[10px]">
-      <span className="label">Fuel</span>
-      <span className={`tracking-tighter ${tone}`}>
-        {'▮'.repeat(Math.max(0, filled))}
-        <span className="text-ink-faint/40">{'▮'.repeat(Math.max(0, 12 - filled))}</span>
+    <span className="flex items-center gap-4 text-[10px]">
+      <span className="flex items-center gap-1.5">
+        <span className="label">Day</span>
+        <span className="text-ink-dim">{day}</span>
       </span>
-      <span className="text-ink-dim">
-        {fuel}/{max}
+      <span className="flex items-center gap-1.5">
+        <span className="label">Stores</span>
+        <span className={suppliesTone}>{supplies}</span>
       </span>
+      <span className="flex items-center gap-2">
+        <span className="label">Fuel</span>
+        <span className={`tracking-tighter ${tone}`}>
+          {'▮'.repeat(Math.max(0, filled))}
+          <span className="text-ink-faint/40">{'▮'.repeat(Math.max(0, 12 - filled))}</span>
+        </span>
+        <span className="text-ink-dim">
+          {fuel}/{max}
+        </span>
+      </span>
+      {scarred && (
+        <span className="text-alarm-dim" title="A scarred drive burns 30% more per lane until refitted in faction space">
+          drive scarred
+        </span>
+      )}
     </span>
   )
 }
@@ -270,6 +290,33 @@ function StrandedEnding() {
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
+        >
+          Another galaxy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** The crew has done its arithmetic, and the answer was not the captain. */
+function MutinyEnding() {
+  const restart = useGame((s) => s.restart)
+  const seed = useGame((s) => s.state.seed)
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
+      <div className="panel border-alarm-dim max-w-lg px-6 py-5">
+        <div className="label mb-2">Entry not logged by the captain</div>
+        <h2 className="text-alarm mb-3 text-[18px]">The ship is no longer yours.</h2>
+        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
+          They were polite about it, which was somehow worse. The plot on the Nav board is still
+          good — better than they know — and someone else will get the credit for finishing it,
+          or the blame for abandoning it. You are given quarters amidships and nothing to decide,
+          ever again.
+        </p>
+        <button
+          onClick={() => restart(`${seed}-again`)}
+          className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
         </button>

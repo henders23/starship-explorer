@@ -375,7 +375,9 @@ describe('injury and recovery', () => {
 
         const hurt = state.roster.find((o) => o.role === 'security' && o.status === 'injured')
         if (hurt) {
-          expect(hurt.healedAfter).toBeGreaterThan(state.missionsRun)
+          // Medbay stays are measured in days now, and the doctor matters.
+          expect(hurt.healedAfter).toBeGreaterThan(state.day)
+          expect([6, 12]).toContain((hurt.healedAfter ?? 0) - (state.day - 0))
 
           // An injured officer cannot be sent down.
           const refused = reduce(state, {

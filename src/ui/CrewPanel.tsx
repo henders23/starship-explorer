@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import type { Officer } from '../engine/crew/types.js'
+import { moraleBand } from '../engine/state/reducer.js'
 import { useDispatch, useGame } from './store.js'
 
 /**
@@ -8,10 +9,20 @@ import { useDispatch, useGame } from './store.js'
  * The generics are shown as counts on purpose — they become people, with
  * names, only at the moment one is promoted into a dead officer's chair.
  */
+const BAND_LABELS = {
+  steady: ['steady', 'text-phosphor-dim'],
+  uneasy: ['uneasy', 'text-amber-dim'],
+  fractious: ['fractious', 'text-amber'],
+  mutinous: ['MUTINOUS', 'text-alarm'],
+} as const
+
 export function CrewPanel() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
+  const morale = useGame((s) => s.state.morale)
+  const day = useGame((s) => s.state.day)
   const dispatch = useDispatch()
+  const [bandLabel, bandTone] = BAND_LABELS[moraleBand(morale)]
 
   // Derived with useMemo, not inside the Zustand selector: a selector that
   // builds a fresh array every call never yields a stable snapshot, and React
@@ -28,13 +39,23 @@ export function CrewPanel() {
   return (
     <div className="flex flex-col gap-1 px-4 py-2">
       {roster.map((o) => (
-        <OfficerRow key={o.role} officer={o} />
+        <OfficerRow key={o.role} officer={o} day={day} />
       ))}
 
       <div className="text-ink-faint mt-1 flex justify-between text-[10px]">
         <span>Security staff ×{pools.security}</span>
         <span>Crew ×{pools.crew}</span>
+        <span>
+          morale <span className={bandTone}>{bandLabel}</span>
+        </span>
       </div>
+
+      <button
+        onClick={() => dispatch({ type: 'consult' })}
+        className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber mt-1 border px-2 py-1 text-[10px]"
+      >
+        Consult the bridge
+      </button>
 
       {open.map((role) => (
         <button
@@ -49,7 +70,7 @@ export function CrewPanel() {
   )
 }
 
-function OfficerRow({ officer }: { officer: Officer }) {
+function OfficerRow({ officer, day }: { officer: Officer; day: number }) {
   const tone =
     officer.status === 'dead'
       ? 'text-ink-faint line-through'
@@ -71,15 +92,22 @@ function OfficerRow({ officer }: { officer: Officer }) {
           <span className="text-ink-faint/40">{'▮'.repeat(5 - officer.skill)}</span>
         </span>
         <span
-          className={`w-12 text-right text-[10px] ${
+          className={`w-16 text-right text-[10px] ${
             officer.status === 'dead'
               ? 'text-alarm'
               : officer.status === 'injured'
                 ? 'text-amber'
                 : 'text-phosphor-dim'
           }`}
+          title={
+            officer.status === 'injured'
+              ? `In the medbay, out of action. Fit for duty in ${Math.max(0, (officer.healedAfter ?? day) - day)} days.`
+              : undefined
+          }
         >
-          {officer.status}
+          {officer.status === 'injured'
+            ? `medbay ${Math.max(0, (officer.healedAfter ?? day) - day)}d`
+            : officer.status}
         </span>
       </span>
     </div>

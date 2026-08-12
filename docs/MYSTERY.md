@@ -191,12 +191,30 @@ reach, and no derelict left at this system whose tanks a mission could drain.
 It is declared on the exact transition that closes the trap, and the run ends
 in the long silence.
 
+## The pressure systems (M3)
+
+Everything runs on one calendar. Travel costs a day per jump, scooping and
+resupply two, a refit four; supplies drain a point a day and bleed morale
+once they are gone; the medbay discharges by the same clock (6 days with a
+fit doctor, 12 without); and the Rift's surge schedule — seeded, escalating,
+never stored — counts against it too. There is no visible countdown, exactly
+as the design asked: the pressure is that every day is paid for from the
+same account.
+
+Morale runs in four bands. A fractious crew volunteers at most two generics
+per detail and works worse on the ground (the odds panel says so). Mutinous
+is a two-stage fuse: hitting it puts the captain on notice in the log, and
+the next loss while down there ends the run with the ship under someone
+else's command. Climbing back above the line stands the crew down.
+
+A failed Long Jump now scars the drive — 30% more fuel per lane until a
+four-day refit in a faction yard — on top of the displacement and the
+morale collapse. Late Rift Surges scar it too.
+
 ## Not done yet
 
-- **A failed Long Jump does not damage the ship.** Displacement and fuel loss
-  are in; drive scarring and the morale collapse await ship systems and morale
-  (rest of M3).
-- **No morale, consumables or ship subsystems.** The rest of M3.
+- **Power allocation and per-subsystem damage** — deferred to ship combat,
+  where the reactor budget becomes a tactical decision.
 - **No fog of war.** System contents are visible from the catalogue; M1's
   deferred piece, revisited alongside sensors.
 - **No onboarding.** The screen assumes you have read this page.

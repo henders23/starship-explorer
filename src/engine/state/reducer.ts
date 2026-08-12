@@ -43,6 +43,12 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     searched: [],
     selected: puzzle.galaxy.start,
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX },
+    day: 0,
+    morale: 70,
+    mutinyArmed: false,
+    supplies: 100,
+    driveScarred: false,
+    surges: 0,
     roster: generateRoster(seed),
     pools: { ...STARTING_POOLS },
     missionsRun: 0,
@@ -71,6 +77,12 @@ export function reduce(state: GameState, action: Action): Transition {
       return travel(state, action.to)
     case 'scoop':
       return scoop(state)
+    case 'resupply':
+      return resupply(state)
+    case 'refit':
+      return refit(state)
+    case 'consult':
+      return consult(state)
     case 'search':
       return search(state, action.system)
     case 'runMission':
@@ -145,13 +157,17 @@ function search(state: GameState, systemId: SystemId): Transition {
     }
   }
 
-  return collectClues(
-    { ...state, searched },
+  const preEvents: GameEvent[] = []
+  let timed = advanceTime({ ...state, searched }, 1, preEvents)
+  if (timed.outcome !== 'seeking') return { state: timed, events: preEvents }
+  const collected = collectClues(
+    timed,
     found,
     /* decoded because nothing here needs decoding */ true,
     `${system}: ${found.length === 1 ? 'one account' : `${found.length} accounts`} of the anomaly ` +
       `recovered without incident. Filed to the plot, unassessed.`,
   )
+  return { state: collected.state, events: [...preEvents, ...collected.events] }
 }
 
 function collectClues(
@@ -172,23 +188,190 @@ function collectClues(
     }
   }
 
-  return {
-    state: {
-      ...state,
-      collected: [...state.collected, ...found.map((c) => c.id)],
-      clueStates,
-      undecoded,
-      log: appendLog(state.log, { kind: 'evidence', text: logText }),
+  const events: GameEvent[] = [
+    {
+      type: 'evidenceFound',
+      clues: found.map((c) => c.id),
+      at: found[0]!.source.at,
+      undecoded: undecodedNow,
     },
-    events: [
-      {
-        type: 'evidenceFound',
-        clues: found.map((c) => c.id),
-        at: found[0]!.source.at,
-        undecoded: undecodedNow,
-      },
-    ],
+  ]
+  let next: GameState = {
+    ...state,
+    collected: [...state.collected, ...found.map((c) => c.id)],
+    clueStates,
+    undecoded,
+    log: appendLog(state.log, { kind: 'evidence', text: logText }),
   }
+  next = shiftMorale(next, 2, events)
+  return { state: next, events }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Time, morale, and the Rift
+ * ------------------------------------------------------------------------ */
+
+export const SUPPLIES_MAX = 100
+export const MORALE_BANDS = { steady: 65, uneasy: 40, fractious: 25 } as const
+
+export type MoraleBand = 'steady' | 'uneasy' | 'fractious' | 'mutinous'
+
+export function moraleBand(morale: number): MoraleBand {
+  if (morale >= MORALE_BANDS.steady) return 'steady'
+  if (morale >= MORALE_BANDS.uneasy) return 'uneasy'
+  if (morale >= MORALE_BANDS.fractious) return 'fractious'
+  return 'mutinous'
+}
+
+/**
+ * Morale moves once per cause, and the mutiny rule is two-stage and legible:
+ * hitting Mutinous puts the captain on notice, and the *next* loss while down
+ * there takes the ship. Climbing back above the line stands the crew down.
+ */
+function shiftMorale(state: GameState, delta: number, events: GameEvent[]): GameState {
+  if (delta === 0 || state.outcome !== 'seeking') return state
+  const morale = Math.max(0, Math.min(100, state.morale + delta))
+  if (morale === state.morale) return state
+  events.push({ type: 'moraleShifted', delta, morale })
+
+  let next: GameState = { ...state, morale }
+
+  if (moraleBand(morale) !== 'mutinous') {
+    if (state.mutinyArmed) next = { ...next, mutinyArmed: false }
+    return next
+  }
+
+  if (!state.mutinyArmed) {
+    return {
+      ...next,
+      mutinyArmed: true,
+      log: appendLog(next.log, {
+        kind: 'crew',
+        text:
+          `The wardroom goes quiet when you enter, and stays quiet after you leave. ` +
+          `The ship is one more bad day from not being yours.`,
+      }),
+    }
+  }
+
+  if (delta < 0) {
+    events.push({ type: 'mutinyDeclared' })
+    return {
+      ...next,
+      outcome: 'mutiny',
+      log: appendLog(next.log, {
+        kind: 'ending',
+        text:
+          `It is done politely, which is somehow worse. Three of them at the cabin door, sidearms ` +
+          `holstered, and the ship already answering to someone else's voice. Nobody is going home ` +
+          `today, but it will no longer be you who decides when.`,
+      }),
+    }
+  }
+  return next
+}
+
+/** The Rift's schedule: fixed by the seed, escalating, never stored. */
+export function surgeDay(seed: string, ordinal: number): number {
+  let day = 0
+  for (let i = 0; i <= ordinal; i++) {
+    day += (i === 0 ? 12 : 9) + createRng(`${seed}:surge:${i}`).int(6)
+  }
+  return day
+}
+
+/**
+ * The clock. Days drain supplies (or morale, once the stores are gone), heal
+ * the medbay, and carry the ship across the Rift's surge schedule. Everything
+ * that spends time funnels through here, so no consequence can be dodged by
+ * doing something else first.
+ */
+function advanceTime(state: GameState, days: number, events: GameEvent[]): GameState {
+  if (days <= 0 || state.outcome !== 'seeking') return state
+  const day = state.day + days
+  let next: GameState = { ...state, day }
+
+  // Stores, then hunger.
+  const shortfall = days - next.supplies
+  next = { ...next, supplies: Math.max(0, next.supplies - days) }
+  if (shortfall > 0) {
+    next = shiftMorale(next, -2 * shortfall, events)
+    if (next.outcome !== 'seeking') return next
+  }
+
+  // The medbay discharges by the calendar, not by the mission counter.
+  const recovered = next.roster.filter(
+    (o) => o.status === 'injured' && (o.healedAfter ?? Infinity) <= day,
+  )
+  if (recovered.length > 0) {
+    next = {
+      ...next,
+      roster: next.roster.map((o) =>
+        o.status === 'injured' && (o.healedAfter ?? Infinity) <= day
+          ? { ...o, status: 'fit' as const, healedAfter: undefined }
+          : o,
+      ),
+      log: appendLog(next.log, {
+        kind: 'crew',
+        text: `${recovered.map((o) => o.name).join(' and ')} ${
+          recovered.length === 1 ? 'is' : 'are'
+        } discharged from the medbay, fit for duty.`,
+      }),
+    }
+    for (const o of recovered) events.push({ type: 'officerRecovered', role: o.role, name: o.name })
+  }
+
+  // The Rift keeps pushing, and it pushes harder every time.
+  while (next.outcome === 'seeking' && surgeDay(next.seed, next.surges) <= next.day) {
+    next = applySurge(next, events)
+  }
+
+  return next
+}
+
+function applySurge(state: GameState, events: GameEvent[]): GameState {
+  const ordinal = state.surges
+  const rng = createRng(`${state.seed}:surge-effect:${ordinal}`)
+  const tier = Math.min(ordinal, 3)
+  events.push({ type: 'surgeStruck', ordinal })
+
+  let next: GameState = { ...state, surges: ordinal + 1 }
+  let text = `Rift Surge. The light outside goes briefly wrong and every instrument aboard files a complaint. `
+
+  if (tier === 0) {
+    const loss = 8
+    next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - loss) } }
+    text += `Turbulence in the fuel manifolds vents ${loss} fuel before the seals catch.`
+  } else if (tier === 1) {
+    const loss = 15
+    next = { ...next, supplies: Math.max(0, next.supplies - loss) }
+    text += `A stasis locker fails in the hold; ${loss} supplies spoil before anyone smells it.`
+  } else if (tier === 2) {
+    const fitOfficers = next.roster.filter((o) => o.role !== 'captain' && o.status === 'fit')
+    if (fitOfficers.length > 0) {
+      const hurt = rng.pick(fitOfficers)
+      const duration = isFit(next.roster, 'medical') && hurt.role !== 'medical' ? 6 : 12
+      next = {
+        ...next,
+        roster: next.roster.map((o) =>
+          o.role === hurt.role
+            ? { ...o, status: 'injured' as const, healedAfter: next.day + duration }
+            : o,
+        ),
+      }
+      events.push({ type: 'officerInjured', role: hurt.role, name: hurt.name })
+      text += `A conduit lets go on the bridge; ${hurt.name} is carried to the medbay.`
+    } else {
+      next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - 10) } }
+      text += `A conduit lets go; the repairs cost 10 fuel.`
+    }
+  } else {
+    next = { ...next, driveScarred: true }
+    text += `The drive screams for four seconds and does not sound the same afterwards. It will burn hot until refitted.`
+  }
+
+  next = { ...next, log: appendLog(next.log, { kind: 'surge', text }) }
+  return shiftMorale(next, tier >= 3 ? -8 : -4, events)
 }
 
 /* ------------------------------------------------------------------------ *
@@ -201,24 +384,37 @@ function travel(state: GameState, to: SystemId): Transition {
 
   const index = new GalaxyIndex(state.galaxy)
   const route = routeTo(index, state.ship.at, to)
-  if (!route || route.cost > state.ship.fuel) return { state, events: [] }
+  if (!route) return { state, events: [] }
+
+  // A scarred drive runs hot: the same lanes, 30% more fuel.
+  const cost = state.driveScarred ? Math.ceil(route.cost * 1.3) : route.cost
+  if (cost > state.ship.fuel) return { state, events: [] }
 
   const from = state.ship.at
-  const next: GameState = {
+  const jumpsMade = route.path.length - 1
+  let next: GameState = {
     ...state,
-    ship: { at: to, fuel: state.ship.fuel - route.cost },
+    ship: { at: to, fuel: state.ship.fuel - cost },
     selected: to,
     log: appendLog(state.log, {
       kind: 'travel',
       text:
-        `${systemName(state, to)}: arrived, ${route.path.length - 1} ` +
-        `${route.path.length - 1 === 1 ? 'jump' : 'jumps'}, ${route.cost} fuel spent. ` +
-        `${state.ship.fuel - route.cost} in the tank.`,
+        `${systemName(state, to)}: arrived, ${jumpsMade} ` +
+        `${jumpsMade === 1 ? 'jump' : 'jumps'}, ${cost} fuel spent` +
+        `${state.driveScarred ? ' (the scarred drive ran hot)' : ''}. ` +
+        `${state.ship.fuel - cost} in the tank.`,
     }),
   }
 
-  const events: GameEvent[] = [{ type: 'traveled', from, to, fuelSpent: route.cost }]
+  const events: GameEvent[] = [{ type: 'traveled', from, to, fuelSpent: cost }]
+  next = advanceTime(next, jumpsMade, events)
+  if (next.outcome !== 'seeking') return { state: next, events }
   return declareIfStranded(next, index, events)
+}
+
+/** The scarred-drive premium, exposed so the UI prices trips honestly. */
+export function travelCost(state: GameState, baseCost: number): number {
+  return state.driveScarred ? Math.ceil(baseCost * 1.3) : baseCost
 }
 
 function scoop(state: GameState): Transition {
@@ -227,19 +423,68 @@ function scoop(state: GameState): Transition {
   if (!canScoop(index, state.ship.at)) return { state, events: [] }
   if (state.ship.fuel >= FUEL_MAX) return { state, events: [] }
 
-  return {
-    state: {
-      ...state,
-      ship: { ...state.ship, fuel: FUEL_MAX },
-      log: appendLog(state.log, {
-        kind: 'travel',
-        text:
-          `Three slow orbits through the gas giant's outer envelope with the scoop fields wide. ` +
-          `The tank reads full for the first time in a while.`,
-      }),
-    },
-    events: [{ type: 'scooped', at: state.ship.at }],
+  const events: GameEvent[] = [{ type: 'scooped', at: state.ship.at }]
+  let next: GameState = {
+    ...state,
+    ship: { ...state.ship, fuel: FUEL_MAX },
+    log: appendLog(state.log, {
+      kind: 'travel',
+      text:
+        `Two days of slow orbits through the gas giant's outer envelope with the scoop fields ` +
+        `wide. The tank reads full for the first time in a while.`,
+    }),
   }
+  next = advanceTime(next, 2, events)
+  return { state: next, events }
+}
+
+/** Where the ship can take on stores: anywhere inhabited or administered. */
+export function canResupply(index: GalaxyIndex, at: SystemId): boolean {
+  const system = index.system(at)
+  return system.features.includes('habitable-world') || system.faction !== null
+}
+
+function resupply(state: GameState): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  const index = new GalaxyIndex(state.galaxy)
+  if (!canResupply(index, state.ship.at)) return { state, events: [] }
+  if (state.supplies >= SUPPLIES_MAX) return { state, events: [] }
+
+  const events: GameEvent[] = [{ type: 'resupplied' }]
+  let next: GameState = {
+    ...state,
+    supplies: SUPPLIES_MAX,
+    log: appendLog(state.log, {
+      kind: 'travel',
+      text:
+        `Two days alongside, taking on stores. The hold smells of coffee and packing foam, ` +
+        `and the mood below decks lifts with it.`,
+    }),
+  }
+  next = shiftMorale(next, 3, events)
+  next = advanceTime(next, 2, events)
+  return { state: next, events }
+}
+
+function refit(state: GameState): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  if (!state.driveScarred) return { state, events: [] }
+  const index = new GalaxyIndex(state.galaxy)
+  if (index.system(state.ship.at).faction === null) return { state, events: [] }
+
+  const events: GameEvent[] = [{ type: 'refitted' }]
+  let next: GameState = {
+    ...state,
+    driveScarred: false,
+    log: appendLog(state.log, {
+      kind: 'travel',
+      text:
+        `Four days in a rented cradle while yard crews who ask no questions grind the scarring ` +
+        `out of the drive housings. It sounds like itself again.`,
+    }),
+  }
+  next = advanceTime(next, 4, events)
+  return { state: next, events }
 }
 
 /**
@@ -285,6 +530,74 @@ function declareIfStranded(
 }
 
 /* ------------------------------------------------------------------------ *
+ * The bridge
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Consult the Bridge (DESIGN §7.2): each fit officer gives a working opinion.
+ * It is a real instrument, not flavour — science points at the nearest
+ * uncollected thread, medical reads the medbay and the stores, security
+ * counts what is left to spend. A mutinous crew gives the captain nothing.
+ */
+function consult(state: GameState): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+
+  const lines: string[] = []
+  const index = new GalaxyIndex(state.galaxy)
+
+  if (moraleBand(state.morale) === 'mutinous') {
+    lines.push(`Nobody meets your eye. "Nothing to add, captain," says the bridge, eventually, as one.`)
+  } else {
+    const science = state.roster.find((o) => o.role === 'science')
+    if (science?.status === 'fit') {
+      const remaining = [...evidenceSites(state)]
+        .map((id) => ({ id, jumps: index.jumps(state.ship.at, id) }))
+        .filter((s) => Number.isFinite(s.jumps))
+        .sort((a, b) => a.jumps - b.jumps)
+      lines.push(
+        remaining.length === 0
+          ? `${science.name}: "Every thread we know of has been pulled, captain. It comes down to the plot now."`
+          : `${science.name}: "Nearest unexamined thread is ${systemName(state, remaining[0]!.id)}, ` +
+            `${remaining[0]!.jumps} ${remaining[0]!.jumps === 1 ? 'jump' : 'jumps'} out. ` +
+            `${remaining.length - 1} more beyond it."`,
+      )
+    }
+
+    const medical = state.roster.find((o) => o.role === 'medical')
+    if (medical?.status === 'fit') {
+      const medbay = state.roster.filter((o) => o.status === 'injured')
+      lines.push(
+        `${medical.name}: "${
+          medbay.length === 0
+            ? 'Medbay is empty'
+            : medbay.map((o) => `${o.name} needs ${Math.max(0, (o.healedAfter ?? 0) - state.day)} more days`).join('; ')
+        }. Stores at ${state.supplies} of ${SUPPLIES_MAX}${state.supplies === 0 ? ' — people are hungry, captain' : ''}."`,
+      )
+    }
+
+    const security = state.roster.find((o) => o.role === 'security')
+    if (security?.status === 'fit') {
+      lines.push(
+        `${security.name}: "${state.pools.security} security staff and ${state.pools.crew} crew still ` +
+        `on the boards. ${moraleBand(state.morale) === 'fractious' ? 'Fewer of them are volunteering than you think.' : 'They will go where you send them.'}"`,
+      )
+    }
+
+    if (lines.length === 0) {
+      lines.push(`The bridge stations are empty or their officers are in the medbay. The ship keeps its own counsel.`)
+    }
+  }
+
+  return {
+    state: {
+      ...state,
+      log: appendLog(state.log, { kind: 'bridge', text: lines.join(' ') }),
+    },
+    events: [{ type: 'consulted' }],
+  }
+}
+
+/* ------------------------------------------------------------------------ *
  * Away missions
  * ------------------------------------------------------------------------ */
 
@@ -296,10 +609,16 @@ function isFit(roster: readonly Officer[], role: OfficerRole): boolean {
   return officer(roster, role)?.status === 'fit'
 }
 
-/** Validates a team against the roster and pools. Returns null if illegal. */
+/** How many generics will volunteer: a fractious crew sends fewer. */
+export function volunteerCap(state: GameState): number {
+  return moraleBand(state.morale) === 'fractious' || moraleBand(state.morale) === 'mutinous' ? 2 : 4
+}
+
+/** Validates a team against the roster, pools, and the mood below decks. */
 function legalTeam(state: GameState, team: AwayTeam): AwayTeam | null {
-  if (team.escorts < 0 || team.escorts > Math.min(MAX_ESCORTS, state.pools.security)) return null
-  if (team.hands < 0 || team.hands > Math.min(MAX_HANDS, state.pools.crew)) return null
+  const cap = volunteerCap(state)
+  if (team.escorts < 0 || team.escorts > Math.min(MAX_ESCORTS, cap, state.pools.security)) return null
+  if (team.hands < 0 || team.hands > Math.min(MAX_HANDS, cap, state.pools.crew)) return null
   if (new Set(team.officers).size !== team.officers.length) return null
   for (const role of team.officers) {
     if (!isFit(state.roster, role)) return null
@@ -332,17 +651,20 @@ function runMission(
   const rng = createRng(`${state.seed}:mission:${missionsRun}:${systemId}`)
 
   let next: GameState = { ...state, missionsRun }
-  next = recoverInjured(next)
+  const preEvents: GameEvent[] = []
+  next = advanceTime(next, 1, preEvents)
+  if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
-  const odds = approachOdds(approach, team, next.roster)
+  const odds = approachOdds(approach, team, next.roster, next.morale)
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
 
   const system = systemName(state, systemId)
-  const events: GameEvent[] = [{ type: 'missionResolved', at: systemId, outcome }]
+  const events: GameEvent[] = [...preEvents, { type: 'missionResolved', at: systemId, outcome }]
 
   if (outcome === 'clean') {
+    next = shiftMorale(next, 2, events)
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     const salvage = applyDerelictSalvage(next, site, events)
@@ -384,6 +706,8 @@ function runMission(
 
   if (outcome === 'messy') {
     // Hurt, but the job got done.
+    next = shiftMorale(next, moraleCostOfHarm(state, next, -2), events)
+    if (next.outcome !== 'seeking') return { state: next, events }
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     next = applyDerelictSalvage(next, site, events)
@@ -400,6 +724,8 @@ function runMission(
   // Disaster: the team pulls out with nothing. The site remains — the
   // evidence must stay collectable or the puzzle can silently become
   // unwinnable, which the solvability contract exists to prevent.
+  next = shiftMorale(next, moraleCostOfHarm(state, next, -6), events)
+  if (next.outcome !== 'seeking') return { state: next, events }
   return {
     state: {
       ...next,
@@ -422,6 +748,21 @@ function applyDerelictSalvage(state: GameState, site: Site, events: GameEvent[])
     ...state,
     ship: { ...state.ship, fuel: Math.min(FUEL_MAX, state.ship.fuel + DERELICT_FUEL_SALVAGE) },
   }
+}
+
+/**
+ * One aggregated morale hit per mission: the base cost of how it went plus
+ * what it cost in people. Aggregated so a bad landing is one blow, not four —
+ * the two-stage mutiny rule counts blows, and a single mission should not
+ * arm the fuse and light it in the same breath.
+ */
+function moraleCostOfHarm(before: GameState, after: GameState, base: number): number {
+  const generics = after.casualties.generics - before.casualties.generics
+  const deadOfficers = after.casualties.officers.length - before.casualties.officers.length
+  const injuries = after.roster.filter(
+    (o) => o.status === 'injured' && before.roster.find((p) => p.role === o.role)?.status === 'fit',
+  ).length
+  return base - 2 * generics - 4 * injuries - 8 * deadOfficers
 }
 
 interface Harm {
@@ -467,8 +808,10 @@ function applyHarm(
       events.push({ type: 'officerDied', role: target.role, name: target.name })
     } else if (rng.chance(harm.officerInjury)) {
       target.status = 'injured'
+      // Days in the medbay, not missions: the wound heals on the calendar,
+      // and a fit medical officer roughly halves the stay.
       target.healedAfter =
-        state.missionsRun + (isFit(roster, 'medical') && target.role !== 'medical' ? 2 : 4)
+        state.day + (isFit(roster, 'medical') && target.role !== 'medical' ? 6 : 12)
       events.push({ type: 'officerInjured', role: target.role, name: target.name })
     }
   }
@@ -495,16 +838,6 @@ function applyHarm(
       officers: [...state.casualties.officers, ...officerDeaths],
     },
   }
-}
-
-/** Officers heal on a mission clock, faster when the medbay has its doctor. */
-function recoverInjured(state: GameState): GameState {
-  const roster = state.roster.map((o) =>
-    o.status === 'injured' && (o.healedAfter ?? Infinity) <= state.missionsRun
-      ? { ...o, status: 'fit' as const, healedAfter: undefined }
-      : o,
-  )
-  return { ...state, roster }
 }
 
 function casualtyLine(before: GameState, after: GameState): string {
@@ -536,17 +869,17 @@ function decode(state: GameState, clueId: ClueId): Transition {
   if (!isFit(state.roster, 'science')) return { state, events: [] }
 
   const science = officer(state.roster, 'science')!
-  return {
-    state: {
-      ...state,
-      undecoded: state.undecoded.filter((id) => id !== clueId),
-      log: appendLog(state.log, {
-        kind: 'crew',
-        text: `${science.name} works the artefact over until it gives. Another account, legible at last.`,
-      }),
-    },
-    events: [{ type: 'clueDecoded', clue: clueId }],
+  const events: GameEvent[] = [{ type: 'clueDecoded', clue: clueId }]
+  let next: GameState = {
+    ...state,
+    undecoded: state.undecoded.filter((id) => id !== clueId),
+    log: appendLog(state.log, {
+      kind: 'crew',
+      text: `${science.name} works the artefact over for a day until it gives. Another account, legible at last.`,
+    }),
   }
+  next = advanceTime(next, 1, events)
+  return { state: next, events }
 }
 
 function promote(state: GameState, role: Exclude<OfficerRole, 'captain'>): Transition {
@@ -556,22 +889,23 @@ function promote(state: GameState, role: Exclude<OfficerRole, 'captain'>): Trans
 
   const replacement = promoteGeneric(state.seed, role, state.promotions)
   const roster = state.roster.map((o) => (o.role === role ? replacement : o))
+  const events: GameEvent[] = [{ type: 'promoted', role, name: replacement.name }]
 
-  return {
-    state: {
-      ...state,
-      roster,
-      pools: { ...state.pools, crew: state.pools.crew - 1 },
-      promotions: state.promotions + 1,
-      log: appendLog(state.log, {
-        kind: 'crew',
-        text:
-          `${replacement.name} steps up from the ranks to take the ${role} station. ` +
-          `Yesterday they were a number on a duty roster. Today the ship needs them to be more.`,
-      }),
-    },
-    events: [{ type: 'promoted', role, name: replacement.name }],
+  let next: GameState = {
+    ...state,
+    roster,
+    pools: { ...state.pools, crew: state.pools.crew - 1 },
+    promotions: state.promotions + 1,
+    log: appendLog(state.log, {
+      kind: 'crew',
+      text:
+        `${replacement.name} steps up from the ranks to take the ${role} station. ` +
+        `Yesterday they were a number on a duty roster. Today the ship needs them to be more.`,
+    }),
   }
+  // Someone stepping up steadies the ship: a small, real morale lift.
+  next = shiftMorale(next, 3, events)
+  return { state: next, events }
 }
 
 function file(state: GameState, clueId: ClueId, clueState: ClueState): Transition {
@@ -626,11 +960,14 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
     .sort()
   const displacedTo = farSystems.length > 0 ? rng.pick(farSystems) : state.ship.at
 
-  const next: GameState = {
+  const events: GameEvent[] = [{ type: 'jumpFailed', target, attempt: jumps.length, displacedTo }]
+  let next: GameState = {
     ...state,
     jumps,
     ship: { at: displacedTo, fuel: Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25) },
     selected: displacedTo,
+    // The rift takes more than fuel: the drive is scarred until a refit.
+    driveScarred: true,
     log: appendLog(state.log, {
       kind: 'jump',
       text:
@@ -640,10 +977,11 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
         `Attempt ${jumps.length}. We are still out here.`,
     }),
   }
-
-  return declareIfStranded(next, index, [
-    { type: 'jumpFailed', target, attempt: jumps.length, displacedTo },
-  ])
+  next = shiftMorale(next, -15, events)
+  if (next.outcome !== 'seeking') return { state: next, events }
+  next = advanceTime(next, 3, events)
+  if (next.outcome !== 'seeking') return { state: next, events }
+  return declareIfStranded(next, index, events)
 }
 
 /* ------------------------------------------------------------------------ */

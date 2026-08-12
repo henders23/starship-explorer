@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { sitePlan } from '../engine/state/reducer.js'
+import { canResupply, sitePlan, SUPPLIES_MAX, travelCost } from '../engine/state/reducer.js'
 import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { MissionPanel } from './MissionPanel.js'
@@ -78,17 +78,19 @@ export function Inspector() {
 
       {!here && outcome === 'seeking' && (
         <button
-          disabled={!route || route.cost > ship.fuel}
+          disabled={!route || travelCost(gameState, route.cost) > ship.fuel}
           onClick={() => dispatch({ type: 'travel', to: system.id })}
           className={`border px-3 py-1.5 text-[11px] ${
-            route && route.cost <= ship.fuel
+            route && travelCost(gameState, route.cost) <= ship.fuel
               ? 'border-amber-dim text-amber hover:bg-amber-dim/15'
               : 'border-rule text-ink-faint'
           }`}
         >
           {route
-            ? `Travel here — ${route.path.length - 1} ${route.path.length - 1 === 1 ? 'jump' : 'jumps'}, ${route.cost} fuel` +
-              (route.cost > ship.fuel ? ' (not enough)' : '')
+            ? `Travel here — ${route.path.length - 1} ${route.path.length - 1 === 1 ? 'jump' : 'jumps'}, ` +
+              `${travelCost(gameState, route.cost)} fuel` +
+              (gameState.driveScarred ? ' (scarred drive)' : '') +
+              (travelCost(gameState, route.cost) > ship.fuel ? ' — not enough' : '')
             : 'No lane route reaches this system'}
         </button>
       )}
@@ -98,7 +100,25 @@ export function Inspector() {
           onClick={() => dispatch({ type: 'scoop' })}
           className="border-phosphor-dim text-phosphor hover:bg-phosphor-dim/15 border px-3 py-1.5 text-[11px]"
         >
-          Scoop the gas giant — refill the tank
+          Scoop the gas giant — refill the tank (2 days)
+        </button>
+      )}
+
+      {here && canResupply(index, system.id) && gameState.supplies < SUPPLIES_MAX && outcome === 'seeking' && (
+        <button
+          onClick={() => dispatch({ type: 'resupply' })}
+          className="border-phosphor-dim text-phosphor hover:bg-phosphor-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Take on stores (2 days)
+        </button>
+      )}
+
+      {here && gameState.driveScarred && system.faction !== null && outcome === 'seeking' && (
+        <button
+          onClick={() => dispatch({ type: 'refit' })}
+          className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Refit the scarred drive (4 days)
         </button>
       )}
 
