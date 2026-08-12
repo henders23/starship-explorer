@@ -19,7 +19,7 @@ interface Room {
   deck: string
   x: number
   y: number
-  crop: string
+  art: string
   kicker: string
   description: string
   metric: string
@@ -33,7 +33,7 @@ const ROOMS: Room[] = [
     deck: '01 · Command',
     x: 81,
     y: 40,
-    crop: '90% 40%',
+    art: '/assets/rooms/bridge.png',
     kicker: 'Command nexus',
     description: 'Navigation, tactical coordination and the captain’s working plot.',
     metric: '4/4',
@@ -45,7 +45,7 @@ const ROOMS: Room[] = [
     deck: '02 · Signals',
     x: 65,
     y: 40,
-    crop: '68% 40%',
+    art: '/assets/rooms/communications.png',
     kicker: 'Wideband array',
     description: 'Decrypt local traffic, hail contacts and trace long-range anomalies.',
     metric: '−82 dB',
@@ -57,7 +57,7 @@ const ROOMS: Room[] = [
     deck: '03 · Tactical',
     x: 69,
     y: 61,
-    crop: '72% 69%',
+    art: '/assets/rooms/armory.png',
     kicker: 'Weapons and field issue',
     description: 'Secure storage, weapon maintenance and away-team equipment preparation.',
     metric: '31',
@@ -69,7 +69,7 @@ const ROOMS: Room[] = [
     deck: '04 · Research',
     x: 47,
     y: 40,
-    crop: '47% 40%',
+    art: '/assets/rooms/science.png',
     kicker: 'Analysis laboratory',
     description: 'Examine recovered artefacts and turn field evidence into usable intelligence.',
     metric: '03',
@@ -81,7 +81,7 @@ const ROOMS: Room[] = [
     deck: '05 · Medical',
     x: 49,
     y: 62,
-    crop: '50% 70%',
+    art: '/assets/rooms/med-bay.png',
     kicker: 'Trauma and recovery',
     description: 'Stabilisation, surgery and long-duration crew health monitoring.',
     metric: '92%',
@@ -93,7 +93,7 @@ const ROOMS: Room[] = [
     deck: '06 · Crew',
     x: 34,
     y: 62,
-    crop: '32% 70%',
+    art: '/assets/rooms/barracks.png',
     kicker: 'Crew quarters',
     description: 'Bunks, lockers and the small private spaces the ship’s company calls home.',
     metric: '24/28',
@@ -105,7 +105,7 @@ const ROOMS: Room[] = [
     deck: '07 · Reactor',
     x: 19,
     y: 51,
-    crop: '9% 54%',
+    art: '/assets/rooms/engineering.png',
     kicker: 'Drive and power',
     description: 'Main reactor, jump drive, life support and damage-control coordination.',
     metric: '8.4 GW',
@@ -265,7 +265,7 @@ function RoomFocus({
     <div className={`room-focus room-focus-${room.id}`}>
       <div
         className="room-focus-art"
-        style={{ backgroundPosition: room.crop }}
+        style={{ backgroundImage: `url(${room.art})` }}
         aria-hidden="true"
       />
       <div className="room-vignette" aria-hidden="true" />
