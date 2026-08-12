@@ -182,6 +182,15 @@ export function MissionPanel({
 
         <div className="flex gap-2">
           <button
+            onClick={() => {
+              onClose()
+              window.dispatchEvent(new CustomEvent('starship:navigate', { detail: 'loadout' }))
+            }}
+            className="border-rule text-phosphor-dim hover:border-phosphor-dim border px-3 py-1.5 text-[11px]"
+          >
+            Open equipment locker
+          </button>
+          <button
             disabled={!launchable}
             onClick={() => {
               if (!chosen) return

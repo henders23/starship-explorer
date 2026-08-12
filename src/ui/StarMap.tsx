@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import { routeTo } from '../engine/travel/travel.js'
 import type { StarSystem, SystemId } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
@@ -27,6 +27,9 @@ export function StarMap() {
   const ship = useGame((s) => s.state.ship)
   const { candidateSet, sites, clues } = useNavPlot()
   const [hovered, setHovered] = useState<SystemId | null>(null)
+  const [zoom, setZoom] = useState(1.35)
+  const [pan, setPan] = useState({ x: -90, y: -35 })
+  const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
 
   const { viewBox, project } = useMemo(() => {
     const xs = index.systems.map((s) => s.x)
@@ -55,14 +58,57 @@ export function StarMap() {
     return routeTo(index, ship.at, selected)
   }, [index, ship.at, selected])
 
+  const sectorNames = ['ORPHEUS VEIL', 'CINDER MARCH', 'TALOS EXPANSE', 'RIFT MARGIN']
+
+  const onWheel = (event: React.WheelEvent) => {
+    event.preventDefault()
+    setZoom((value) => Math.min(3.2, Math.max(0.85, value + (event.deltaY < 0 ? 0.14 : -0.14))))
+  }
+
   return (
-    <div className="relative h-full w-full overflow-hidden">
-      <svg viewBox={viewBox} className="h-full w-full" role="img" aria-label="Star chart">
+    <div
+      className="star-map relative h-full w-full overflow-hidden"
+      onWheel={onWheel}
+      onPointerDown={(event) => {
+        if ((event.target as Element).closest('.map-ui')) return
+        drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
+        event.currentTarget.setPointerCapture(event.pointerId)
+      }}
+      onPointerMove={(event) => {
+        if (!drag.current) return
+        setPan({ x: drag.current.panX + event.clientX - drag.current.x, y: drag.current.panY + event.clientY - drag.current.y })
+      }}
+      onPointerUp={() => { drag.current = null }}
+    >
+      <div className="nebula nebula-one" aria-hidden="true" />
+      <div className="nebula nebula-two" aria-hidden="true" />
+      <svg
+        viewBox={viewBox}
+        className="galaxy-canvas"
+        style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}
+        role="img"
+        aria-label="Scrollable and zoomable galactic navigation chart"
+      >
+        <defs>
+          <filter id="star-glow" x="-300%" y="-300%" width="600%" height="600%">
+            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
+          </filter>
+          <radialGradient id="region-haze"><stop offset="0" stopColor="#164e63" stopOpacity=".24" /><stop offset="1" stopColor="#02060a" stopOpacity="0" /></radialGradient>
+        </defs>
+
+        {sectorNames.map((name, index) => (
+          <g key={name} opacity={0.38}>
+            <ellipse cx={130 + index * 185} cy={90 + (index % 2) * 170} rx={180} ry={125} fill="url(#region-haze)" />
+            <text x={76 + index * 185} y={48 + (index % 2) * 170} className="sector-label">{name}</text>
+          </g>
+        ))}
+
         <g stroke="var(--color-rule)" strokeWidth={0.8}>
           {index.galaxy.lanes.map(([a, b]) => {
             const from = project(index.system(a))
             const to = project(index.system(b))
-            return <line key={`${a}-${b}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} />
+            return <line key={`${a}-${b}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="jump-lane" />
           })}
         </g>
 
@@ -154,6 +200,7 @@ export function StarMap() {
                 r={radius}
                 fill={fill}
                 opacity={isCandidate || isHovered || isSelected ? 1 : 0.55}
+                filter={isCandidate || isSelected ? 'url(#star-glow)' : undefined}
               />
 
               {wasSearched && !hasEvidence && (
@@ -181,8 +228,9 @@ export function StarMap() {
         })}
       </svg>
 
-      <div className="pointer-events-none absolute top-3 left-3 flex flex-col gap-1">
-        <div className="label">Astrographic chart</div>
+      <div className="map-ui map-title pointer-events-none absolute top-5 left-5 flex flex-col gap-1">
+        <div className="eyebrow">Astrogation · sector chart 7</div>
+        <h2>Galactic Navigation</h2>
         <div className="text-ink-dim text-[11px]">
           {anyTrusted ? (
             <>
@@ -195,7 +243,19 @@ export function StarMap() {
         </div>
       </div>
 
+      <div className="map-ui map-controls absolute top-5 right-5">
+        <button onClick={() => setZoom((value) => Math.min(3.2, value + 0.2))} aria-label="Zoom in">+</button>
+        <span>{Math.round(zoom * 100)}%</span>
+        <button onClick={() => setZoom((value) => Math.max(0.85, value - 0.2))} aria-label="Zoom out">−</button>
+        <button onClick={() => { setZoom(1.35); setPan({ x: -90, y: -35 }) }} aria-label="Reset map view">⌖</button>
+      </div>
+
       <Legend evidenceCount={sites.size} held={clues.length} />
+
+      <div className="map-ui map-scale absolute right-5 bottom-5">
+        <span>50 LY</span><i />
+        <small>DRAG TO PAN · SCROLL TO ZOOM</small>
+      </div>
 
       {hovered && hovered !== selected && <Readout system={index.system(hovered)} />}
     </div>
@@ -204,7 +264,7 @@ export function StarMap() {
 
 function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }) {
   return (
-    <div className="pointer-events-none absolute bottom-3 left-3 flex flex-col gap-1 text-[10px]">
+    <div className="map-ui map-legend pointer-events-none absolute bottom-5 left-5 flex flex-col gap-1 text-[10px]">
       <div className="flex items-center gap-2">
         <svg width={14} height={14}>
           <path d="M 7 1.5 L 12 7 L 7 12.5 L 2 7 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />

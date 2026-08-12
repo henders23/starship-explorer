@@ -1,34 +1,42 @@
-import { useState } from 'react'
-import { CrewPanel } from './CrewPanel.js'
+import { useEffect, useState } from 'react'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
+import { LabScreen } from './LabScreen.js'
+import { LoadoutScreen } from './LoadoutScreen.js'
+import { ShipHub } from './ShipHub.js'
 import { StarMap } from './StarMap.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
+export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
+
+const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
+  { id: 'ship', label: 'Ship Overview', code: '01' },
+  { id: 'galaxy', label: 'Galaxy', code: '02' },
+  { id: 'loadout', label: 'Loadout', code: '03' },
+  { id: 'lab', label: 'Lab', code: '04' },
+]
+
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
+  const [screen, setScreen] = useState<Screen>('ship')
+
+  useEffect(() => {
+    const navigate = (event: Event) => {
+      const next = (event as CustomEvent<Screen>).detail
+      if (NAV_ITEMS.some((item) => item.id === next)) setScreen(next)
+    }
+    window.addEventListener('starship:navigate', navigate)
+    return () => window.removeEventListener('starship:navigate', navigate)
+  }, [])
 
   return (
-    <div className="crt flex h-full flex-col">
-      <Header />
-      <div className="flex min-h-0 flex-1">
-        <main className="border-rule min-w-0 flex-1 border-r">
-          <StarMap />
-        </main>
-        <aside className="flex w-[380px] shrink-0 flex-col overflow-hidden">
-          <Section title="Crew">
-            <CrewPanel />
-          </Section>
-          <Section title="System">
-            <Inspector />
-          </Section>
-          <Section title="Candidates">
-            <CandidateList />
-          </Section>
-          <Section title="Evidence" grow>
-            <EvidenceBoard />
-          </Section>
-        </aside>
+    <div className="crt app-shell flex h-full flex-col">
+      <Header screen={screen} onScreen={setScreen} />
+      <div className="min-h-0 flex-1 overflow-hidden">
+        {screen === 'ship' && <ShipHub onNavigate={setScreen} />}
+        {screen === 'galaxy' && <GalaxyDeck />}
+        {screen === 'loadout' && <LoadoutScreen />}
+        {screen === 'lab' && <LabScreen />}
       </div>
       <CaptainsLog />
       {outcome === 'home' && <Ending />}
@@ -39,20 +47,58 @@ export function App() {
   )
 }
 
-function Header() {
+function GalaxyDeck() {
+  return (
+    <div className="flex h-full min-h-0 galaxy-deck">
+      <main className="border-rule min-w-0 flex-1 border-r">
+        <StarMap />
+      </main>
+      <aside className="galaxy-sidebar flex w-[372px] shrink-0 flex-col overflow-hidden">
+        <Section title="System">
+          <Inspector />
+        </Section>
+        <Section title="Candidates">
+          <CandidateList />
+        </Section>
+        <Section title="Evidence" grow>
+          <EvidenceBoard />
+        </Section>
+      </aside>
+    </div>
+  )
+}
+
+function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Screen) => void }) {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
   const jumps = useGame((s) => s.state.jumps)
   const [draft, setDraft] = useState(seed)
 
   return (
-    <header className="border-rule flex shrink-0 items-center justify-between gap-4 border-b px-4 py-2">
-      <div className="flex items-baseline gap-3">
-        <h1 className="text-amber text-[13px] tracking-[0.2em] uppercase">Nav Plot</h1>
-        <span className="text-ink-faint text-[10px]">Starship Explorer</span>
+    <header className="command-bar border-rule flex shrink-0 items-center gap-5 border-b px-5">
+      <div className="brand-lockup flex shrink-0 items-center gap-3">
+        <span className="brand-sigil" aria-hidden="true">SE</span>
+        <span>
+          <h1 className="text-ink text-[12px] tracking-[0.24em] uppercase">Starship Explorer</h1>
+          <span className="text-amber-dim text-[9px] tracking-[0.18em] uppercase">ISS Indefatigable · Corvette 05</span>
+        </span>
       </div>
 
-      <div className="flex items-center gap-3">
+      <nav className="primary-nav flex h-full min-w-0 flex-1 items-stretch" aria-label="Primary stations">
+        {NAV_ITEMS.map((item) => (
+          <button
+            key={item.id}
+            onClick={() => onScreen(item.id)}
+            aria-current={screen === item.id ? 'page' : undefined}
+            className={`nav-tab ${screen === item.id ? 'is-active' : ''}`}
+          >
+            <span>{item.code}</span>
+            {item.label}
+          </button>
+        ))}
+      </nav>
+
+      <div className="header-telemetry flex shrink-0 items-center gap-3">
         <FuelGauge />
         {jumps.length > 0 && (
           <span className="text-alarm-dim text-[10px]">
@@ -60,26 +106,26 @@ function Header() {
           </span>
         )}
         <form
-          className="flex items-center gap-2"
+          className="seed-form flex items-center gap-2"
           onSubmit={(e) => {
             e.preventDefault()
             restart(draft.trim() || 'voyager')
           }}
         >
           <label className="label" htmlFor="seed">
-            Galaxy
+            Seed
           </label>
           <input
             id="seed"
             value={draft}
             onChange={(e) => setDraft(e.target.value)}
-            className="border-rule text-ink-dim focus:border-amber-dim w-32 border bg-transparent px-2 py-0.5 text-[11px] outline-none"
+            className="border-rule text-ink-dim focus:border-amber-dim w-24 border bg-transparent px-2 py-0.5 text-[10px] outline-none"
           />
           <button
             type="submit"
             className="border-rule text-ink-faint hover:border-amber-dim hover:text-amber border px-2 py-0.5 text-[10px]"
           >
-            Generate
+            Reset
           </button>
         </form>
       </div>
