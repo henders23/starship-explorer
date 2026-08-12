@@ -284,7 +284,13 @@ function RoomFocus({
         </div>
         {officer && (
           <div className="room-officer">
-            <span className={`officer-avatar avatar-${officer.role}`}>{officer.name.slice(0, 1)}</span>
+            <span className={`officer-avatar avatar-${officer.role}`}>
+              {officer.portrait ? (
+                <img src={officer.portrait} alt="" />
+              ) : (
+                officer.name.slice(0, 1)
+              )}
+            </span>
             <span>
               <small>Officer on station</small>
               <strong>{officer.name}</strong>
