@@ -92,7 +92,13 @@ export function LabScreen() {
       <aside className="science-officer panel-glass">
         <div className="panel-heading"><span>Officer on station</span><span>{science?.status ?? 'vacant'}</span></div>
         <div className="officer-profile">
-          <span className="officer-portrait">{science?.name.split(' ').map((part) => part[0]).join('').slice(0, 2) ?? '—'}</span>
+          <span className="officer-portrait">
+            {science?.portrait ? (
+              <img src={science.portrait} alt="" />
+            ) : (
+              science?.name.split(' ').map((part) => part[0]).join('').slice(0, 2) ?? '—'
+            )}
+          </span>
           <span><strong>{science?.name ?? 'Science station vacant'}</strong><small>Chief science officer · skill {science?.skill ?? 0}</small></span>
         </div>
         <p>“The sample is responding to observation. That is not a metaphor, Captain.”</p>
