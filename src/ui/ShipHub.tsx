@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import type { Screen } from './App.js'
 import { CrewPanel } from './CrewPanel.js'
-import { moraleBand } from '../engine/state/reducer.js'
 import { useDispatch, useGame, useNavPlot } from './store.js'
 
 type RoomId =
@@ -31,8 +30,8 @@ const ROOMS: Room[] = [
     id: 'bridge',
     name: 'Bridge',
     deck: '01 · Command',
-    x: 81,
-    y: 40,
+    x: 78,
+    y: 46,
     art: '/assets/rooms/bridge.png',
     kicker: 'Command nexus',
     description: 'Navigation, tactical coordination and the captain’s working plot.',
@@ -41,10 +40,10 @@ const ROOMS: Room[] = [
   },
   {
     id: 'comms',
-    name: 'Comms',
+    name: 'Operations',
     deck: '02 · Signals',
-    x: 65,
-    y: 40,
+    x: 63,
+    y: 46,
     art: '/assets/rooms/communications.png',
     kicker: 'Wideband array',
     description: 'Decrypt local traffic, hail contacts and trace long-range anomalies.',
@@ -55,8 +54,8 @@ const ROOMS: Room[] = [
     id: 'armory',
     name: 'Armory',
     deck: '03 · Tactical',
-    x: 69,
-    y: 61,
+    x: 64,
+    y: 63,
     art: '/assets/rooms/armory.png',
     kicker: 'Weapons and field issue',
     description: 'Secure storage, weapon maintenance and away-team equipment preparation.',
@@ -67,8 +66,8 @@ const ROOMS: Room[] = [
     id: 'science',
     name: 'Science',
     deck: '04 · Research',
-    x: 47,
-    y: 40,
+    x: 45,
+    y: 46,
     art: '/assets/rooms/science.png',
     kicker: 'Analysis laboratory',
     description: 'Examine recovered artefacts and turn field evidence into usable intelligence.',
@@ -79,8 +78,8 @@ const ROOMS: Room[] = [
     id: 'medical',
     name: 'Med Bay',
     deck: '05 · Medical',
-    x: 49,
-    y: 62,
+    x: 47,
+    y: 63,
     art: '/assets/rooms/med-bay.png',
     kicker: 'Trauma and recovery',
     description: 'Stabilisation, surgery and long-duration crew health monitoring.',
@@ -91,8 +90,8 @@ const ROOMS: Room[] = [
     id: 'barracks',
     name: 'Barracks',
     deck: '06 · Crew',
-    x: 34,
-    y: 62,
+    x: 32,
+    y: 63,
     art: '/assets/rooms/barracks.png',
     kicker: 'Crew quarters',
     description: 'Bunks, lockers and the small private spaces the ship’s company calls home.',
@@ -103,8 +102,8 @@ const ROOMS: Room[] = [
     id: 'engineering',
     name: 'Engineering',
     deck: '07 · Reactor',
-    x: 19,
-    y: 51,
+    x: 22,
+    y: 53,
     art: '/assets/rooms/engineering.png',
     kicker: 'Drive and power',
     description: 'Main reactor, jump drive, life support and damage-control coordination.',
@@ -116,7 +115,6 @@ const ROOMS: Room[] = [
 export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }) {
   const [room, setRoom] = useState<Room | null>(null)
   const state = useGame((s) => s.state)
-  const here = state.galaxy.systems.find((system) => system.id === state.ship.at)
   const { sites, clues } = useNavPlot()
 
   const wounded = state.roster.filter((officer) => officer.status === 'injured').length
@@ -127,12 +125,7 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
       <div className="hub-backdrop" aria-hidden="true" />
 
       <section className="hub-context pointer-events-none absolute top-6 left-6 z-10">
-        <div className="eyebrow">Ship overview · cutaway mode</div>
         <h2>ISS <em>Indefatigable</em></h2>
-        <p>
-          CORVETTE 05 <span>·</span> {here?.name ?? 'Unknown system'} <span>·</span>{' '}
-          DAY {String(state.day).padStart(3, '0')}
-        </p>
       </section>
 
       <div className="ship-stage" role="group" aria-label="Interactive cutaway of the ISS Indefatigable">
@@ -146,19 +139,14 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
             onClick={() => setRoom(entry)}
             aria-label={`Zoom into ${entry.name}`}
           >
-            <span className="hotspot-index">{entry.deck.slice(0, 2)}</span>
-            <span className="hotspot-copy">
-              <strong>{entry.name}</strong>
-              <small>{entry.deck}</small>
-            </span>
+            {entry.name}
           </button>
         ))}
       </div>
 
-      <aside className="hub-left-panel panel-glass absolute bottom-5 left-5 z-10 w-[315px]">
+      <aside className="hub-left-panel panel-glass absolute bottom-5 left-5 z-10 w-[420px]">
         <div className="panel-heading">
           <span>Ship’s company</span>
-          <span className={`status-dot status-${moraleBand(state.morale)}`}>{state.morale}% morale</span>
         </div>
         <CrewPanel />
       </aside>
@@ -284,7 +272,13 @@ function RoomFocus({
         </div>
         {officer && (
           <div className="room-officer">
-            <span className={`officer-avatar avatar-${officer.role}`}>{officer.name.slice(0, 1)}</span>
+            <span className={`officer-avatar avatar-${officer.role}`}>
+              {officer.portrait ? (
+                <img src={officer.portrait} alt="" />
+              ) : (
+                officer.name.slice(0, 1)
+              )}
+            </span>
             <span>
               <small>Officer on station</small>
               <strong>{officer.name}</strong>

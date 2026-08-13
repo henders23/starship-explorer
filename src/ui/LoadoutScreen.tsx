@@ -178,7 +178,9 @@ function CrewCard({ officer, active, onClick }: { officer: Officer; active: bool
   const initials = officer.name.split(' ').map((part) => part[0]).join('').slice(0, 2)
   return (
     <button className={`crew-card ${active ? 'is-active' : ''}`} onClick={onClick}>
-      <span className={`crew-avatar avatar-${officer.role}`}>{initials}</span>
+      <span className={`crew-avatar avatar-${officer.role}`}>
+        {officer.portrait ? <img src={officer.portrait} alt="" /> : initials}
+      </span>
       <span><strong>{officer.name}</strong><small>{officer.role} officer</small></span>
       <span className={`crew-state state-${officer.status}`}>{officer.status}</span>
     </button>

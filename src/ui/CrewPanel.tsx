@@ -10,11 +10,18 @@ import { useDispatch, useGame } from './store.js'
  * names, only at the moment one is promoted into a dead officer's chair.
  */
 const BAND_LABELS = {
-  steady: ['steady', 'text-phosphor-dim'],
+  steady: ['steady', 'text-phosphor'],
   uneasy: ['uneasy', 'text-amber-dim'],
   fractious: ['fractious', 'text-amber'],
   mutinous: ['MUTINOUS', 'text-alarm'],
 } as const
+
+const STATION_LABELS: Record<Officer['role'], string> = {
+  captain: 'Command',
+  security: 'Security',
+  science: 'Science',
+  medical: 'Medical',
+}
 
 export function CrewPanel() {
   const roster = useGame((s) => s.state.roster)
@@ -37,12 +44,12 @@ export function CrewPanel() {
   )
 
   return (
-    <div className="flex flex-col gap-1 px-4 py-2">
+    <div className="flex flex-col gap-[7px] px-[18px] py-3">
       {roster.map((o) => (
         <OfficerRow key={o.role} officer={o} day={day} />
       ))}
 
-      <div className="text-ink-faint mt-1 flex justify-between text-[10px]">
+      <div className="text-ink mt-1.5 flex justify-between text-[12px]">
         <span>Security staff ×{pools.security}</span>
         <span>Crew ×{pools.crew}</span>
         <span>
@@ -52,7 +59,7 @@ export function CrewPanel() {
 
       <button
         onClick={() => dispatch({ type: 'consult' })}
-        className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber mt-1 border px-2 py-1 text-[10px]"
+        className="border-rule text-ink hover:border-amber-dim hover:text-amber mt-1.5 border px-2.5 py-1.5 text-[12px]"
       >
         Consult the bridge
       </button>
@@ -61,7 +68,7 @@ export function CrewPanel() {
         <button
           key={role}
           onClick={() => dispatch({ type: 'promote', role })}
-          className="border-amber-dim text-amber hover:bg-amber-dim/15 mt-1 border px-2 py-1 text-left text-[10px]"
+          className="border-amber-dim text-amber hover:bg-amber-dim/15 mt-1 border px-2.5 py-1.5 text-left text-[11px]"
         >
           The {role} station is empty. Promote from the crew ({pools.crew} remain).
         </button>
@@ -76,39 +83,45 @@ function OfficerRow({ officer, day }: { officer: Officer; day: number }) {
       ? 'text-ink-faint line-through'
       : officer.status === 'injured'
         ? 'text-amber-dim'
-        : 'text-ink-dim'
+        : 'text-ink'
 
   return (
-    <div className="flex items-baseline justify-between gap-2 text-[11px]">
-      <span className={tone}>
-        {officer.name}
-        {officer.origin === 'promoted' && (
-          <span className="text-ink-faint no-underline"> (promoted)</span>
+    <div className="flex items-center justify-between gap-2 text-[14px]">
+      <span className={`flex min-w-0 items-center gap-2.5 ${tone}`}>
+        {officer.portrait && (
+          <img
+            src={officer.portrait}
+            alt=""
+            className={`roster-portrait ${officer.status === 'dead' ? 'is-dead' : ''}`}
+          />
         )}
+        <span className="truncate">
+          <span className="text-ink-dim mr-1.5 text-[11px] tracking-[0.08em] uppercase no-underline">
+            {STATION_LABELS[officer.role]}
+          </span>
+          {officer.name}
+          {officer.origin === 'promoted' && (
+            <span className="text-ink-faint no-underline"> (promoted)</span>
+          )}
+        </span>
       </span>
-      <span className="flex items-center gap-2">
-        <span className="text-amber-dim tracking-widest">
-          {'▮'.repeat(officer.skill)}
-          <span className="text-ink-faint/40">{'▮'.repeat(5 - officer.skill)}</span>
-        </span>
-        <span
-          className={`w-16 text-right text-[10px] ${
-            officer.status === 'dead'
-              ? 'text-alarm'
-              : officer.status === 'injured'
-                ? 'text-amber'
-                : 'text-phosphor-dim'
-          }`}
-          title={
-            officer.status === 'injured'
-              ? `In the medbay, out of action. Fit for duty in ${Math.max(0, (officer.healedAfter ?? day) - day)} days.`
-              : undefined
-          }
-        >
-          {officer.status === 'injured'
-            ? `medbay ${Math.max(0, (officer.healedAfter ?? day) - day)}d`
-            : officer.status}
-        </span>
+      <span
+        className={`w-[86px] shrink-0 text-right text-[13px] ${
+          officer.status === 'dead'
+            ? 'text-alarm'
+            : officer.status === 'injured'
+              ? 'text-amber'
+              : 'text-ink'
+        }`}
+        title={
+          officer.status === 'injured'
+            ? `In the medbay, out of action. Fit for duty in ${Math.max(0, (officer.healedAfter ?? day) - day)} days.`
+            : undefined
+        }
+      >
+        {officer.status === 'injured'
+          ? `medbay ${Math.max(0, (officer.healedAfter ?? day) - day)}d`
+          : officer.status}
       </span>
     </div>
   )

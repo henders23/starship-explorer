@@ -99,19 +99,12 @@ function GalaxyDeck() {
 }
 
 function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Screen) => void }) {
-  const restart = useGame((s) => s.restart)
-  const seed = useGame((s) => s.state.seed)
   const jumps = useGame((s) => s.state.jumps)
-  const [draft, setDraft] = useState(seed)
 
   return (
     <header className="command-bar border-rule flex shrink-0 items-center gap-5 border-b px-5">
-      <div className="brand-lockup flex shrink-0 items-center gap-3">
-        <span className="brand-sigil" aria-hidden="true">SE</span>
-        <span>
-          <h1 className="text-ink text-[12px] tracking-[0.24em] uppercase">Starship Explorer</h1>
-          <span className="text-amber-dim text-[9px] tracking-[0.18em] uppercase">ISS Indefatigable · Corvette 05</span>
-        </span>
+      <div className="brand-lockup flex shrink-0 items-center">
+        <h1 className="text-ink text-[17px] font-normal tracking-[0.24em] uppercase">Starship Explorer</h1>
       </div>
 
       <nav className="primary-nav flex h-full min-w-0 flex-1 items-stretch" aria-label="Primary stations">
@@ -135,29 +128,6 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
             {jumps.length} failed {jumps.length === 1 ? 'attempt' : 'attempts'}
           </span>
         )}
-        <form
-          className="seed-form flex items-center gap-2"
-          onSubmit={(e) => {
-            e.preventDefault()
-            restart(draft.trim() || 'voyager')
-          }}
-        >
-          <label className="label" htmlFor="seed">
-            Seed
-          </label>
-          <input
-            id="seed"
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            className="border-rule text-ink-dim focus:border-amber-dim w-24 border bg-transparent px-2 py-0.5 text-[10px] outline-none"
-          />
-          <button
-            type="submit"
-            className="border-rule text-ink-faint hover:border-amber-dim hover:text-amber border px-2 py-0.5 text-[10px]"
-          >
-            Reset
-          </button>
-        </form>
       </div>
     </header>
   )
@@ -236,30 +206,24 @@ function CandidateList() {
 function FuelGauge() {
   const fuel = useGame((s) => s.state.ship.fuel)
   const day = useGame((s) => s.state.day)
-  const supplies = useGame((s) => s.state.supplies)
   const scarred = useGame((s) => s.state.driveScarred)
   const max = 80
   const filled = Math.round((fuel / max) * 12)
   const tone = fuel <= 20 ? 'text-alarm' : fuel <= 40 ? 'text-amber' : 'text-phosphor'
-  const suppliesTone = supplies === 0 ? 'text-alarm' : supplies <= 25 ? 'text-amber' : 'text-ink-dim'
 
   return (
-    <span className="flex items-center gap-4 text-[10px]">
-      <span className="flex items-center gap-1.5">
-        <span className="label">Day</span>
-        <span className="text-ink-dim">{day}</span>
-      </span>
-      <span className="flex items-center gap-1.5">
-        <span className="label">Stores</span>
-        <span className={suppliesTone}>{supplies}</span>
-      </span>
+    <span className="flex items-center gap-5 text-[14px]">
       <span className="flex items-center gap-2">
+        <span className="label">Day</span>
+        <span className="text-ink">{day}</span>
+      </span>
+      <span className="flex items-center gap-2.5">
         <span className="label">Fuel</span>
         <span className={`tracking-tighter ${tone}`}>
           {'▮'.repeat(Math.max(0, filled))}
           <span className="text-ink-faint/40">{'▮'.repeat(Math.max(0, 12 - filled))}</span>
         </span>
-        <span className="text-ink-dim">
+        <span className="text-ink">
           {fuel}/{max}
         </span>
       </span>
