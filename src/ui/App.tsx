@@ -378,7 +378,7 @@ function LostEnding() {
         <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
           The ship is still out here. The evidence is still on the plot, and somebody else is
           reading it now. Whatever happens to the {' '}
-          <em>Indefatigable</em> next, it happens without you.
+          <em>Ithaca</em> next, it happens without you.
         </p>
         <button
           onClick={() => restart(`${seed}-again`)}

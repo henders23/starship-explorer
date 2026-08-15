@@ -1,4 +1,21 @@
+import { ENEMY_CLASSES, type CombatRewards, type PendingCombat } from '../combat/ships.js'
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
+import { chooseEncounter, doneFlag } from '../encounters/select.js'
+import { encounterDef } from '../encounters/catalog.js'
+import type { CultureId, EncounterChoice, EncounterOutcome } from '../encounters/types.js'
+import {
+  awayBonusFor,
+  canResearch,
+  hullMaxFor,
+  laneCostWith,
+  longJumpReserveFor,
+  RESEARCH_DAYS,
+  riftFuelFloor,
+  riftScarsDrive,
+  scoopDaysFor,
+  techDef,
+  type TechId,
+} from '../research/tech.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
 import {
   approachesFor,
@@ -12,7 +29,6 @@ import {
   cheapestLaneOut,
   DERELICT_FUEL_SALVAGE,
   FUEL_MAX,
-  LONG_JUMP_RESERVE,
   routeTo,
 } from '../travel/travel.js'
 import { GalaxyIndex } from '../worldgen/index-galaxy.js'
@@ -49,6 +65,16 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     supplies: 100,
     driveScarred: false,
     surges: 0,
+    hull: 30,
+    data: 0,
+    unlockedTech: [],
+    flags: [],
+    standing: { flotilla: 0, vekar: 0, ostrea: 0, custodian: 0 },
+    warPressure: 0,
+    pending: [],
+    encounter: null,
+    encountersSeen: 0,
+    combat: null,
     roster: generateRoster(seed),
     pools: { ...STARTING_POOLS },
     missionsRun: 0,
@@ -95,6 +121,14 @@ export function reduce(state: GameState, action: Action): Transition {
       return file(state, action.clue, action.state)
     case 'plotTheJump':
       return plotTheJump(state, action.target)
+    case 'encounterChoose':
+      return encounterChoose(state, action.choice)
+    case 'encounterContinue':
+      return encounterContinue(state)
+    case 'research':
+      return research(state, action.tech)
+    case 'resolveCombat':
+      return resolveCombat(state, action.result, action.hull)
   }
 }
 
@@ -135,6 +169,7 @@ export function sitePlan(
  */
 function search(state: GameState, systemId: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
   if (state.ship.at !== systemId) return { state, events: [] }
   if (state.searched.includes(systemId)) return { state, events: [] }
   if (sitePlan(state, systemId).site !== null) return { state, events: [] }
@@ -289,7 +324,9 @@ export function surgeDay(seed: string, ordinal: number): number {
 function advanceTime(state: GameState, days: number, events: GameEvent[]): GameState {
   if (days <= 0 || state.outcome !== 'seeking') return state
   const day = state.day + days
-  let next: GameState = { ...state, day }
+  // Damage control works the calendar too: a point of hull a day.
+  const hullMax = hullMaxFor(state.unlockedTech)
+  let next: GameState = { ...state, day, hull: Math.min(hullMax, state.hull + days) }
 
   // Stores, then hunger.
   const shortfall = days - next.supplies
@@ -380,14 +417,14 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
 
 function travel(state: GameState, to: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
   if (to === state.ship.at) return { state, events: [] }
 
   const index = new GalaxyIndex(state.galaxy)
   const route = routeTo(index, state.ship.at, to)
   if (!route) return { state, events: [] }
 
-  // A scarred drive runs hot: the same lanes, 30% more fuel.
-  const cost = state.driveScarred ? Math.ceil(route.cost * 1.3) : route.cost
+  const cost = travelCost(state, route.cost)
   if (cost > state.ship.fuel) return { state, events: [] }
 
   const from = state.ship.at
@@ -396,6 +433,8 @@ function travel(state: GameState, to: SystemId): Transition {
     ...state,
     ship: { at: to, fuel: state.ship.fuel - cost },
     selected: to,
+    // Breaking orbit walks away from whatever was on the viewscreen.
+    encounter: null,
     log: appendLog(state.log, {
       kind: 'travel',
       text:
@@ -409,32 +448,41 @@ function travel(state: GameState, to: SystemId): Transition {
   const events: GameEvent[] = [{ type: 'traveled', from, to, fuelSpent: cost }]
   next = advanceTime(next, jumpsMade, events)
   if (next.outcome !== 'seeking') return { state: next, events }
-  return declareIfStranded(next, index, events)
+  const stranded = declareIfStranded(next, index, events)
+  if (stranded.state.outcome !== 'seeking') return stranded
+  return maybeEncounter(stranded.state, to, stranded.events)
 }
 
-/** The scarred-drive premium, exposed so the UI prices trips honestly. */
+/**
+ * The price of a route: drive research first, then the scarring premium.
+ * Exposed so the UI prices trips exactly as the reducer will charge them.
+ */
 export function travelCost(state: GameState, baseCost: number): number {
-  return state.driveScarred ? Math.ceil(baseCost * 1.3) : baseCost
+  const tuned = laneCostWith(state.unlockedTech, baseCost)
+  return state.driveScarred ? Math.ceil(tuned * 1.3) : tuned
 }
 
 function scoop(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
   const index = new GalaxyIndex(state.galaxy)
   if (!canScoop(index, state.ship.at)) return { state, events: [] }
   if (state.ship.fuel >= FUEL_MAX) return { state, events: [] }
 
   const events: GameEvent[] = [{ type: 'scooped', at: state.ship.at }]
+  const days = scoopDaysFor(state.unlockedTech)
   let next: GameState = {
     ...state,
     ship: { ...state.ship, fuel: FUEL_MAX },
     log: appendLog(state.log, {
       kind: 'travel',
       text:
-        `Two days of slow orbits through the gas giant's outer envelope with the scoop fields ` +
-        `wide. The tank reads full for the first time in a while.`,
+        `${days === 1 ? 'A day' : 'Two days'} of slow orbits through the gas giant's outer envelope ` +
+        `with the scoop fields wide${days === 1 ? ' — the survey suite finds the rich seams' : ''}. ` +
+        `The tank reads full for the first time in a while.`,
     }),
   }
-  next = advanceTime(next, 2, events)
+  next = advanceTime(next, days, events)
   return { state: next, events }
 }
 
@@ -446,6 +494,7 @@ export function canResupply(index: GalaxyIndex, at: SystemId): boolean {
 
 function resupply(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
   const index = new GalaxyIndex(state.galaxy)
   if (!canResupply(index, state.ship.at)) return { state, events: [] }
   if (state.supplies >= SUPPLIES_MAX) return { state, events: [] }
@@ -468,7 +517,8 @@ function resupply(state: GameState): Transition {
 
 function refit(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
-  if (!state.driveScarred) return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
+  if (!state.driveScarred && state.hull >= hullMaxFor(state.unlockedTech)) return { state, events: [] }
   const index = new GalaxyIndex(state.galaxy)
   if (index.system(state.ship.at).faction === null) return { state, events: [] }
 
@@ -476,11 +526,12 @@ function refit(state: GameState): Transition {
   let next: GameState = {
     ...state,
     driveScarred: false,
+    hull: hullMaxFor(state.unlockedTech),
     log: appendLog(state.log, {
       kind: 'travel',
       text:
         `Four days in a rented cradle while yard crews who ask no questions grind the scarring ` +
-        `out of the drive housings. It sounds like itself again.`,
+        `out of the drive housings and plate over what the last fight cost. It sounds like itself again.`,
     }),
   }
   next = advanceTime(next, 4, events)
@@ -497,7 +548,7 @@ function refit(state: GameState): Transition {
 export function isStranded(state: GameState, index: GalaxyIndex): boolean {
   if (state.outcome !== 'seeking') return false
   if (canScoop(index, state.ship.at)) return false
-  if (state.ship.fuel >= LONG_JUMP_RESERVE) return false
+  if (state.ship.fuel >= longJumpReserveFor(state.unlockedTech)) return false
   if (state.ship.fuel >= cheapestLaneOut(index, state.ship.at)) return false
 
   // A derelict here could still be drained for fuel by an away mission.
@@ -634,6 +685,7 @@ function runMission(
   approachId: string,
 ): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
   if (state.ship.at !== systemId) return { state, events: [] }
   if (state.searched.includes(systemId)) return { state, events: [] }
 
@@ -655,7 +707,7 @@ function runMission(
   next = advanceTime(next, 1, preEvents)
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
-  const odds = approachOdds(approach, team, next.roster, next.morale)
+  const odds = approachOdds(approach, team, next.roster, next.morale, awayBonusFor(next.unlockedTech))
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
@@ -925,7 +977,9 @@ function file(state: GameState, clueId: ClueId, clueState: ClueState): Transitio
 
 function plotTheJump(state: GameState, target: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
-  if (state.ship.fuel < LONG_JUMP_RESERVE) return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
+  const reserve = longJumpReserveFor(state.unlockedTech)
+  if (state.ship.fuel < reserve) return { state, events: [] }
 
   const correct = target === state.mystery.gateway
   const jumps = [...state.jumps, { target, correct }]
@@ -960,20 +1014,22 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
     .sort()
   const displacedTo = farSystems.length > 0 ? rng.pick(farSystems) : state.ship.at
 
+  const scarred = riftScarsDrive(state.unlockedTech)
+  const fuelLeft = Math.min(state.ship.fuel - reserve, riftFuelFloor(state.unlockedTech))
   const events: GameEvent[] = [{ type: 'jumpFailed', target, attempt: jumps.length, displacedTo }]
   let next: GameState = {
     ...state,
     jumps,
-    ship: { at: displacedTo, fuel: Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25) },
+    ship: { at: displacedTo, fuel: fuelLeft },
     selected: displacedTo,
-    // The rift takes more than fuel: the drive is scarred until a refit.
-    driveScarred: true,
+    // The rift takes more than fuel — unless the stabilisers hold the door.
+    driveScarred: state.driveScarred || scarred,
     log: appendLog(state.log, {
       kind: 'jump',
       text:
         `${name}. We burned the reserve and committed, and the anomaly was not there. ` +
         `The rift spat us out at ${systemName(state, displacedTo)} with ` +
-        `${Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25)} fuel and a scarred drive. ` +
+        `${fuelLeft} fuel${scarred ? ' and a scarred drive' : ', the stabilisers holding'}. ` +
         `Attempt ${jumps.length}. We are still out here.`,
     }),
   }
@@ -982,6 +1038,460 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
   next = advanceTime(next, 3, events)
   if (next.outcome !== 'seeking') return { state: next, events }
   return declareIfStranded(next, index, events)
+}
+
+/* ------------------------------------------------------------------------ *
+ * Encounters
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The arrival roll: scheduled follow-ups first, then the weighted catalog.
+ * Fires only on a still-seeking ship, and marks the encounter done the
+ * moment it opens so a unique can never roll twice.
+ */
+function maybeEncounter(state: GameState, at: SystemId, events: GameEvent[]): Transition {
+  const rng = createRng(`${state.seed}:encounter:${at}:${state.day}:${state.encountersSeen}`)
+  const chosen = chooseEncounter(state, at, rng)
+  if (!chosen) return { state, events }
+
+  const { def, fromPending } = chosen
+  events.push({ type: 'encounterBegan', id: def.id })
+  const next: GameState = {
+    ...state,
+    encounter: { id: def.id, node: def.entry },
+    encountersSeen: state.encountersSeen + 1,
+    flags: state.flags.includes(doneFlag(def.id)) ? state.flags : [...state.flags, doneFlag(def.id)],
+    pending: fromPending ? state.pending.filter((p) => p.id !== def.id) : state.pending,
+    log: appendLog(state.log, {
+      kind: 'encounter',
+      text: `${systemName(state, at)}: ${def.title}.`,
+    }),
+  }
+  return { state: next, events }
+}
+
+/** Whether a choice's visible requirements are met. Shared with the UI. */
+export function choiceAvailable(state: GameState, choice: EncounterChoice): boolean {
+  const needs = choice.needs
+  if (needs) {
+    if (needs.tech && !state.unlockedTech.includes(needs.tech)) return false
+    if (needs.officer && !isFit(state.roster, needs.officer)) return false
+    if (needs.standing && state.standing[needs.standing[0]] < needs.standing[1]) return false
+    if (needs.flag && !state.flags.includes(needs.flag)) return false
+  }
+  const spend = choice.spend
+  if (spend) {
+    if ((spend.fuel ?? 0) > state.ship.fuel) return false
+    if ((spend.data ?? 0) > state.data) return false
+    if ((spend.supplies ?? 0) > state.supplies) return false
+  }
+  return true
+}
+
+function encounterChoose(state: GameState, choiceId: string): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  const active = state.encounter
+  if (!active || active.outcome) return { state, events: [] }
+  const def = encounterDef(active.id)
+  if (!def) return { state: { ...state, encounter: null }, events: [] }
+  const node = def.nodes[active.node]
+  if (!node) return { state: { ...state, encounter: null }, events: [] }
+  const choice = node.choices.find((c) => c.id === choiceId)
+  if (!choice || !choiceAvailable(state, choice)) return { state, events: [] }
+
+  const events: GameEvent[] = [{ type: 'encounterResolved', id: def.id, choice: choice.id }]
+  let next: GameState = state
+
+  // The stake goes on the table before the dice roll.
+  if (choice.spend) {
+    next = {
+      ...next,
+      ship: { ...next.ship, fuel: next.ship.fuel - (choice.spend.fuel ?? 0) },
+      data: next.data - (choice.spend.data ?? 0),
+      supplies: next.supplies - (choice.spend.supplies ?? 0),
+    }
+  }
+
+  const rng = createRng(
+    `${state.seed}:enc-roll:${def.id}:${active.node}:${choice.id}:${state.encountersSeen}`,
+  )
+  const outcome = rng.weighted(choice.results.map(([w, o]) => [o, w] as const))
+
+  return applyOutcome(next, def.id, outcome, rng, events)
+}
+
+/**
+ * Lands an outcome on the ship: resources, standing, flags, casualties,
+ * intelligence, follow-ups, and — last — either the next dialogue node, the
+ * outcome card, or battle stations.
+ */
+function applyOutcome(
+  state: GameState,
+  encounterId: string,
+  outcome: EncounterOutcome,
+  rng: Rng,
+  events: GameEvent[],
+): Transition {
+  let next = state
+
+  if (outcome.flagsSet || outcome.flagsClear) {
+    const cleared = new Set(outcome.flagsClear ?? [])
+    const flags = next.flags.filter((f) => !cleared.has(f))
+    for (const f of outcome.flagsSet ?? []) if (!flags.includes(f)) flags.push(f)
+    next = { ...next, flags }
+  }
+
+  if (outcome.standing) {
+    const standing = { ...next.standing }
+    for (const [culture, delta] of Object.entries(outcome.standing) as [CultureId, number][]) {
+      standing[culture] = Math.max(-3, Math.min(3, standing[culture] + delta))
+      events.push({ type: 'standingShifted', culture, delta })
+    }
+    next = { ...next, standing }
+  }
+
+  if (outcome.war) {
+    next = { ...next, warPressure: Math.max(0, Math.min(10, next.warPressure + outcome.war)) }
+  }
+
+  const hullMax = hullMaxFor(next.unlockedTech)
+  next = {
+    ...next,
+    ship: {
+      ...next.ship,
+      fuel: Math.max(0, Math.min(FUEL_MAX, next.ship.fuel + (outcome.fuel ?? 0))),
+    },
+    supplies: Math.max(0, Math.min(SUPPLIES_MAX, next.supplies + (outcome.supplies ?? 0))),
+    hull: Math.max(1, Math.min(hullMax, next.hull + (outcome.hull ?? 0))),
+    data: Math.max(0, next.data + (outcome.data ?? 0)),
+  }
+  if (outcome.data && outcome.data > 0) events.push({ type: 'dataGained', amount: outcome.data })
+
+  if (outcome.loseCrew) {
+    let toLose = outcome.loseCrew
+    let { security, crew } = next.pools
+    const fromSecurity = Math.min(toLose, security)
+    security -= fromSecurity
+    toLose -= fromSecurity
+    const fromCrew = Math.min(toLose, crew)
+    crew -= fromCrew
+    const lost = fromSecurity + fromCrew
+    if (lost > 0) {
+      events.push({ type: 'genericsLost', count: lost })
+      next = {
+        ...next,
+        pools: { security, crew },
+        casualties: { ...next.casualties, generics: next.casualties.generics + lost },
+      }
+    }
+  }
+
+  if (outcome.injureOfficer) {
+    const fit = next.roster.filter((o) => o.role !== 'captain' && o.status === 'fit')
+    if (fit.length > 0) {
+      const hurt = rng.pick([...fit].sort((a, b) => (a.role < b.role ? -1 : 1)))
+      const duration = isFit(next.roster, 'medical') && hurt.role !== 'medical' ? 6 : 12
+      next = {
+        ...next,
+        roster: next.roster.map((o) =>
+          o.role === hurt.role
+            ? { ...o, status: 'injured' as const, healedAfter: next.day + duration }
+            : o,
+        ),
+      }
+      events.push({ type: 'officerInjured', role: hurt.role, name: hurt.name })
+    }
+  }
+
+  if (outcome.followUp) {
+    const [min, max] = outcome.followUp.days
+    next = {
+      ...next,
+      pending: [
+        ...next.pending.filter((p) => p.id !== outcome.followUp!.id),
+        { id: outcome.followUp.id, notBefore: next.day + rng.range(min, max) },
+      ],
+    }
+  }
+
+  if (outcome.morale) {
+    next = shiftMorale(next, outcome.morale, events)
+    if (next.outcome !== 'seeking') {
+      // The ending takes the screen; the encounter concedes it.
+      return { state: { ...next, encounter: null, combat: null }, events }
+    }
+  }
+
+  if (outcome.shareClues) {
+    const shared = shareIntelligence(next, outcome.shareClues, rng, events)
+    next = shared.state
+    events.push(...shared.events)
+    if (next.outcome !== 'seeking') return { state: { ...next, encounter: null, combat: null }, events }
+  }
+
+  if (outcome.combat) {
+    const enemy = ENEMY_CLASSES[outcome.combat.enemy]
+    events.push({ type: 'combatStarted', enemy: outcome.combat.enemy })
+    next = {
+      ...next,
+      combat: {
+        enemy: outcome.combat.enemy,
+        seed: `${next.seed}:combat:${encounterId}:${next.encountersSeen}`,
+        label: encounterDef(encounterId)?.title ?? 'Engagement',
+        rewards: outcome.combat.rewards,
+        withdrawFollowUp: outcome.combat.withdrawFollowUp,
+      } satisfies PendingCombat,
+      log: appendLog(next.log, {
+        kind: 'combat',
+        text: `${enemy.name} commits to the attack. All hands to stations.`,
+      }),
+    }
+  }
+
+  if (outcome.days) {
+    next = advanceTime(next, outcome.days, events)
+    if (next.outcome !== 'seeking') return { state: { ...next, encounter: null, combat: null }, events }
+  }
+
+  const summary = outcome.text[0] ?? ''
+  next = {
+    ...next,
+    encounter: outcome.goto
+      ? { id: encounterId, node: outcome.goto }
+      : { id: encounterId, node: next.encounter?.node ?? '', outcome: { text: outcome.text } },
+    log: summary
+      ? appendLog(next.log, { kind: 'encounter', text: summary })
+      : next.log,
+  }
+  return { state: next, events }
+}
+
+/**
+ * Intelligence changes hands: an uncollected clue, picked by the seeded
+ * dice, arrives on the plot already legible — someone told you, and telling
+ * needs no decoding. When the galaxy has nothing left to tell, the source
+ * pays in data instead.
+ */
+function shareIntelligence(
+  state: GameState,
+  count: number,
+  rng: Rng,
+  _events: GameEvent[],
+): Transition {
+  let next = state
+  const all: GameEvent[] = []
+  for (let i = 0; i < count; i++) {
+    const remaining = next.mystery.clues
+      .filter((c) => !next.collected.includes(c.id))
+      .sort((a, b) => (a.id < b.id ? -1 : 1))
+    if (remaining.length === 0) {
+      all.push({ type: 'dataGained', amount: 3 })
+      next = {
+        ...next,
+        data: next.data + 3,
+        log: appendLog(next.log, {
+          kind: 'encounter',
+          text: `The account offered is one the plot already holds; the teller adds technical detail instead.`,
+        }),
+      }
+      continue
+    }
+    const clue = rng.pick(remaining)
+    const collected = collectClues(
+      next,
+      [clue],
+      /* handed over legible */ true,
+      `Intelligence received: an account of the anomaly, passed to us directly. Filed to the plot, unassessed.`,
+    )
+    next = collected.state
+    all.push(...collected.events)
+  }
+  return { state: next, events: all }
+}
+
+function encounterContinue(state: GameState): Transition {
+  if (!state.encounter) return { state, events: [] }
+  return { state: { ...state, encounter: null }, events: [] }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Ship combat resolution
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The battle is fought on the combat screen; its verdict re-enters the
+ * rules here, as an action, so a replayed log never re-fights it. Victory
+ * pays the encounter's promised rewards; withdrawal costs fuel and often
+ * reschedules the hunter; defeat is the end of the ship.
+ */
+function resolveCombat(
+  state: GameState,
+  result: 'victory' | 'defeat' | 'withdrawn',
+  hullLeft: number,
+): Transition {
+  const combat = state.combat
+  if (!combat || state.outcome !== 'seeking') return { state, events: [] }
+
+  const enemy = ENEMY_CLASSES[combat.enemy]
+  const events: GameEvent[] = [{ type: 'combatEnded', result }]
+  const hullMax = hullMaxFor(state.unlockedTech)
+  const hull = Math.max(0, Math.min(hullMax, Math.floor(hullLeft)))
+
+  if (result === 'defeat') {
+    events.push({ type: 'shipDestroyed' })
+    return {
+      state: {
+        ...state,
+        hull: 0,
+        combat: null,
+        encounter: null,
+        outcome: 'destroyed',
+        log: appendLog(state.log, {
+          kind: 'ending',
+          text:
+            `${enemy.name} walks its fire down the spine of the ship, and the Ithaca comes apart ` +
+            `around her crew. The escape pods that get away carry the plot with them — a chart of ` +
+            `the way home, adrift with nobody left to fly it.`,
+        }),
+      },
+      events,
+    }
+  }
+
+  if (result === 'withdrawn') {
+    const fuelCost = Math.min(6, state.ship.fuel)
+    let next: GameState = {
+      ...state,
+      hull: Math.max(1, hull),
+      combat: null,
+      ship: { ...state.ship, fuel: state.ship.fuel - fuelCost },
+      pending: combat.withdrawFollowUp
+        ? [
+            ...state.pending.filter((p) => p.id !== combat.withdrawFollowUp!.id),
+            {
+              id: combat.withdrawFollowUp.id,
+              notBefore:
+                state.day +
+                createRng(`${state.seed}:withdraw:${state.encountersSeen}`).range(
+                  combat.withdrawFollowUp.days[0],
+                  combat.withdrawFollowUp.days[1],
+                ),
+            },
+          ]
+        : state.pending,
+      log: appendLog(state.log, {
+        kind: 'combat',
+        text:
+          `The Ithaca disengages from ${enemy.name} under emergency burn — ${fuelCost} fuel spent ` +
+          `running, and the matter unsettled.`,
+      }),
+    }
+    next = shiftMorale(next, -4, events)
+    if (next.outcome !== 'seeking') return { state: next, events }
+    next = advanceTime(next, 1, events)
+    if (next.outcome !== 'seeking') return { state: next, events }
+    return declareIfStranded(next, new GalaxyIndex(next.galaxy), events)
+  }
+
+  // Victory.
+  const rewards: CombatRewards = combat.rewards ?? {}
+  let next: GameState = {
+    ...state,
+    hull: Math.max(1, hull),
+    combat: null,
+    log: appendLog(state.log, {
+      kind: 'combat',
+      text:
+        (rewards.text ?? `${enemy.name} breaks apart. The salvage teams go to work.`) +
+        (rewards.fuel ? ` Recovered ${rewards.fuel} fuel` : '') +
+        (rewards.data ? `${rewards.fuel ? ' and' : ' Recovered'} ${rewards.data} data` : '') +
+        (rewards.fuel || rewards.data ? '.' : ''),
+    }),
+  }
+
+  if (rewards.flagsSet) {
+    const flags = [...next.flags]
+    for (const f of rewards.flagsSet) if (!flags.includes(f)) flags.push(f)
+    next = { ...next, flags }
+  }
+  if (rewards.standing) {
+    const standing = { ...next.standing }
+    for (const [culture, delta] of Object.entries(rewards.standing) as [CultureId, number][]) {
+      standing[culture] = Math.max(-3, Math.min(3, standing[culture] + delta))
+      events.push({ type: 'standingShifted', culture, delta })
+    }
+    next = { ...next, standing }
+  }
+  next = {
+    ...next,
+    ship: { ...next.ship, fuel: Math.min(FUEL_MAX, next.ship.fuel + (rewards.fuel ?? 0)) },
+    data: next.data + (rewards.data ?? 0),
+  }
+  if (rewards.data) events.push({ type: 'dataGained', amount: rewards.data })
+
+  next = shiftMorale(next, rewards.morale ?? 4, events)
+  if (next.outcome !== 'seeking') return { state: next, events }
+
+  if (rewards.shareClues) {
+    const rng = createRng(`${next.seed}:combat-intel:${next.encountersSeen}`)
+    const shared = shareIntelligence(next, rewards.shareClues, rng, events)
+    next = shared.state
+    events.push(...shared.events)
+    if (next.outcome !== 'seeking') return { state: next, events }
+  }
+
+  next = advanceTime(next, 1, events)
+  return { state: next, events }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Research
+ * ------------------------------------------------------------------------ */
+
+/**
+ * The lab spends data on the trees. Two days a project, a fit science
+ * officer at the bench, and the effects land wherever their systems live —
+ * travel prices, jump reserves, dialogue options, the combat loadout.
+ */
+function research(state: GameState, techId: TechId): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  if (state.combat !== null) return { state, events: [] }
+  if (!canResearch(state.unlockedTech, techId)) return { state, events: [] }
+  if (!isFit(state.roster, 'science')) return { state, events: [] }
+
+  const def = techDef(techId)
+  if (state.data < def.cost) return { state, events: [] }
+
+  const science = officer(state.roster, 'science')!
+  const events: GameEvent[] = [{ type: 'techResearched', tech: techId }]
+  let next: GameState = {
+    ...state,
+    data: state.data - def.cost,
+    unlockedTech: [...state.unlockedTech, techId],
+    log: appendLog(state.log, {
+      kind: 'research',
+      text: `${science.name} signs off on ${def.name} after two days at the bench. ${def.flavour}`,
+    }),
+  }
+  // New armour plating is fitted at full thickness.
+  next = { ...next, hull: Math.min(hullMaxFor(next.unlockedTech), Math.max(next.hull, state.hull + (techId === 'war-armour' ? 6 : 0))) }
+  next = advanceTime(next, RESEARCH_DAYS, events)
+  return { state: next, events }
+}
+
+/** The reserve the Long Jump currently demands, for the UI. */
+export function longJumpReserve(state: GameState): number {
+  return longJumpReserveFor(state.unlockedTech)
+}
+
+/**
+ * Rift Echo Tomography: the chart marks the two stars where the rift
+ * resonates — the gateway and the decoy, unlabeled, sorted so nothing about
+ * the order gives the answer away. Null until the tech is researched.
+ */
+export function riftResonance(state: GameState): SystemId[] | null {
+  if (!state.unlockedTech.includes('scan-triangulate')) return null
+  return [state.mystery.gateway, state.mystery.decoy].sort()
 }
 
 /* ------------------------------------------------------------------------ */

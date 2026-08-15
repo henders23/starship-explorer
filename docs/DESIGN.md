@@ -15,7 +15,7 @@ paragraph book replaced by an open, seeded galaxy.
 
 ## 1. The pitch
 
-The *Indefatigable* enters a jump anomaly and comes out somewhere the star charts
+The *Ithaca* enters a jump anomaly and comes out somewhere the star charts
 do not describe. Familiar space is reachable — the anomaly has a far end — but
 nobody aboard knows which of nine hundred stars it hides behind.
 
@@ -238,7 +238,7 @@ This gives urgency without a countdown clock the player can see and resent.
 
 ## 6. The ship
 
-The *Indefatigable* is a state object, a resource pool, and a character.
+The *Ithaca* is a state object, a resource pool, and a character.
 
 ### 6.1 Subsystems
 

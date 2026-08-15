@@ -1,5 +1,8 @@
+import type { PendingCombat } from '../combat/ships.js'
 import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
+import type { ActiveEncounter, CultureId, PendingFollowUp } from '../encounters/types.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
+import type { TechId } from '../research/tech.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 
 /**
@@ -44,6 +47,27 @@ export interface GameState {
   /** Rift Surges endured so far; each is worse than the last. */
   surges: number
 
+  /** Hull integrity, 0 to hullMaxFor(unlockedTech). Combat spends it. */
+  hull: number
+  /** Research data: the coin every kind of intelligence work pays in. */
+  data: number
+  /** Research completed, in unlock order. */
+  unlockedTech: TechId[]
+  /** Story flags: encounter history, promises, debts. Strings by design. */
+  flags: string[]
+  /** Reputation with the cultures that keep score, −3 to +3 each. */
+  standing: Record<CultureId, number>
+  /** How hard the interstellar war is currently intruding, 0–10. */
+  warPressure: number
+  /** Connected encounters scheduled to find the ship in the coming days. */
+  pending: PendingFollowUp[]
+  /** The encounter currently holding the viewscreen, if any. */
+  encounter: ActiveEncounter | null
+  /** Encounters begun so far — the RNG stream discriminator for dialogue. */
+  encountersSeen: number
+  /** A battle ordered but not yet resolved. Blocks most other actions. */
+  combat: PendingCombat | null
+
   /** The captain and department officers — the named people. */
   roster: Officer[]
   /** The generic pools: alive counts, nothing more. */
@@ -56,7 +80,7 @@ export interface GameState {
   casualties: { generics: number; officers: string[] }
 
   jumps: JumpAttempt[]
-  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'mutiny'
+  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'mutiny' | 'destroyed'
   log: LogEntry[]
 }
 
@@ -78,6 +102,9 @@ export interface LogEntry {
     | 'filing'
     | 'contradiction'
     | 'jump'
+    | 'encounter'
+    | 'combat'
+    | 'research'
     | 'ending'
   text: string
 }
@@ -95,6 +122,15 @@ export type Action =
   | { type: 'file'; clue: ClueId; state: ClueState }
   | { type: 'select'; system: SystemId | null }
   | { type: 'plotTheJump'; target: SystemId }
+  | { type: 'encounterChoose'; choice: string }
+  | { type: 'encounterContinue' }
+  | { type: 'research'; tech: TechId }
+  | {
+      type: 'resolveCombat'
+      result: 'victory' | 'defeat' | 'withdrawn'
+      /** Hull remaining when the engagement ended, from the combat screen. */
+      hull: number
+    }
 
 /**
  * Events describe what happened, so the UI can narrate and animate without the
@@ -125,6 +161,14 @@ export type GameEvent =
   | { type: 'clueFiled'; clue: ClueId; state: ClueState }
   | { type: 'jumpSucceeded'; target: SystemId }
   | { type: 'jumpFailed'; target: SystemId; attempt: number; displacedTo: SystemId }
+  | { type: 'encounterBegan'; id: string }
+  | { type: 'encounterResolved'; id: string; choice: string }
+  | { type: 'dataGained'; amount: number }
+  | { type: 'standingShifted'; culture: CultureId; delta: number }
+  | { type: 'techResearched'; tech: TechId }
+  | { type: 'combatStarted'; enemy: string }
+  | { type: 'combatEnded'; result: 'victory' | 'defeat' | 'withdrawn' }
+  | { type: 'shipDestroyed' }
 
 export interface Transition {
   state: GameState

@@ -150,8 +150,9 @@ export function approachOdds(
   team: AwayTeam,
   roster: readonly Officer[],
   morale = 100,
+  extraBonus = 0,
 ): Odds {
-  let bonus = 0
+  let bonus = extraBonus
 
   // A fractious crew works worse on the ground, and the panel says so.
   if (morale < 40) bonus -= 5

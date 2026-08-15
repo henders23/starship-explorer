@@ -125,10 +125,10 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
       <div className="hub-backdrop" aria-hidden="true" />
 
       <section className="hub-context pointer-events-none absolute top-6 left-6 z-10">
-        <h2>ISS <em>Indefatigable</em></h2>
+        <h2>ISS <em>Ithaca</em></h2>
       </section>
 
-      <div className="ship-stage" role="group" aria-label="Interactive cutaway of the ISS Indefatigable">
+      <div className="ship-stage" role="group" aria-label="Interactive cutaway of the ISS Ithaca">
         <div className="ship-cutaway" />
         <div className="ship-scan" aria-hidden="true" />
         {ROOMS.map((entry) => (

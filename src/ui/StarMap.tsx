@@ -269,7 +269,7 @@ function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }
         <svg width={14} height={14}>
           <path d="M 7 1.5 L 12 7 L 7 12.5 L 2 7 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
         </svg>
-        <span className="text-ink-faint">the Indefatigable</span>
+        <span className="text-ink-faint">the Ithaca</span>
       </div>
       <LegendRow colour="var(--color-phosphor)" label="consistent with your plot" />
       <LegendRow colour="var(--color-ink-faint)" label="ruled out" />
