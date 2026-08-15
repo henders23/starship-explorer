@@ -72,6 +72,35 @@ export interface EncounterWhen {
   flagsNone?: string[]
 }
 
+/** How a run that reaches the gate can end. The Ending screen keys off this. */
+export type EndingVariant = 'return' | 'coalition' | 'keeper' | 'lighthouse'
+
+/**
+ * A condition on a single result entry. When a choice resolves, entries
+ * whose condition fails are dropped; if any surviving entry *has* a
+ * condition, the unconditional entries drop too — the specific outcome
+ * replaces the generic one, and the dice pick among what remains. This is
+ * how the galaxy remembers: the same choice lands differently on a ship
+ * that looted the paradise, or is hiding a defector from the inspectors.
+ */
+export interface ResultCond {
+  flagsAll?: string[]
+  flagsNone?: string[]
+  standingAtLeast?: [CultureId, number]
+  standingAtMost?: [CultureId, number]
+  minWar?: number
+  maxWar?: number
+}
+
+/**
+ * A weighted result: `[weight, outcome]`, optionally `[weight, outcome,
+ * condition]`. Every choice keeps at least one unconditional entry as the
+ * fallback (the catalog tests enforce it).
+ */
+export type ResultEntry =
+  | [number, EncounterOutcome]
+  | [number, EncounterOutcome, ResultCond]
+
 /** Everything a resolved choice can do to the game. All optional. */
 export interface EncounterOutcome {
   /** The prose shown (and logged, first line) when this outcome lands. */
@@ -102,11 +131,15 @@ export interface EncounterOutcome {
     rewards?: CombatRewards
     /** If the captain withdraws, this encounter comes back for more. */
     withdrawFollowUp?: { id: string; days: [number, number] }
+    /** A committed battle: the tactical display offers no withdrawal. */
+    noWithdraw?: boolean
   }
   /** Schedule a connected encounter to find the ship in a few days. */
   followUp?: { id: string; days: [number, number] }
   /** Continue the dialogue at this node instead of ending the encounter. */
   goto?: string
+  /** The run ends here, won: sets the 'home' outcome with this variant. */
+  endRun?: EndingVariant
 }
 
 /** What a choice demands before it can be taken. Shown, never hidden. */
@@ -131,7 +164,7 @@ export interface EncounterChoice {
   needs?: ChoiceNeeds
   spend?: ChoiceSpend
   /** Weighted outcomes; one is drawn by the seeded dice. */
-  results: Array<[number, EncounterOutcome]>
+  results: ResultEntry[]
 }
 
 export interface EncounterNode {

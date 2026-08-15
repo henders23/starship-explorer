@@ -1,8 +1,8 @@
 import { ENEMY_CLASSES, type CombatRewards, type PendingCombat } from '../combat/ships.js'
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
-import { chooseEncounter, doneFlag } from '../encounters/select.js'
+import { chooseEncounter, doneFlag, flagsBlock } from '../encounters/select.js'
 import { encounterDef } from '../encounters/catalog.js'
-import type { CultureId, EncounterChoice, EncounterOutcome } from '../encounters/types.js'
+import type { CultureId, EncounterChoice, EncounterOutcome, ResultCond } from '../encounters/types.js'
 import {
   awayBonusFor,
   canResearch,
@@ -82,6 +82,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     casualties: { generics: 0, officers: [] },
     jumps: [],
     outcome: 'seeking',
+    ending: null,
     log: [
       {
         id: 0,
@@ -986,19 +987,30 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
   const name = systemName(state, target)
 
   if (correct) {
+    // The answer was right — but the run ends at the Doorway, not on a
+    // dice-less cut to black. The gate is an encounter: contested if the
+    // war has been allowed to reach it, and its threshold offers every
+    // ending the campaign has earned.
+    const contested = state.warPressure >= 4
     return {
       state: {
         ...state,
         jumps,
-        outcome: 'home',
+        ship: { at: target, fuel: state.ship.fuel - reserve },
+        selected: target,
+        encounter: { id: 'doorway-home', node: contested ? 'contested' : 'threshold' },
+        encountersSeen: state.encountersSeen + 1,
         log: appendLog(state.log, {
-          kind: 'ending',
+          kind: 'jump',
           text:
-            `${name}. The drive holds, the light goes wrong, and then the stars ahead are ` +
-            `stars we have names for. We are in charted space. We are going home.`,
+            `${name}. We burned the reserve and committed, and the drive holds — the rift opens ` +
+            `onto the terminus, and the gate is real. ` +
+            (contested
+              ? `So is the war: both fleets are fighting across the approach.`
+              : `The approach is clear. One more decision, and it is the last one.`),
         }),
       },
-      events: [{ type: 'jumpSucceeded', target }],
+      events: [{ type: 'encounterBegan', id: 'doorway-home' }],
     }
   }
 
@@ -1050,6 +1062,11 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
  * moment it opens so a unique can never roll twice.
  */
 function maybeEncounter(state: GameState, at: SystemId, events: GameEvent[]): Transition {
+  // A scheduled thread the story has since closed (its flag conditions can
+  // no longer pass) is quietly dropped — the hunter died, the debt was paid.
+  const pruned = state.pending.filter((p) => !flagsBlock(p.id, state))
+  if (pruned.length !== state.pending.length) state = { ...state, pending: pruned }
+
   const rng = createRng(`${state.seed}:encounter:${at}:${state.day}:${state.encountersSeen}`)
   const chosen = chooseEncounter(state, at, rng)
   if (!chosen) return { state, events }
@@ -1115,9 +1132,28 @@ function encounterChoose(state: GameState, choiceId: string): Transition {
   const rng = createRng(
     `${state.seed}:enc-roll:${def.id}:${active.node}:${choice.id}:${state.encountersSeen}`,
   )
-  const outcome = rng.weighted(choice.results.map(([w, o]) => [o, w] as const))
+
+  // Conditional entries first: drop what the story rules out, and when a
+  // specific entry survives, it replaces the generic fallbacks entirely.
+  const entries = choice.results.map(([weight, outcome, cond]) => ({ weight, outcome, cond }))
+  const matching = entries.filter((e) => resultCondPasses(next, e.cond))
+  const pool = matching.some((e) => e.cond) ? matching.filter((e) => e.cond) : matching
+  const usable = pool.length > 0 ? pool : entries.filter((e) => !e.cond)
+  if (usable.length === 0) return { state, events: [] }
+  const outcome = rng.weighted(usable.map((e) => [e.outcome, e.weight] as const))
 
   return applyOutcome(next, def.id, outcome, rng, events)
+}
+
+function resultCondPasses(state: GameState, cond: ResultCond | undefined): boolean {
+  if (!cond) return true
+  if (cond.flagsAll && !cond.flagsAll.every((f) => state.flags.includes(f))) return false
+  if (cond.flagsNone && cond.flagsNone.some((f) => state.flags.includes(f))) return false
+  if (cond.standingAtLeast && state.standing[cond.standingAtLeast[0]] < cond.standingAtLeast[1]) return false
+  if (cond.standingAtMost && state.standing[cond.standingAtMost[0]] > cond.standingAtMost[1]) return false
+  if (cond.minWar !== undefined && state.warPressure < cond.minWar) return false
+  if (cond.maxWar !== undefined && state.warPressure > cond.maxWar) return false
+  return true
 }
 
 /**
@@ -1240,6 +1276,7 @@ function applyOutcome(
         label: encounterDef(encounterId)?.title ?? 'Engagement',
         rewards: outcome.combat.rewards,
         withdrawFollowUp: outcome.combat.withdrawFollowUp,
+        noWithdraw: outcome.combat.noWithdraw,
       } satisfies PendingCombat,
       log: appendLog(next.log, {
         kind: 'combat',
@@ -1251,6 +1288,22 @@ function applyOutcome(
   if (outcome.days) {
     next = advanceTime(next, outcome.days, events)
     if (next.outcome !== 'seeking') return { state: { ...next, encounter: null, combat: null }, events }
+  }
+
+  if (outcome.endRun) {
+    const target = next.jumps[next.jumps.length - 1]?.target ?? next.ship.at
+    events.push({ type: 'jumpSucceeded', target })
+    return {
+      state: {
+        ...next,
+        outcome: 'home',
+        ending: outcome.endRun,
+        encounter: null,
+        combat: null,
+        log: appendLog(next.log, { kind: 'ending', text: outcome.text.join(' ') }),
+      },
+      events,
+    }
   }
 
   const summary = outcome.text[0] ?? ''
@@ -1438,6 +1491,15 @@ function resolveCombat(
     next = shared.state
     events.push(...shared.events)
     if (next.outcome !== 'seeking') return { state: next, events }
+  }
+
+  // A battle fought inside a story beat hands the screen back to it — the
+  // gate assault resumes at the threshold, not on the bridge.
+  if (rewards.resumeEncounter) {
+    return {
+      state: { ...next, encounter: { id: rewards.resumeEncounter.id, node: rewards.resumeEncounter.node } },
+      events,
+    }
   }
 
   next = advanceTime(next, 1, events)

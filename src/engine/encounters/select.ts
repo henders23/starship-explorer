@@ -35,6 +35,21 @@ function passesWhen(when: EncounterWhen | undefined, state: GameState, system: S
   return true
 }
 
+/**
+ * True when an encounter's *flag* conditions can no longer pass — the signal
+ * that a scheduled thread has been closed by later events (the Echo killed,
+ * the debt settled). Location and calendar conditions never block: a hunter
+ * that has not found you yet is not a dead thread.
+ */
+export function flagsBlock(id: string, state: GameState): boolean {
+  const def = encounterDef(id)
+  if (!def?.when) return false
+  const { flagsAll, flagsNone } = def.when
+  if (flagsAll && !flagsAll.every((f) => state.flags.includes(f))) return true
+  if (flagsNone && flagsNone.some((f) => state.flags.includes(f))) return true
+  return false
+}
+
 export function eligibleHere(def: EncounterDef, state: GameState, system: StarSystem): boolean {
   if (def.weight <= 0) return false
   if ((def.unique ?? true) && state.flags.includes(doneFlag(def.id))) return false

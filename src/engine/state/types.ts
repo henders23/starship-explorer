@@ -1,6 +1,6 @@
 import type { PendingCombat } from '../combat/ships.js'
 import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
-import type { ActiveEncounter, CultureId, PendingFollowUp } from '../encounters/types.js'
+import type { ActiveEncounter, CultureId, EndingVariant, PendingFollowUp } from '../encounters/types.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
 import type { TechId } from '../research/tech.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
@@ -81,6 +81,8 @@ export interface GameState {
 
   jumps: JumpAttempt[]
   outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'mutiny' | 'destroyed'
+  /** How the run ended, when the outcome is 'home': which door was chosen. */
+  ending: EndingVariant | null
   log: LogEntry[]
 }
 

@@ -296,6 +296,7 @@ const ROUTE_ARC: EncounterDef[] = [
     tag: 'hostile',
     backdrop: 'space',
     weight: 0,
+    when: { flagsNone: ['echo-dead'] },
     entry: 'start',
     nodes: {
       start: {
@@ -1468,6 +1469,20 @@ const WAR: EncounterDef[] = [
             label: 'Open the hold and submit to inspection',
             results: [
               [
+                100,
+                {
+                  text: [
+                    'The inspection is thorough — and the Ithaca is carrying a Vekar strategic asset in the hydroponics bay. Ssevesh’s boarding party walks Vess to the airlock under a retrieval order signed before the ship ever made orbit, and there is nothing lawful to do about it but watch.',
+                    '“Co-operation is noted,” Ssevesh says, and means it as a kindness. It does not feel like one. The standing bounty clears into the ship’s account, unasked.',
+                  ],
+                  fuel: 8,
+                  morale: -8,
+                  standing: { vekar: 1 },
+                  flagsClear: ['defector-aboard'],
+                },
+                { flagsAll: ['defector-aboard'] },
+              ],
+              [
                 80,
                 {
                   text: [
@@ -1704,6 +1719,7 @@ const WAR: EncounterDef[] = [
     tag: 'hostile',
     backdrop: 'space',
     weight: 0,
+    when: { flagsAll: ['defector-aboard'], flagsNone: ['defector-safe'] },
     entry: 'start',
     nodes: {
       start: {
@@ -2241,6 +2257,7 @@ const SHIPBOARD: EncounterDef[] = [
     tag: 'hostile',
     backdrop: 'space',
     weight: 0,
+    when: { flagsNone: ['echo-dead'] },
     entry: 'start',
     nodes: {
       start: {
@@ -2544,6 +2561,7 @@ const DERELICTS: EncounterDef[] = [
     tag: 'hostile',
     backdrop: 'space',
     weight: 0,
+    when: { flagsNone: ['warlord-dead'] },
     entry: 'start',
     nodes: {
       start: {
@@ -2801,10 +2819,36 @@ const WORLDS: EncounterDef[] = [
                 100,
                 {
                   text: [
-                    'The finding arrives as a single dense packet and a sensation of a stamp being applied somewhere important. Judged by how the crew treated an undefended world, the Ithaca has been graded — and the grade has consequences: the observers’ kind keep the oldest charts in the region, and they share them by merit alone.',
-                    'What the packet contains reflects what the away teams did on that world. The dark keeps honest books.',
+                    'The finding arrives as a single dense packet and a sensation of a stamp being applied somewhere important: COMMENDED. The away teams walked through an undefended world and left every table as it was laid, and the observers’ kind — who keep the oldest charts in the region, and share them by merit alone — have opened a shelf.',
+                    'The packet holds a route record older than the war, and a standing entry in the observers’ good books.',
                   ],
+                  shareClues: 1,
                   data: 4,
+                  standing: { custodian: 1 },
+                },
+                { flagsAll: ['paradise-respected'] },
+              ],
+              [
+                100,
+                {
+                  text: [
+                    'The finding arrives as a single dense packet and a sensation of a stamp being applied somewhere important: WANTING. The granaries were full because they were an offering scale, and the away teams tipped it. The observers do not punish; they collect. The stores taken from the paradise lift out of the hold through a seal nobody opened, to the gram.',
+                    'What remains is the audit’s working notes — a cold education in what was actually being weighed.',
+                  ],
+                  supplies: -20,
+                  data: 2,
+                  morale: -3,
+                  standing: { custodian: -1 },
+                },
+                { flagsAll: ['paradise-looted'] },
+              ],
+              [
+                100,
+                {
+                  text: [
+                    'The finding arrives as a single dense packet: INCONCLUSIVE. The observation ended before the observed did anything worth grading — which is, the packet notes with something like disappointment, itself a datum.',
+                  ],
+                  data: 2,
                 },
               ],
             ],
@@ -2938,6 +2982,7 @@ const WORLDS: EncounterDef[] = [
     tag: 'hostile',
     backdrop: 'space',
     weight: 0,
+    when: { flagsAll: ['child-aboard'], flagsNone: ['child-safe'] },
     entry: 'start',
     nodes: {
       start: {
@@ -3044,7 +3089,7 @@ const HOSTILES: EncounterDef[] = [
     tag: 'hostile',
     backdrop: 'space',
     weight: 12,
-    when: { minDay: 30 },
+    when: { minDay: 30, flagsNone: ['reaver-dead'] },
     entry: 'start',
     nodes: {
       start: {
@@ -3274,6 +3319,199 @@ const HOSTILES: EncounterDef[] = [
   },
 ]
 
+
+/* ========================================================================
+ * VI. The Doorway Home                          (pack 030, 110, 200)
+ *
+ * Never rolled at random: the correct Long Jump opens it. At high war
+ * pressure the gate is contested first — every relationship the campaign
+ * built is a way through, and punching through is always available, at a
+ * price, with no withdrawing from the final battle. The threshold node is
+ * the run's last choice, and the endings it offers are gated on what the
+ * ship actually did out here.
+ * ==================================================================== */
+
+const FINALE: EncounterDef[] = [
+  {
+    id: 'doorway-home',
+    title: 'The Doorway Home',
+    tag: 'key',
+    backdrop: 'space',
+    weight: 0,
+    entry: 'threshold',
+    nodes: {
+      contested: {
+        text: [
+          'The reserve burns, the light goes wrong — and holds. The rift opens onto the terminus system, and the terminus system is on fire. Two fleets hang across the approach to the gate: Ascendancy lances in garrison formation, Compact squadrons in blockade, both of them shooting at anything that moves toward the door neither of them can use.',
+          'The gate itself stands beyond the battle, vast and patient and indifferent, keeping station on a timing signal older than either flag. Every hour of this war has been leaning on this system, and now the Ithaca has to cross it.',
+        ],
+        choices: [
+          {
+            id: 'admiral',
+            label: 'Fly the Admiral’s map — the hour of the watch, the lane that lives',
+            needs: { flag: 'admiral-friend' },
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The old man’s chart earns its price at last: not a route but a *timetable* — the eleven minutes of every watch rotation when the picket overlaps thin out to nothing. The Ithaca threads the battle without firing a shot, and somewhere on a neutral rock, an ancient bartender feels briefly, inexplicably pleased.',
+                  ],
+                  goto: 'threshold',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'vekar-passage',
+            label: 'Call in the Ascendancy — request escort under their flag',
+            needs: { standing: ['vekar', 1] },
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The Ascendancy remembers its friends. Three lances peel out of the garrison line and box the Ithaca in a formal escort, daring the blockade to make something of it. The blockade, arithmetic being what it is, does not. At the gate’s threshold the escort commander transmits two words — “Debts even” — and returns to the war.',
+                  ],
+                  goto: 'threshold',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'ostrea-passage',
+            label: 'Call in the Compact — a merchant flag for a merchant lane',
+            needs: { standing: ['ostrea', 1] },
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The Compact does what the Compact has always claimed the war is for: it keeps a lane open. The blockade parts along a corridor exactly one ship wide, held by squadrons that have decided the Ithaca’s account is in credit. Convoy discipline, applied to a single hull, all the way to the door.',
+                  ],
+                  goto: 'threshold',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'gannet-lane',
+            label: 'Fly the Gannet’s blind lane through the pickets',
+            needs: { flag: 'gannet-friend' },
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The pirate’s running charts mark every sensor shadow in the terminus approach — she has been robbing this blockade for years. The Ithaca crosses the battle the way the Gannet crosses everything: invisibly, insolently, and humming. Somewhere out in the colonies, a new verse is already forming.',
+                  ],
+                  goto: 'threshold',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'punch',
+            label: 'Punch through the blockade — there is no way back from this',
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'No passage, no flag, no favours left to call. The Ithaca goes to battle stations one last time and commits to the gap — and a ship of the line commits to closing it. Behind her, the reserve is already burned. There is nothing to withdraw to.',
+                  ],
+                  combat: {
+                    enemy: 'warship',
+                    noWithdraw: true,
+                    rewards: {
+                      text: 'The blockade ship falls away, burning, and the lane to the gate stands open. The last battle of the voyage is over.',
+                      morale: 6,
+                      resumeEncounter: { id: 'doorway-home', node: 'threshold' },
+                    },
+                  },
+                },
+              ],
+            ],
+          },
+        ],
+      },
+      threshold: {
+        text: [
+          'The gate accepts the Ithaca’s harmonics the way a lock accepts a key it was cut for. Beyond the threshold, the readings are unambiguous for the first time in the whole long voyage: charted space, human bands, the slow radio murmur of home. The way is open, and it is real.',
+          'And the door, the drive reports, can be *held* — for a while, at a cost, by a ship standing in it. The whole crew is on the bridge now, nobody having been ordered there. This is the last decision, and everyone knows it.',
+        ],
+        choices: [
+          {
+            id: 'return',
+            label: 'Take everyone home. Now',
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The Ithaca crosses the threshold and the stars ahead are stars with names. We are in charted space. We are going home.',
+                  ],
+                  endRun: 'return',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'coalition',
+            label: 'Hold the door for the refugee constellation',
+            needs: { flag: 'convoy-friend' },
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The signal goes out on the convoy frequencies, and the constellation answers: ninety civilian hulls, then more — every formation the war taught to fly without radios, spelling one word across the terminus approach as they come. The Ithaca stands in the door and holds it, drive screaming, while the grandmothers’ freighters and the school barges pass through into a sky with no front line.',
+                    'Then, last of all, she follows her convoy home.',
+                  ],
+                  endRun: 'coalition',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'keeper',
+            label: 'Stay a season — repair the network, then follow',
+            needs: { standing: ['custodian', 2] },
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The operator channel prints one line — PROPOSAL RECEIVED. ACCEPTED. — and the network takes the Ithaca into its confidence entirely. A season of relay corrections and timing repairs, custodian machines working alongside human engineers who have become, by the network’s cold arithmetic, *trusted*.',
+                    'When the ship finally crosses the threshold, the gates behind her are lit for the first time in ten thousand years — and the region she leaves is measurably less lost than she found it.',
+                  ],
+                  endRun: 'keeper',
+                },
+              ],
+            ],
+          },
+          {
+            id: 'lighthouse',
+            label: 'Send the plot home — and keep the ship out here',
+            results: [
+              [
+                100,
+                {
+                  text: [
+                    'The whole plot goes through the door in a tight-beam packet: every account, every bearing, every provenance note, addressed to the survey service with the Ithaca’s compliments and her position. Then the ship comes about, and stays.',
+                    'Somebody has to be the light in this dark — for the next crew the rift takes, for the convoys, for every lost thing the ship met on the way here. The vote was unanimous. Home knows the way now. The Ithaca keeps the door.',
+                  ],
+                  endRun: 'lighthouse',
+                },
+              ],
+            ],
+          },
+        ],
+      },
+    },
+  },
+]
+
 /* ======================================================================== */
 
 export const ENCOUNTERS: EncounterDef[] = [
@@ -3284,6 +3522,7 @@ export const ENCOUNTERS: EncounterDef[] = [
   ...DERELICTS,
   ...WORLDS,
   ...HOSTILES,
+  ...FINALE,
 ]
 
 const BY_ID = new Map(ENCOUNTERS.map((e) => [e.id, e]))

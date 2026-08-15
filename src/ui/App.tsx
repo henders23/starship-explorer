@@ -9,6 +9,7 @@ import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StarMap } from './StarMap.js'
 import { StartScreen } from './StartScreen.js'
+import { ENDING_VARIANTS, epilogueLines } from '../engine/encounters/epilogue.js'
 import { hullMaxFor } from '../engine/research/tech.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
@@ -282,23 +283,36 @@ function Ending() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
   const casualties = useGame((s) => s.state.casualties)
+  const state = useGame((s) => s.state)
   const { clues } = useNavPlot()
   const failed = jumps.filter((j) => !j.correct).length
   const cleanRun = casualties.generics === 0 && casualties.officers.length === 0
+  const variant = ENDING_VARIANTS[state.ending ?? 'return']
+  const memories = epilogueLines(state)
 
   return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/85 px-6">
-      <div className="panel max-w-lg px-6 py-5">
-        <div className="label mb-2">Charted space</div>
+    <div className="fixed inset-0 z-40 grid place-items-center overflow-y-auto bg-black/85 px-6 py-8">
+      <div className="panel max-w-xl px-6 py-5">
+        <div className="label mb-2">{variant.label}</div>
         <h2 className="text-phosphor mb-3 text-[18px]">
-          {cleanRun ? 'Home, with everyone.' : 'We are going home.'}
+          {cleanRun && state.ending === 'return' ? 'Home, with everyone.' : variant.headline}
         </h2>
+        <p className="text-ink-dim mb-3 text-[12px] leading-relaxed">{variant.body}</p>
         <p className="text-ink-dim mb-3 text-[12px] leading-relaxed">
           You found it with {clues.length} accounts in hand
           {failed > 0
             ? ` and ${failed} wasted ${failed === 1 ? 'attempt' : 'attempts'} behind you.`
             : ' and no wasted attempts.'}
         </p>
+        {memories.length > 0 && (
+          <div className="border-rule mb-3 flex max-h-[34vh] flex-col gap-2 overflow-y-auto border-t pt-3">
+            {memories.map((line) => (
+              <p key={line} className="text-ink-dim text-[11.5px] leading-relaxed">
+                {line}
+              </p>
+            ))}
+          </div>
+        )}
         <div className="text-ink-dim mb-4 flex flex-col gap-1 text-[12px] leading-relaxed">
           {roster
             .filter((o) => o.status !== 'dead')

@@ -698,6 +698,7 @@ export function CombatScreen() {
           REACTOR {freePw}/{b.reactor} FREE
         </div>
         <div style={{ flex: 1 }} />
+        {!combat.noWithdraw && (
         <button
           onClick={() => {
             b.withdrawArmed = !b.withdrawArmed
@@ -708,6 +709,10 @@ export function CombatScreen() {
         >
           {b.withdrawArmed ? `◍ WITHDRAWING ${Math.round(b.withdrawCharge * 100)}%${engineOk ? '' : ' — NEED ENG 2+'}` : '◌ WITHDRAW'}
         </button>
+        )}
+        {combat.noWithdraw && (
+          <div style={{ fontFamily: mono, fontSize: 11, padding: '5px 14px', color: '#8a3a30', letterSpacing: 1 }}>NO WITHDRAWAL — COMMITTED</div>
+        )}
         <button
           onClick={() => {
             if (b.phase === 'playing') b.paused = !b.paused

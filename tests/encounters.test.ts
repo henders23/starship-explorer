@@ -46,6 +46,17 @@ describe('the catalog', () => {
     }
   })
 
+  it('every choice keeps an unconditional fallback entry', () => {
+    for (const def of ENCOUNTERS) {
+      for (const [nodeId, node] of Object.entries(def.nodes)) {
+        for (const choice of node.choices) {
+          const unconditional = choice.results.filter((r) => r[2] === undefined)
+          expect(unconditional.length, `${def.id}:${nodeId}:${choice.id}`).toBeGreaterThan(0)
+        }
+      }
+    }
+  })
+
   it('every follow-up id resolves to a defined encounter', () => {
     for (const def of ENCOUNTERS) {
       for (const node of Object.values(def.nodes)) {
@@ -196,6 +207,49 @@ describe('choosing', () => {
     expect(chosen.encounter?.outcome).toBeDefined()
     const done = reduce(chosen, { type: 'encounterContinue' }).state
     expect(done.encounter).toBeNull()
+  })
+
+  it('conditional results read the story: the paradise verdict differs by conduct', () => {
+    const base = rich()
+
+    const respected = withEncounter({ ...base, flags: ['paradise-respected'] }, 'paradise-test')
+    const a = reduce(respected, { type: 'encounterChoose', choice: 'finding' }).state
+    expect(a.collected.length).toBe(1)
+    expect(a.standing.custodian).toBe(1)
+
+    const looted = withEncounter({ ...base, flags: ['paradise-looted'] }, 'paradise-test')
+    const b = reduce(looted, { type: 'encounterChoose', choice: 'finding' }).state
+    expect(b.collected.length).toBe(0)
+    expect(b.standing.custodian).toBe(-1)
+    expect(b.supplies).toBe(looted.supplies - 20)
+
+    // Neither flag: the unconditional fallback fires.
+    const neither = withEncounter(base, 'paradise-test')
+    const c = reduce(neither, { type: 'encounterChoose', choice: 'finding' }).state
+    expect(c.standing.custodian).toBe(0)
+    expect(c.data).toBe(base.data + 2)
+  })
+
+  it('the inspection finds the defector when the defector is aboard', () => {
+    const state = withEncounter({ ...rich(), flags: ['defector-aboard'] }, 'neutrality-inspection')
+    const { state: next } = reduce(state, { type: 'encounterChoose', choice: 'submit' })
+    expect(next.flags).not.toContain('defector-aboard')
+    expect(next.morale).toBeLessThan(state.morale)
+    expect(next.standing.vekar).toBe(1)
+  })
+
+  it('prunes scheduled threads the story has since closed', () => {
+    const base = rich()
+    const state: GameState = {
+      ...base,
+      day: 20,
+      flags: ['echo-dead'],
+      pending: [{ id: 'echo-hunt', notBefore: 10 }],
+    }
+    const neighbour = state.galaxy.adjacency[state.ship.at]![0]!
+    const { state: next } = reduce(state, { type: 'travel', to: neighbour })
+    expect(next.pending.some((p) => p.id === 'echo-hunt')).toBe(false)
+    expect(next.encounter?.id).not.toBe('echo-hunt')
   })
 
   it('replays identically: same seed, same choice, same result', () => {

@@ -67,6 +67,15 @@ war pressure, flags, injuries, crew losses, days — and the two that matter:
 
 `followUp: { id, days: [min,max] }` schedules a connected encounter.
 
+**Conditional results.** A result entry may carry a third element — a
+condition on flags, standing or war pressure. Entries whose condition fails
+are dropped, and when a specific entry survives it *replaces* the
+unconditional fallbacks: the same choice lands differently on a ship that
+looted the paradise, or is hiding a defector from the inspectors. Every
+choice keeps at least one unconditional entry (the tests enforce it), and
+scheduled follow-ups whose flag conditions can no longer pass are pruned —
+the hunter died, the debt was paid, the thread closes.
+
 ## 3. The content, mapped to the narrative pack
 
 The catalog adapts entries from the 200-entry narrative pack
@@ -81,6 +90,7 @@ The catalog adapts entries from the 200-entry narrative pack
 | Derelicts | grave-deck, cargo-breathing → cargo-owners, museum-of-captains → freed-warlord, hull-within-hull | 162, 163, 169, 171 |
 | Worlds | singing-canyon, abandoned-paradise → paradise-test, first-footprint, cartographer-child → child-hunted | 023, 146, 152, 160 |
 | Hostiles & bounties | corsair-ambush, reaver-hunt, bounty-broker → friendly-pirate, custodian-trial | 037, 055/085, 185 |
+| The Doorway Home | doorway-home — the finale, see §8 | 030, 110, 200 |
 
 The remaining pack entries are a backlog, not a cut: the engine needs no
 changes to absorb them. To add one, append an `EncounterDef` to the right
@@ -154,3 +164,29 @@ between fights and heals a point a day, or fully at a yard refit.
   hand-off, replay determinism.
 - `tests/research.test.ts` — action guards and every numeric effect.
 - `tests/combat.test.ts` — loadout growth and all three resolutions.
+
+## 8. The Doorway Home — the ending sequence
+
+The correct Long Jump no longer cuts straight to the ending: it opens
+`doorway-home`, the finale encounter (pack 030/110/200), and the run ends
+inside it.
+
+- **The contested gate** (110): at war pressure ≥ 4 the terminus is a
+  battlefield. Every relationship the campaign built is a bloodless way
+  through — the Admiral's map, Ascendancy or Compact standing, the Gannet's
+  blind lane — and punching through is always available: a committed battle
+  (`noWithdraw`) whose victory resumes the dialogue at the threshold
+  (`rewards.resumeEncounter`). Defeat at the gate is still the end of the
+  ship. Keep the war meter down, and the approach is simply clear.
+- **The threshold** (030/200): the last choice, with endings gated on the
+  campaign — `return` (always), `coalition` (hold the door for the refugee
+  constellation; needs `convoy-friend`), `keeper` (stay a season and repair
+  the network; needs custodian standing +2), and `lighthouse` (send the plot
+  home, keep the ship out here; needs only the nerve). The variant lands in
+  `state.ending` and the Ending screen keys off it.
+- **The epilogue** (`src/engine/encounters/epilogue.ts`): a rulebook of
+  lines keyed on flags and standings — the people carried, the friends
+  made, the enemies ended, the region left behind. The Ending screen shows
+  the lines the run actually earned. A ship that only flew and fought gets
+  a short epilogue; that is the point. New consequential flags should get a
+  line here — it is the cheapest place in the game to make a choice matter.

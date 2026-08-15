@@ -30,9 +30,12 @@ score), and from characters (missions and favours that pay in route clues
 handed straight to the Nav Plot). Some encounters are hostile: real-time,
 pausable, FTL-school ship combat — reactor allocation, per-room damage,
 subsystem targeting, ion and beam mounts off the warfare tree, and a
-withdraw option that costs fuel and rarely ends the argument. Five ways
-for a run to end: home, the captain dead on the ground, the long silence,
-the mutiny, or the ship lost with all hands.
+withdraw option that costs fuel and rarely ends the argument. Five ways for a
+run to end: home, the captain dead on the ground, the long silence, the
+mutiny, or the ship lost with all hands — and being right is no longer a cut
+to black: the correct jump opens the Doorway, contested by the war if you
+let the war reach it, with four endings gated on what the ship actually did
+out here, and an epilogue that remembers every thread the campaign closed.
 
 ```bash
 npm install

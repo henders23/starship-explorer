@@ -235,13 +235,18 @@ describe('the deduction', () => {
 })
 
 describe('the Long Jump', () => {
-  it('ends the game when the player is right', () => {
-    const { state: after, events } = reduce(state, {
-      type: 'plotTheJump',
-      target: state.mystery.gateway,
-    })
+  /** Being right opens the Doorway; walking through it ends the game, won. */
+  const goHome = (from: GameState) => {
+    const opened = reduce(from, { type: 'plotTheJump', target: from.mystery.gateway })
+    expect(opened.state.encounter?.id).toBe('doorway-home')
+    return reduce(opened.state, { type: 'encounterChoose', choice: 'return' })
+  }
+
+  it('ends the game when the player is right and steps through', () => {
+    const { state: after, events } = goHome(state)
     expect(after.outcome).toBe('home')
-    expect(events).toEqual([{ type: 'jumpSucceeded', target: state.mystery.gateway }])
+    expect(after.ending).toBe('return')
+    expect(events.some((e) => e.type === 'jumpSucceeded' && e.target === state.mystery.gateway)).toBe(true)
   })
 
   it('is survivable when the player is wrong — the search stays open', () => {
@@ -254,12 +259,11 @@ describe('the Long Jump', () => {
 
     // And a second attempt is still possible once the tank allows it.
     const refuelled: GameState = { ...after, ship: { ...after.ship, fuel: 60 } }
-    const again = reduce(refuelled, { type: 'plotTheJump', target: after.mystery.gateway })
-    expect(again.state.outcome).toBe('home')
+    expect(goHome(refuelled).state.outcome).toBe('home')
   })
 
   it('accepts no further orders once the ship is home', () => {
-    const home = run(state, { type: 'plotTheJump', target: state.mystery.gateway })
+    const home = goHome(state).state
     const after = run(home, { type: 'plotTheJump', target: state.mystery.decoy })
     expect(after.jumps).toHaveLength(1)
   })

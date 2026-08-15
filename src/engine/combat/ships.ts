@@ -119,6 +119,8 @@ export interface CombatRewards {
   flagsSet?: string[]
   /** The log line for the victory, ahead of the standard tally. */
   text?: string
+  /** Victory re-opens this dialogue node — for battles inside a story beat. */
+  resumeEncounter?: { id: string; node: string }
 }
 
 /** A battle the reducer has ordered and the combat screen must now fight. */
@@ -131,6 +133,8 @@ export interface PendingCombat {
   rewards?: CombatRewards
   /** If the captain disengages, this encounter is rescheduled. */
   withdrawFollowUp?: { id: string; days: [number, number] }
+  /** A committed battle: the tactical display offers no withdrawal. */
+  noWithdraw?: boolean
 }
 
 export interface PlayerWeaponSpec {
