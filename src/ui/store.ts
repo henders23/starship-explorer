@@ -106,3 +106,9 @@ export function useDispatch(): (action: Action) => void {
 }
 
 export const fileClue = (clue: ClueId, state: ClueState): Action => ({ type: 'file', clue, state })
+
+// A dev-only handle for driving the store from the console or an automated
+// browser — never present in production builds.
+if (import.meta.env.DEV) {
+  ;(window as unknown as Record<string, unknown>).__game = useGame
+}

@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import { MAX_ESCORTS, MAX_HANDS, type AwayTeam, type OfficerRole } from '../engine/crew/types.js'
 import { approachesFor, approachOdds, type Site } from '../engine/missions/sites.js'
 import { moraleBand, volunteerCap } from '../engine/state/reducer.js'
+import { awayBonusFor } from '../engine/research/tech.js'
 import { useDispatch, useGame } from './store.js'
 import type { SystemId } from '../engine/worldgen/types.js'
 
@@ -23,6 +24,7 @@ export function MissionPanel({
   const pools = useGame((s) => s.state.pools)
   const morale = useGame((s) => s.state.morale)
   const cap = useGame((s) => volunteerCap(s.state))
+  const techBonus = useGame((s) => awayBonusFor(s.state.unlockedTech))
   const systemNameById = useGame(
     (s) => s.state.galaxy.systems.find((x) => x.id === system)?.name ?? system,
   )
@@ -52,8 +54,8 @@ export function MissionPanel({
     chosen !== null && (!chosen.needs || team.officers.includes(chosen.needs))
 
   const odds = useMemo(
-    () => (chosen ? approachOdds(chosen, team, roster, morale) : null),
-    [chosen, team, roster, morale],
+    () => (chosen ? approachOdds(chosen, team, roster, morale, techBonus) : null),
+    [chosen, team, roster, morale, techBonus],
   )
 
   return (
@@ -134,7 +136,7 @@ export function MissionPanel({
             {approaches.map((approach) => {
               const locked = approach.needs !== null && !team.officers.includes(approach.needs)
               const active = approachId === approach.id
-              const rowOdds = approachOdds(approach, team, roster, morale)
+              const rowOdds = approachOdds(approach, team, roster, morale, techBonus)
               return (
                 <button
                   key={approach.id}

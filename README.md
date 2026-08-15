@@ -13,15 +13,26 @@ When you think you know where home is, you commit everything to one jump.
 
 ## Status
 
-**Milestones 1–3 complete** — the deduction is playable and winnable, and it
-costs fuel, days and people. Every jump burns fuel and a day; supplies drain
-and hungry crews sour; wounded officers sit in the medbay by the calendar;
-the Rift surges on its own escalating schedule; and a crew pushed past
-Mutinous takes the ship. Defended evidence takes an away team whose
-composition sets your options and your odds; artefacts come back unreadable
-without your science officer; the bridge, consulted, gives real answers.
-Four ways for a run to end: home, the captain dead on the ground, the long
-silence, or the mutiny. No ship combat yet.
+**Milestones 1–3 complete, and the narrative layer is in** — the deduction
+is playable and winnable, and it costs fuel, days and people. Every jump
+burns fuel and a day; supplies drain and hungry crews sour; wounded officers
+sit in the medbay by the calendar; the Rift surges on its own escalating
+schedule; and a crew pushed past Mutinous takes the ship. Defended evidence
+takes an away team whose composition sets your options and your odds;
+artefacts come back unreadable without your science officer; the bridge,
+consulted, gives real answers.
+
+The ISS *Ithaca*'s galaxy now talks back: ~40 authored encounters —
+contacts, traders, war patrols, derelicts, bounties, and connected chains
+that hunt the ship down days later. Intelligence arrives from technology
+(four research trees paid in data), from races (four cultures that keep
+score), and from characters (missions and favours that pay in route clues
+handed straight to the Nav Plot). Some encounters are hostile: real-time,
+pausable, FTL-school ship combat — reactor allocation, per-room damage,
+subsystem targeting, ion and beam mounts off the warfare tree, and a
+withdraw option that costs fuel and rarely ends the argument. Five ways
+for a run to end: home, the captain dead on the ground, the long silence,
+the mutiny, or the ship lost with all hands.
 
 ```bash
 npm install
@@ -36,6 +47,7 @@ npm test
 - **[Design document](docs/DESIGN.md)** — systems, mechanics, architecture
 - **[Roadmap](docs/ROADMAP.md)** — build order, milestones, risks
 - **[The mystery and the Nav Plot](docs/MYSTERY.md)** — what M2 does, how it behaves, what it doesn't do yet
+- **[Encounters, intelligence and the war](docs/ENCOUNTERS.md)** — the narrative layer, research trees, cultures, and ship combat
 
 ## Stack
 

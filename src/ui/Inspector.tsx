@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
-import { canResupply, sitePlan, SUPPLIES_MAX, travelCost } from '../engine/state/reducer.js'
-import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
+import { canResupply, longJumpReserve, sitePlan, SUPPLIES_MAX, travelCost } from '../engine/state/reducer.js'
+import { canScoop, FUEL_MAX, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { MissionPanel } from './MissionPanel.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
@@ -143,6 +143,11 @@ export function Inspector() {
       {!here && hasEvidence && (
         <div className="text-ink-faint text-[10px]">
           Evidence waits here, but the ship must arrive before anyone collects it.
+          {gameState.unlockedTech.includes('scan-survey') && (
+            <span className="text-phosphor-dim">
+              {' '}Survey suite: {site === null ? 'the source will hand its accounts over' : `${site.label.toLowerCase()} — an away team's job`}.
+            </span>
+          )}
         </div>
       )}
 
@@ -160,6 +165,7 @@ export function Inspector() {
           isCandidate={isCandidate}
           alreadyTried={alreadyTried}
           fuel={ship.fuel}
+          reserve={longJumpReserve(gameState)}
           confirming={confirming}
           setConfirming={setConfirming}
           onCommit={() => {
@@ -190,6 +196,7 @@ function LongJump({
   isCandidate,
   alreadyTried,
   fuel,
+  reserve,
   confirming,
   setConfirming,
   onCommit,
@@ -198,6 +205,7 @@ function LongJump({
   isCandidate: boolean
   alreadyTried: boolean
   fuel: number
+  reserve: number
   confirming: boolean
   setConfirming: (v: boolean) => void
   onCommit: () => void
@@ -210,10 +218,10 @@ function LongJump({
     )
   }
 
-  if (fuel < LONG_JUMP_RESERVE) {
+  if (fuel < reserve) {
     return (
       <div className="border-rule text-ink-faint border px-2 py-1 text-[10px]">
-        The Long Jump takes a reserve of {LONG_JUMP_RESERVE} fuel. The tank holds {fuel}.
+        The Long Jump takes a reserve of {reserve} fuel. The tank holds {fuel}.
       </div>
     )
   }
@@ -224,7 +232,7 @@ function LongJump({
         onClick={() => setConfirming(true)}
         className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
       >
-        Plot the Long Jump to {name} — {LONG_JUMP_RESERVE} fuel
+        Plot the Long Jump to {name} — {reserve} fuel
       </button>
     )
   }
@@ -232,7 +240,7 @@ function LongJump({
   return (
     <div className="border-amber-dim border px-3 py-2">
       <p className="text-ink-dim mb-2 text-[11px] leading-relaxed">
-        Committing burns the {LONG_JUMP_RESERVE}-fuel reserve. If you are wrong, the rift throws
+        Committing burns the {reserve}-fuel reserve. If you are wrong, the rift throws
         the ship somewhere far from here with almost nothing in the tank.
         {!isCandidate && (
           <span className="text-alarm">

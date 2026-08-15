@@ -136,6 +136,13 @@ surge schedule and the supplies drain are counting.
 - Prisoners as an ongoing logistical and moral problem
 
 **Done when:** taking a ship intact is measurably better play than destroying it.
+**Status:** first cut shipped ahead of schedule, FTL-school rather than
+range-band: real-time pausable combat with reactor allocation, per-room
+damage, subsystem targeting, ion/beam research unlocks, withdraw-vs-fight,
+and outcomes that re-enter the reducer as replayable actions. Encounters
+(with 40 authored dialogues), the research trees and culture standings
+landed with it — see docs/ENCOUNTERS.md. Range bands, hail/scan postures,
+disable-vs-destroy and prisoners remain open.
 
 ---
 

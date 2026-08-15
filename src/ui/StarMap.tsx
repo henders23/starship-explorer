@@ -2,6 +2,7 @@ import { useMemo, useRef, useState } from 'react'
 import { routeTo } from '../engine/travel/travel.js'
 import type { StarSystem, SystemId } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
+import { riftResonance } from '../engine/state/reducer.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 const PADDING = 40
@@ -26,6 +27,7 @@ export function StarMap() {
   const jumps = useGame((s) => s.state.jumps)
   const ship = useGame((s) => s.state.ship)
   const { candidateSet, sites, clues } = useNavPlot()
+  const resonance = useGame((s) => riftResonance(s.state))
   const [hovered, setHovered] = useState<SystemId | null>(null)
   const [zoom, setZoom] = useState(1.35)
   const [pan, setPan] = useState({ x: -90, y: -35 })
@@ -173,6 +175,13 @@ export function StarMap() {
                 <circle cx={x} cy={y} r={7} fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
               )}
 
+              {resonance?.includes(system.id) && (
+                <g className="resonance-ring" pointerEvents="none">
+                  <circle cx={x} cy={y} r={13} fill="none" stroke="var(--color-phosphor)" strokeWidth={0.8} strokeDasharray="2 3" />
+                  <circle cx={x} cy={y} r={16} fill="none" stroke="var(--color-phosphor-dim)" strokeWidth={0.6} strokeDasharray="1 4" />
+                </g>
+              )}
+
               {isStart && (
                 <rect
                   x={x - 6}
@@ -250,7 +259,7 @@ export function StarMap() {
         <button onClick={() => { setZoom(1.35); setPan({ x: -90, y: -35 }) }} aria-label="Reset map view">⌖</button>
       </div>
 
-      <Legend evidenceCount={sites.size} held={clues.length} />
+      <Legend evidenceCount={sites.size} held={clues.length} resonance={resonance !== null} />
 
       <div className="map-ui map-scale absolute right-5 bottom-5">
         <span>50 LY</span><i />
@@ -262,7 +271,15 @@ export function StarMap() {
   )
 }
 
-function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }) {
+function Legend({
+  evidenceCount,
+  held,
+  resonance,
+}: {
+  evidenceCount: number
+  held: number
+  resonance: boolean
+}) {
   return (
     <div className="map-ui map-legend pointer-events-none absolute bottom-5 left-5 flex flex-col gap-1 text-[10px]">
       <div className="flex items-center gap-2">
@@ -274,6 +291,9 @@ function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }
       <LegendRow colour="var(--color-phosphor)" label="consistent with your plot" />
       <LegendRow colour="var(--color-ink-faint)" label="ruled out" />
       <LegendRow colour="var(--color-amber)" label={`unsearched evidence (${evidenceCount})`} ring />
+      {resonance && (
+        <LegendRow colour="var(--color-phosphor)" label="rift resonance — one is the door, one is the lie" ring />
+      )}
       <div className="text-ink-faint mt-1">{held} accounts in hand</div>
     </div>
   )

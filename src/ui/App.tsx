@@ -1,24 +1,31 @@
 import { useEffect, useRef, useState } from 'react'
+import { CombatScreen } from './CombatScreen.js'
+import { EncounterScreen } from './EncounterScreen.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
+import { IntelScreen } from './IntelScreen.js'
 import { LabScreen } from './LabScreen.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StarMap } from './StarMap.js'
 import { StartScreen } from './StartScreen.js'
+import { hullMaxFor } from '../engine/research/tech.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
-export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
+export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab' | 'intel'
 
 const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
   { id: 'ship', label: 'Ship Overview', code: '01' },
   { id: 'galaxy', label: 'Galaxy', code: '02' },
   { id: 'loadout', label: 'Loadout', code: '03' },
   { id: 'lab', label: 'Lab', code: '04' },
+  { id: 'intel', label: 'Intel', code: '05' },
 ]
 
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
+  const encounterOpen = useGame((s) => s.state.encounter !== null)
+  const combatOpen = useGame((s) => s.state.combat !== null)
   const [screen, setScreen] = useState<Screen>('ship')
   const [started, setStarted] = useState(false)
   const ambientRef = useRef<HTMLAudioElement | null>(null)
@@ -67,12 +74,16 @@ export function App() {
         {screen === 'galaxy' && <GalaxyDeck />}
         {screen === 'loadout' && <LoadoutScreen />}
         {screen === 'lab' && <LabScreen />}
+        {screen === 'intel' && <IntelScreen />}
       </div>
       <CaptainsLog />
+      {encounterOpen && <EncounterScreen />}
+      {!encounterOpen && combatOpen && <CombatScreen />}
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
       {outcome === 'stranded' && <StrandedEnding />}
       {outcome === 'mutiny' && <MutinyEnding />}
+      {outcome === 'destroyed' && <DestroyedEnding />}
     </div>
   )
 }
@@ -207,6 +218,9 @@ function FuelGauge() {
   const fuel = useGame((s) => s.state.ship.fuel)
   const day = useGame((s) => s.state.day)
   const scarred = useGame((s) => s.state.driveScarred)
+  const data = useGame((s) => s.state.data)
+  const hull = useGame((s) => s.state.hull)
+  const hullMax = useGame((s) => hullMaxFor(s.state.unlockedTech))
   const max = 80
   const filled = Math.round((fuel / max) * 12)
   const tone = fuel <= 20 ? 'text-alarm' : fuel <= 40 ? 'text-amber' : 'text-phosphor'
@@ -217,6 +231,18 @@ function FuelGauge() {
         <span className="label">Day</span>
         <span className="text-ink">{day}</span>
       </span>
+      <span className="flex items-center gap-2">
+        <span className="label">Data</span>
+        <span className="text-phosphor">{data}</span>
+      </span>
+      {hull < hullMax && (
+        <span className="flex items-center gap-2" title="Hull integrity. Repairs a point a day; a yard refit restores it fully.">
+          <span className="label">Hull</span>
+          <span className={hull <= hullMax / 3 ? 'text-alarm' : 'text-amber'}>
+            {hull}/{hullMax}
+          </span>
+        </span>
+      )}
       <span className="flex items-center gap-2.5">
         <span className="label">Fuel</span>
         <span className={`tracking-tighter ${tone}`}>
@@ -359,6 +385,33 @@ function MutinyEnding() {
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** The ship lost an argument it chose to have. */
+function DestroyedEnding() {
+  const restart = useGame((s) => s.restart)
+  const seed = useGame((s) => s.state.seed)
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
+      <div className="panel border-alarm-dim max-w-lg px-6 py-5">
+        <div className="label mb-2">Final entry — flight recorder</div>
+        <h2 className="text-alarm mb-3 text-[18px]">The Ithaca is gone.</h2>
+        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
+          The pods that got away are scattering on cold trajectories, each one carrying a copy of
+          the plot. The evidence was good. The bearings were sound. Somewhere in that spread of
+          drifting sparks is everything a rescuer would need to finish the journey — and no ship
+          left to fly it.
+        </p>
+        <button
+          onClick={() => restart(`${seed}-again`)}
+          className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Another ship, another galaxy
         </button>
       </div>
     </div>
