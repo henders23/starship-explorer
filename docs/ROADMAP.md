@@ -81,11 +81,14 @@ Shipped:
   and starting weaker
 - Skill-gated decoding: artefacts recovered without science arrive
   unreadable; a dead science chair with an empty pool leaves them dark
-- **Morale** in four bands. A fractious crew caps volunteers at 2 per detail
-  and works worse on the ground; Mutinous arms a two-stage fuse — the next
-  loss takes the ship, and the run ends in the Mutiny ending
-- **Supplies** drain a point a day and bleed morale at 2/day once empty;
-  restock (2 days) at habitable or faction systems
+- ~~Morale in four bands with a two-stage mutiny fuse~~ — *shipped in M3,
+  then removed by design revision alongside the narrative layer: the crew
+  of the Ithaca are loyal to the end, and the pressure is material rather
+  than political. Empty stores now stop damage control and send away teams
+  down hungry instead of souring anyone.*
+- **Supplies** drain a point a day; an empty hold halts hull repair and
+  costs away teams 10% off the clean outcome; restock (2 days) at
+  habitable or faction systems
 - **Drive scarring**: a failed Long Jump (or a late Rift Surge) scars the
   drive for +30% lane costs until a 4-day refit in a faction yard
 - **Rift Surges** on a seeded, escalating schedule: fuel venting, spoiled

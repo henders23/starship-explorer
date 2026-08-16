@@ -57,7 +57,7 @@ dialogue), `hull`, `combat`, and the `destroyed` outcome.
 
 A choice lists visible requirements (`needs`: tech / fit officer / standing
 / flag), an up-front cost (`spend`), and weighted results. An outcome can
-move any dial the game has: fuel, supplies, morale, hull, data, standing,
+move any dial the game has: fuel, supplies, hull, data, standing,
 war pressure, flags, injuries, crew losses, days — and the two that matter:
 
 - `shareClues: n` — n uncollected clues from the mystery are handed to the
@@ -103,7 +103,7 @@ gotos resolve, follow-ups defined, portraits on disk) automatically.
   lock. That is how the player learns what research buys.
 - Outcomes may be random, but every branch is survivable unless the prose
   promises otherwise; the dice pick flavour and price, not gotchas.
-- Intelligence is the real payout. Fuel and morale keep the ship moving;
+- Intelligence is the real payout. Fuel and stores keep the ship moving;
   data, standing and shared clues get it home.
 - Connected beats use flags + `followUp`, and follow-up-only encounters use
   `weight: 0`.
@@ -145,7 +145,7 @@ prototype, ported: reactor allocation across shields/engines/launch/
 sensors, per-room damage on both ships, weapons that charge/hold/auto,
 subsystem targeting, ion effects, a fighter bay, damage control on both
 sides, pause on Space — plus a **withdraw** mechanic (2+ engine power,
-charges over time, costs 6 fuel and morale, and the hunter usually
+charges over time, costs 6 fuel, and the hunter usually
 reschedules).
 
 The engine's contract (`src/engine/combat/ships.ts`) is deliberately thin:

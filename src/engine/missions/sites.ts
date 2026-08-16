@@ -145,17 +145,21 @@ export interface Odds {
  * weight from the bad outcomes to the clean one; disaster is squeezed last
  * because it is the outcome people plan around.
  */
+export interface OddsModifiers {
+  /** Flat bonus, e.g. from recon optics research. */
+  bonus?: number
+  /** Empty stores: the team works hungry, and the panel says so. */
+  starving?: boolean
+}
+
 export function approachOdds(
   approach: Approach,
   team: AwayTeam,
   roster: readonly Officer[],
-  morale = 100,
-  extraBonus = 0,
+  modifiers: OddsModifiers = {},
 ): Odds {
-  let bonus = extraBonus
-
-  // A fractious crew works worse on the ground, and the panel says so.
-  if (morale < 40) bonus -= 5
+  let bonus = modifiers.bonus ?? 0
+  if (modifiers.starving) bonus -= 10
 
   if (team.captain) bonus += 8
 

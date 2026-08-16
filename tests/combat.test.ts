@@ -62,12 +62,11 @@ describe('resolution', () => {
     expect(events.some((e) => e.type === 'combatEnded' && e.result === 'victory')).toBe(true)
   })
 
-  it('withdrawal costs fuel and morale, and reschedules the hunter', () => {
+  it('withdrawal costs fuel and reschedules the hunter', () => {
     const state = inBattle({ ship: { at: newGame(SEED).ship.at, fuel: 40 } })
     const { state: next } = reduce(state, { type: 'resolveCombat', result: 'withdrawn', hull: 12 })
     expect(next.combat).toBeNull()
     expect(next.ship.fuel).toBe(34)
-    expect(next.morale).toBeLessThan(state.morale)
     const pending = next.pending.find((p) => p.id === 'corsair-ambush')!
     expect(pending.notBefore).toBeGreaterThanOrEqual(state.day + 3)
     expect(pending.notBefore).toBeLessThanOrEqual(state.day + 6)

@@ -111,8 +111,6 @@ export const ENEMY_CLASSES: Record<EnemyClassId, EnemyClass> = {
 export interface CombatRewards {
   fuel?: number
   data?: number
-  /** Morale shift on victory; defaults to +4. */
-  morale?: number
   /** Route intelligence recovered from the wreck or its computers. */
   shareClues?: number
   standing?: Partial<Record<CultureId, number>>

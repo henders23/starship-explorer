@@ -83,7 +83,6 @@ export function App() {
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
       {outcome === 'stranded' && <StrandedEnding />}
-      {outcome === 'mutiny' && <MutinyEnding />}
       {outcome === 'destroyed' && <DestroyedEnding />}
     </div>
   )
@@ -370,33 +369,6 @@ function StrandedEnding() {
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
-        >
-          Another galaxy
-        </button>
-      </div>
-    </div>
-  )
-}
-
-/** The crew has done its arithmetic, and the answer was not the captain. */
-function MutinyEnding() {
-  const restart = useGame((s) => s.restart)
-  const seed = useGame((s) => s.state.seed)
-
-  return (
-    <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
-      <div className="panel border-alarm-dim max-w-lg px-6 py-5">
-        <div className="label mb-2">Entry not logged by the captain</div>
-        <h2 className="text-alarm mb-3 text-[18px]">The ship is no longer yours.</h2>
-        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
-          They were polite about it, which was somehow worse. The plot on the Nav board is still
-          good — better than they know — and someone else will get the credit for finishing it,
-          or the blame for abandoning it. You are given quarters amidships and nothing to decide,
-          ever again.
-        </p>
-        <button
-          onClick={() => restart(`${seed}-again`)}
-          className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
         </button>

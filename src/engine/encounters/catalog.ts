@@ -13,8 +13,8 @@ import type { EncounterDef } from './types.js'
  *  - Requirements are visible, never hidden: a locked choice shows its lock.
  *  - The dice may pick an outcome, but every outcome is survivable-by-design
  *    except where the prose promises otherwise.
- *  - Intelligence is the true payout. Fuel and morale keep the ship moving;
- *    data, standing and shared clues get it home.
+ *  - Intelligence is the true payout. Fuel and supplies keep the ship
+ *    moving; data, standing and shared clues get it home.
  */
 
 const P = (file: string) => `/assets/encounters/${file}`
@@ -226,7 +226,6 @@ const ROUTE_ARC: EncounterDef[] = [
                   text: [
                     'The beacon dies mid-repetition. In its place the ship leaves an honest marker: DO NOT ANSWER. Somewhere behind the sky, something patient crosses one lure off a very long list.',
                   ],
-                  morale: 2,
                 },
               ],
             ],
@@ -279,7 +278,6 @@ const ROUTE_ARC: EncounterDef[] = [
                     'The channel dies. For a long minute nothing happens, and then every screen on the bridge shows the same three words — COME AND SEE — before returning to normal.',
                     'Whatever it is, it has stopped fishing. It is following.',
                   ],
-                  morale: -3,
                   followUp: { id: 'echo-hunt', days: [8, 15] },
                 },
               ],
@@ -483,7 +481,6 @@ const ROUTE_ARC: EncounterDef[] = [
                   ],
                   shareClues: 2,
                   data: 6,
-                  morale: 5,
                   flagsSet: ['parallax-3'],
                 },
               ],
@@ -523,7 +520,6 @@ const ROUTE_ARC: EncounterDef[] = [
                     'But a forgery this good is a confession: whoever built it *knew the original*. The errors in the fake are a map of what they knew, and when.',
                   ],
                   data: 6,
-                  morale: -4,
                   shareClues: 1,
                   flagsSet: ['near-home-seen'],
                 },
@@ -541,7 +537,6 @@ const ROUTE_ARC: EncounterDef[] = [
                     'For one whole day the Ithaca is a happy ship, and the logs record it faithfully. Then the reply comes back — the ship’s own signal, replayed, note-perfect — and the day ends worse than it began.',
                     'Nothing lives here. Nothing ever did. Something merely remembers what living sounded like.',
                   ],
-                  morale: -8,
                   data: 2,
                   flagsSet: ['near-home-seen'],
                 },
@@ -606,7 +601,6 @@ const CONTACTS: EncounterDef[] = [
                   ],
                   shareClues: 1,
                   standing: { flotilla: 2 },
-                  morale: 3,
                 },
               ],
               [
@@ -616,7 +610,6 @@ const CONTACTS: EncounterDef[] = [
                     'The attempt lands wrong — a cadence that, it turns out, mourns the death of an eldest navigator. The convoy goes silent, hull by hull, and leaves without another note.',
                   ],
                   standing: { flotilla: -1 },
-                  morale: -2,
                 },
               ],
             ],
@@ -947,7 +940,6 @@ const CONTACTS: EncounterDef[] = [
                     'A volunteer steps forward — there is always a volunteer — and comes back an hour later lighter in a way that is hard to look at. The automaton pays in schematics, and pays well. In the mess that night, someone laughs at a joke they no longer remember being the subject of.',
                   ],
                   data: 8,
-                  morale: -3,
                 },
               ],
             ],
@@ -964,7 +956,6 @@ const CONTACTS: EncounterDef[] = [
                     'The log’s account of the displacement is now the only account you have.',
                   ],
                   data: 12,
-                  morale: -1,
                   flagsSet: ['captain-memory-sold'],
                 },
               ],
@@ -1240,7 +1231,6 @@ const CONTACTS: EncounterDef[] = [
                     'Ninety hulls of refugees know routes the admiralties never charted — and now, so do you.',
                   ],
                   days: 2,
-                  morale: 4,
                   standing: { ostrea: 2 },
                   data: 3,
                   war: 1,
@@ -1260,7 +1250,6 @@ const CONTACTS: EncounterDef[] = [
                   text: [
                     'The stores cross by shuttle relay, hand to hand to hand. Solene sends back a hand-drawn chart of the corridor ahead — where the mines are, where the water is, which beacons lie. Refugee cartography: annotated in three alphabets and correct.',
                   ],
-                  morale: 3,
                   standing: { ostrea: 1 },
                   data: 3,
                 },
@@ -1277,7 +1266,6 @@ const CONTACTS: EncounterDef[] = [
                   text: [
                     'The convoy does not signal anything as the Ithaca pulls away. That is the worst part: they have stopped expecting better, and the crew watching the formations dwindle astern know it.',
                   ],
-                  morale: -4,
                 },
               ],
             ],
@@ -1476,7 +1464,6 @@ const WAR: EncounterDef[] = [
                     '“Co-operation is noted,” Ssevesh says, and means it as a kindness. It does not feel like one. The standing bounty clears into the ship’s account, unasked.',
                   ],
                   fuel: 8,
-                  morale: -8,
                   standing: { vekar: 1 },
                   flagsClear: ['defector-aboard'],
                 },
@@ -1574,7 +1561,6 @@ const WAR: EncounterDef[] = [
                     'The cache goes up the gravity well in unmarked lighters and into the star without ceremony. Halloran breathes for what looks like the first time in months, and opens the sanctuary’s records to your medical staff — including the intake logs of every displaced ship her wards have ever treated.',
                   ],
                   days: 1,
-                  morale: 4,
                   data: 4,
                   standing: { vekar: 1, ostrea: 1 },
                   flagsSet: ['sanctuary-friend'],
@@ -1608,7 +1594,6 @@ const WAR: EncounterDef[] = [
                   ],
                   war: 1,
                   data: 3,
-                  morale: 2,
                 },
               ],
             ],
@@ -1625,7 +1610,6 @@ const WAR: EncounterDef[] = [
                     'A day in the wards, human medicine trading techniques with six kinds of alien surgery. The crew that rotates down comes back changed in the way that only useful work changes people. The cache stays where it is — someone else’s war, someone else’s day.',
                   ],
                   days: 1,
-                  morale: 5,
                   data: 2,
                   standing: { vekar: 1, ostrea: 1 },
                 },
@@ -1687,7 +1671,6 @@ const WAR: EncounterDef[] = [
                   fuel: 10,
                   data: 4,
                   standing: { vekar: 2, ostrea: -1 },
-                  morale: -4,
                 },
               ],
             ],
@@ -1762,7 +1745,6 @@ const WAR: EncounterDef[] = [
                     'The hydroponics bay is just a hydroponics bay again. Nobody goes there off-shift anymore.',
                   ],
                   fuel: 8,
-                  morale: -8,
                   standing: { vekar: 1 },
                   flagsClear: ['defector-aboard'],
                 },
@@ -1807,7 +1789,6 @@ const WAR: EncounterDef[] = [
                   days: 2,
                   shareClues: 1,
                   data: 5,
-                  morale: 3,
                   flagsSet: ['admiral-friend'],
                 },
               ],
@@ -1847,7 +1828,6 @@ const WAR: EncounterDef[] = [
                     'The stories are worth the docking fees: forty years of the war from a man who commanded both sides of it and buried friends on both. Half of it is intelligence by any measure. All of it is warning.',
                   ],
                   data: 3,
-                  morale: 2,
                 },
               ],
             ],
@@ -1887,7 +1867,6 @@ const WAR: EncounterDef[] = [
                     'The last one transmits its patrol logs — decades of traffic data across a lane the charts call empty — and asks, before going dark, that somebody remember the squadron’s name. The log officer records it in full.',
                   ],
                   data: 5,
-                  morale: 3,
                   flagsSet: ['mines-stood-down'],
                 },
               ],
@@ -1903,7 +1882,6 @@ const WAR: EncounterDef[] = [
                   text: [
                     'The fighters herd and detonate a corridor through the field, clean and by the book. The dead pilots hold their doomed formation to the last mine. Nobody aboard says much for a watch or two.',
                   ],
-                  morale: -2,
                 },
               ],
               [
@@ -1913,7 +1891,6 @@ const WAR: EncounterDef[] = [
                     'The field defends itself better than dead pilots should. Two mines slip the sweep and lay their last kill against the Ithaca’s hull before the point-defence finds them.',
                   ],
                   hull: -4,
-                  morale: -2,
                 },
               ],
             ],
@@ -1959,7 +1936,6 @@ const WAR: EncounterDef[] = [
                   text: [
                     'The Ithaca works the wreck for eleven hours, and the footage — a neutral ship doing the work a warship was posing beside — says more than any flag. The Compact’s propaganda office quietly buries the reel. Okonkwo does not: her cut goes out on the civilian relays, and the region learns the Ithaca’s name.',
                   ],
-                  morale: 5,
                   standing: { ostrea: 1, flotilla: 1 },
                   data: 2,
                   flagsSet: ['known-rescuer'],
@@ -1980,7 +1956,6 @@ const WAR: EncounterDef[] = [
                   data: 5,
                   fuel: 6,
                   standing: { ostrea: 2, vekar: -2 },
-                  morale: -2,
                 },
               ],
             ],
@@ -1989,7 +1964,7 @@ const WAR: EncounterDef[] = [
             id: 'leave',
             label: 'Leave the theatre to its actors',
             results: [
-              [100, { text: ['The survivors are saved, eventually, once the shot is right. The Ithaca’s sensor log of the delay is its own kind of document, and the crew know they watched it happen.'], morale: -3, data: 1 }],
+              [100, { text: ['The survivors are saved, eventually, once the shot is right. The Ithaca’s sensor log of the delay is its own kind of document, and the crew know they watched it happen.'], data: 1 }],
             ],
           },
         ],
@@ -2033,7 +2008,6 @@ const SHIPBOARD: EncounterDef[] = [
                     'The medbay breaks the fever in two hard days. Dr. Iolo is gracious about the lost opportunity and thorough about the aftercare. The patterns, whatever they were, fade with the last case — unrecorded.',
                   ],
                   days: 2,
-                  morale: 3,
                 },
               ],
             ],
@@ -2053,7 +2027,6 @@ const SHIPBOARD: EncounterDef[] = [
                   days: 2,
                   shareClues: 1,
                   data: 4,
-                  morale: -2,
                 },
               ],
               [
@@ -2065,7 +2038,6 @@ const SHIPBOARD: EncounterDef[] = [
                   days: 2,
                   data: 4,
                   injureOfficer: true,
-                  morale: -3,
                 },
               ],
             ],
@@ -2105,7 +2077,6 @@ const SHIPBOARD: EncounterDef[] = [
                   text: [
                     'Skell performs miracles with reconstituted stores and something alarming from the xenogarden that everyone agrees not to identify. For one evening the mess deck sounds like a ship that is going to make it. That sound is worth more than the stores were.',
                   ],
-                  morale: 6,
                 },
               ],
             ],
@@ -2114,7 +2085,7 @@ const SHIPBOARD: EncounterDef[] = [
             id: 'decline',
             label: 'The stores stay sealed',
             results: [
-              [100, { text: ['Skell salutes with a claw — no argument, no sulk — and serves the standard ration with unusual care. The day passes like the others. That is the problem with it.'], morale: -1 }],
+              [100, { text: ['Skell salutes with a claw — no argument, no sulk — and serves the standard ration with unusual care. The day passes like the others. That is the problem with it.'] }],
             ],
           },
         ],
@@ -2134,52 +2105,54 @@ const SHIPBOARD: EncounterDef[] = [
     nodes: {
       start: {
         text: [
-          'It is not a mutiny — everyone is very clear that it is not a mutiny. The maintenance watch has simply, collectively, stopped signing up for nonessential repairs. Their spokesperson’s list of grievances is short, factual, and mostly true: double watches for a month, deferred leave, and a captain who keeps spending days like they are free.',
+          'The maintenance watch files a formal petition, through channels, with signatures: the deferred-repair backlog has crossed the line from tolerable to dangerous, and they can prove it with the fault log. Double watches for a month, spare parts triaged past sense, and a hull that is being asked to remember what plating used to be there.',
+          'They are not refusing orders. They are asking the captain to look at the list.',
         ],
         choices: [
           {
             id: 'negotiate',
-            label: 'Sit down and negotiate the rota (1 day)',
+            label: 'Stand the ship down and work the list properly (1 day)',
             results: [
               [
                 100,
                 {
                   text: [
-                    'A day of grievance procedure in the mess, by the book. The rota that comes out of it is fairer than the one that went in, and the watch signs back on to the last line item. The ship runs on consent again — which is the only thing it ever really ran on.',
+                    'A day of honest yard-work at anchor, the rota rebuilt around what the fault log actually says. The backlog clears, the patches come off, and real plate goes on. The spokesperson signs the completed list like a treaty.',
                   ],
                   days: 1,
-                  morale: 4,
+                  hull: 3,
                 },
               ],
             ],
           },
           {
-            id: 'discipline',
-            label: 'Order them back to stations',
+            id: 'defer',
+            label: 'Note the petition. The schedule holds',
             results: [
               [
                 100,
                 {
                   text: [
-                    'They go back to work — that is what the order was for. The silence they work in follows the officers around the ship for days. Something has been spent here that the stores do not track.',
+                    'The list goes in a drawer and the ship keeps her schedule. The watch does what professionals do: they comply, and they annotate. Somewhere under deck nine, a deferred fault quietly gets worse on exactly the timetable the petition predicted.',
                   ],
-                  morale: -6,
+                  hull: -2,
                 },
               ],
             ],
           },
           {
             id: 'join',
-            label: 'Pick up a spanner and join the backlog yourself (2 days)',
+            label: 'Pick up a spanner and work the backlog with them (2 days)',
             results: [
               [
                 100,
                 {
                   text: [
-                    'The captain on the maintenance rota, taking direction from a third-class technician, for two entire days. It does more than any speech: the backlog clears, the grievances get aired at eye level, and the story becomes ship’s legend by the second watch.',
+                    'The captain on the maintenance rota, taking direction from a third-class technician, for two entire days. The backlog clears to zero, the grievances get aired at eye level over conduit runs, and the story becomes ship’s legend by the second watch — the day the Old Man held the torch.',
                   ],
                   days: 2,
-                  morale: 8,
+                  hull: 5,
+                  flagsSet: ['held-the-torch'],
                 },
               ],
             ],
@@ -2215,7 +2188,6 @@ const SHIPBOARD: EncounterDef[] = [
                   text: [
                     'Four hundred letters ride the anomaly out into the dark. Whether they arrive, no instrument can say — but the ship that watched them go is a different ship: lighter, steadier, and marked, now, on somebody’s chart of interesting signals.',
                   ],
-                  morale: 7,
                   flagsSet: ['letters-sent'],
                   followUp: { id: 'who-listened', days: [12, 25] },
                 },
@@ -2233,7 +2205,6 @@ const SHIPBOARD: EncounterDef[] = [
                   text: [
                     'The science team spends a watch dressing the letters as pulsar survey noise — origin scrambled, contents preserved. Less power reaches the sky, and less certainty that they will ever be readable. But the ship gives away nothing, and the crew got to *send* them. Some nights that is the whole of the job.',
                   ],
-                  morale: 4,
                   data: 2,
                 },
               ],
@@ -2243,7 +2214,7 @@ const SHIPBOARD: EncounterDef[] = [
             id: 'refuse',
             label: 'The ship stays dark',
             results: [
-              [100, { text: ['The letters stay in their file. The anomaly closes on schedule, indifferent. Nobody argues with the decision, which is somehow worse than if they had.'], morale: -3 }],
+              [100, { text: ['The letters stay in their file. The anomaly closes on schedule, indifferent. Nobody argues with the decision, which is somehow worse than if they had.'] }],
             ],
           },
         ],
@@ -2323,7 +2294,6 @@ const DERELICTS: EncounterDef[] = [
                     'They step across the airlock threshold and two hundred years arrive all at once — visible, terrible, survivable. The medbay does what it can; time does the rest. In return, the survivor gives the ship a gift out of all proportion: a working memory of the region’s lanes *as they were drawn before the war redrew them*.',
                   ],
                   data: 6,
-                  morale: 2,
                   flagsSet: ['survivor-aboard'],
                 },
               ],
@@ -2353,7 +2323,6 @@ const DERELICTS: EncounterDef[] = [
                     'The ship logs the cabin as a hazard to navigation, and as something else that has no catalogue code.',
                   ],
                   data: 4,
-                  morale: -2,
                 },
               ],
             ],
@@ -2392,7 +2361,6 @@ const DERELICTS: EncounterDef[] = [
                     'The Flotillas, who have strong customs about the abandoned, take them in at the next crossing — and the convoy that collects them sings the Ithaca’s name into their route-song, permanently.',
                     'Whoever stripped that freighter will eventually learn their cargo woke up. It talked.',
                   ],
-                  morale: 4,
                   standing: { flotilla: 2 },
                   data: 3,
                   followUp: { id: 'cargo-owners', days: [8, 16] },
@@ -2411,7 +2379,6 @@ const DERELICTS: EncounterDef[] = [
                   text: [
                     'The Ithaca hands forty sleepers to a habitable world’s quarantine authority with the batteries at nine days and falling. It is the careful choice, and the sleepers are no longer your responsibility — or your allies, or your witnesses. The manifest goes in the log, in case the dark ever asks who knew.',
                   ],
-                  morale: 2,
                 },
               ],
             ],
@@ -2426,7 +2393,6 @@ const DERELICTS: EncounterDef[] = [
                   text: [
                     'The position goes in the log with a distress annotation the next passing ship may or may not read. The breathing continues behind the Ithaca, forty containers of it, on a battery with a month to live. The watch officers do not discuss it. The mess deck does.',
                   ],
-                  morale: -5,
                   flagsSet: ['cargo-left'],
                 },
               ],
@@ -2527,7 +2493,6 @@ const DERELICTS: EncounterDef[] = [
                   ],
                   shareClues: 1,
                   data: 3,
-                  morale: 3,
                   standing: { custodian: -1 },
                   followUp: { id: 'freed-warlord', days: [7, 14] },
                 },
@@ -2545,7 +2510,6 @@ const DERELICTS: EncounterDef[] = [
                     'The tour ends at an empty case, freshly engraved. The plaque bears no name yet — only a class designation that matches the Ithaca’s, and today’s date rendered in six calendars. “Aspirational,” the Curator says, warmly. You leave at a dignified pace.',
                   ],
                   data: 2,
-                  morale: -1,
                 },
               ],
             ],
@@ -2778,7 +2742,6 @@ const WORLDS: EncounterDef[] = [
                     'The granaries are full and the ship is hungry; the arithmetic does the deciding. The stores are excellent. The feeling of being watched while loading them is unanimous and goes unrecorded in the official log.',
                   ],
                   supplies: 25,
-                  morale: 2,
                   flagsSet: ['paradise-looted'],
                   followUp: { id: 'paradise-test', days: [10, 20] },
                 },
@@ -2789,7 +2752,7 @@ const WORLDS: EncounterDef[] = [
             id: 'leave-p',
             label: 'Break orbit now and let the held breath keep',
             results: [
-              [100, { text: ['Some doors are shut politely by not being opened. The paradise recedes astern, lights on, tables laid, waiting for an answer the Ithaca declined to be.'], morale: 1 }],
+              [100, { text: ['Some doors are shut politely by not being opened. The paradise recedes astern, lights on, tables laid, waiting for an answer the Ithaca declined to be.'] }],
             ],
           },
         ],
@@ -2837,7 +2800,6 @@ const WORLDS: EncounterDef[] = [
                   ],
                   supplies: -20,
                   data: 2,
-                  morale: -3,
                   standing: { custodian: -1 },
                 },
                 { flagsAll: ['paradise-looted'] },
@@ -2891,7 +2853,6 @@ const WORLDS: EncounterDef[] = [
                   days: 1,
                   shareClues: 1,
                   data: 5,
-                  morale: -2,
                   flagsSet: ['warning-read'],
                 },
               ],
@@ -2905,10 +2866,9 @@ const WORLDS: EncounterDef[] = [
                 100,
                 {
                   text: [
-                    'The expedition lifts on schedule, imagery filed, implications shelved. The crew take the captain’s reading of it — a warning is proof there is something ahead worth warning about — and morale steadies on defiance, which burns hot and short.',
+                    'The expedition lifts on schedule, imagery filed, implications shelved. The crew take the captain’s reading of it — a warning is proof there is something ahead worth warning about — and the ship steadies on defiance, which burns hot and travels light.',
                   ],
                   data: 2,
-                  morale: 2,
                   flagsSet: ['warning-ignored'],
                 },
               ],
@@ -2949,7 +2909,6 @@ const WORLDS: EncounterDef[] = [
                     'Her government posts the seizure notice within the week. The Ithaca is named.',
                   ],
                   shareClues: 2,
-                  morale: 2,
                   flagsSet: ['child-aboard'],
                   followUp: { id: 'child-hunted', days: [5, 10] },
                 },
@@ -2966,7 +2925,6 @@ const WORLDS: EncounterDef[] = [
                   text: [
                     'Ules-Four-Ways accepts the refusal with all four eyes steady, which is worse than reproach. “Then unremember this berth, captain. For her sake.” The cartographer’s little ship is gone by the next watch, running dark, somewhere ahead of the writ.',
                   ],
-                  morale: -2,
                 },
               ],
             ],
@@ -3073,7 +3031,6 @@ const HOSTILES: EncounterDef[] = [
                   ],
                   supplies: -18,
                   fuel: -8,
-                  morale: -5,
                 },
               ],
             ],
@@ -3230,7 +3187,6 @@ const HOSTILES: EncounterDef[] = [
                     'Marchetti’s next message is one line: “Refund the advance. Keep the enemies. — Q.M.”',
                   ],
                   data: 6,
-                  morale: 3,
                   standing: { ostrea: 1, flotilla: 1, vekar: -1 },
                   flagsSet: ['gannet-friend'],
                 },
@@ -3425,7 +3381,6 @@ const FINALE: EncounterDef[] = [
                     noWithdraw: true,
                     rewards: {
                       text: 'The blockade ship falls away, burning, and the lane to the gate stands open. The last battle of the voyage is over.',
-                      morale: 6,
                       resumeEncounter: { id: 'doorway-home', node: 'threshold' },
                     },
                   },

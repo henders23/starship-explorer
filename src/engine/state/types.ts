@@ -36,11 +36,11 @@ export interface GameState {
   ship: { at: SystemId; fuel: number }
   /** Days since arrival. Travel, missions and repairs all spend it. */
   day: number
-  /** Ship-wide morale, 0–100. Bands: see MORALE_BANDS in the reducer. */
-  morale: number
-  /** True once morale has hit Mutinous: the next loss takes the ship. */
-  mutinyArmed: boolean
-  /** Stores, 0–100. Drains a point a day; at zero, morale bleeds instead. */
+  /**
+   * Stores, 0–100. Drains a point a day. An empty hold does not break the
+   * crew's loyalty — it breaks their effectiveness: damage control stops
+   * and away teams work hungry.
+   */
   supplies: number
   /** A scarred drive burns 30% more per lane until refitted. */
   driveScarred: boolean
@@ -80,7 +80,7 @@ export interface GameState {
   casualties: { generics: number; officers: string[] }
 
   jumps: JumpAttempt[]
-  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'mutiny' | 'destroyed'
+  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'destroyed'
   /** How the run ended, when the outcome is 'home': which door was chosen. */
   ending: EndingVariant | null
   log: LogEntry[]
@@ -144,12 +144,10 @@ export type GameEvent =
   | { type: 'scooped'; at: SystemId }
   | { type: 'fuelSalvaged'; amount: number }
   | { type: 'strandedDeclared' }
-  | { type: 'moraleShifted'; delta: number; morale: number }
   | { type: 'surgeStruck'; ordinal: number }
   | { type: 'resupplied' }
   | { type: 'refitted' }
   | { type: 'consulted' }
-  | { type: 'mutinyDeclared' }
   | { type: 'officerRecovered'; role: OfficerRole; name: string }
   | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId; undecoded: ClueId[] }
   | { type: 'nothingFound'; at: SystemId }

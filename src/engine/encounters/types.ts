@@ -10,7 +10,7 @@ import type { CombatRewards, EnemyClassId } from '../combat/ships.js'
  * envoys, derelicts with one lit cabin, patrols that want to see papers,
  * raiders that want everything else. An encounter is a small authored
  * dialogue graph: nodes of prose, choices with visible requirements, and
- * weighted outcomes resolved by the seeded dice. Some pay in fuel or morale;
+ * weighted outcomes resolved by the seeded dice. Some pay in fuel or stores;
  * the ones that matter pay in *intelligence* — data for the lab, standing
  * with the cultures that know things, and route clues handed straight to
  * the Nav Plot. Some open fire instead, and the argument continues on the
@@ -107,7 +107,6 @@ export interface EncounterOutcome {
   text: string[]
   fuel?: number
   supplies?: number
-  morale?: number
   /** Research data for the lab. */
   data?: number
   /** Hull repair (+) or damage (−) outside of combat. */

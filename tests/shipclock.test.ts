@@ -1,17 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import {
-  moraleBand,
-  newGame,
-  reduce,
-  reduceAll,
-  surgeDay,
-  SUPPLIES_MAX,
-  volunteerCap,
-} from '../src/engine/state/reducer.js'
+import { newGame, reduce, reduceAll, surgeDay, SUPPLIES_MAX } from '../src/engine/state/reducer.js'
+import { approachesFor, approachOdds, dominantSite } from '../src/engine/missions/sites.js'
+import type { AwayTeam } from '../src/engine/crew/types.js'
 import type { Action, GameState } from '../src/engine/state/types.js'
 import { GalaxyIndex } from '../src/engine/worldgen/index-galaxy.js'
 
-const SEED = 'morale-tests'
+const SEED = 'shipclock-tests'
 
 const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).state
 
@@ -38,15 +32,30 @@ describe('the day clock', () => {
     expect(run(atGiant, { type: 'scoop' }).day).toBe(atGiant.day + 2)
   })
 
-  it('drains a supply point per day, and hunger bleeds morale instead', () => {
+  it('drains a supply point per day, and empty stores stop damage control', () => {
     const { state, index } = fresh()
     const after = run(state, hop(state, index))
     expect(after.supplies).toBe(state.supplies - 1)
 
-    const starving: GameState = { ...state, supplies: 0 }
+    // A dented but fed ship heals a point a day.
+    const dented: GameState = { ...state, hull: 20 }
+    expect(run(dented, hop(dented, index)).hull).toBe(21)
+
+    // A starving one does not — loyalty survives, plating skill does not.
+    const starving: GameState = { ...state, hull: 20, supplies: 0 }
     const hungry = run(starving, hop(starving, index))
     expect(hungry.supplies).toBe(0)
-    expect(hungry.morale).toBeLessThan(starving.morale)
+    expect(hungry.hull).toBe(20)
+  })
+
+  it('a hungry away team works at worse odds, and the panel says so', () => {
+    const { state } = fresh()
+    const site = dominantSite(['derelict-log'])!
+    const approach = approachesFor(site)[0]!
+    const team: AwayTeam = { captain: false, officers: [], escorts: 0, hands: 0 }
+    const fed = approachOdds(approach, team, state.roster, { starving: false })
+    const starved = approachOdds(approach, team, state.roster, { starving: true })
+    expect(starved.clean).toBe(fed.clean - 10)
   })
 })
 
@@ -93,65 +102,6 @@ describe('the medbay', () => {
       approach: 'survey',
     })
     expect(refused.state).toBe(placed)
-  })
-})
-
-describe('morale and the mutiny', () => {
-  it('bands are monotone and complete', () => {
-    expect(moraleBand(80)).toBe('steady')
-    expect(moraleBand(64)).toBe('uneasy')
-    expect(moraleBand(39)).toBe('fractious')
-    expect(moraleBand(24)).toBe('mutinous')
-  })
-
-  it('a fractious crew volunteers fewer generics, and the reducer enforces it', () => {
-    const { state } = fresh()
-    const surly: GameState = { ...state, morale: 30 }
-    expect(volunteerCap(surly)).toBe(2)
-
-    const hazard = surly.mystery.clues.find((c) => c.source.kind === 'derelict-log')
-    if (!hazard) return
-    const placed: GameState = { ...surly, ship: { at: hazard.source.at, fuel: 999 } }
-    const refused = reduce(placed, {
-      type: 'runMission',
-      system: hazard.source.at,
-      team: { captain: false, officers: [], escorts: 4, hands: 0 },
-      approach: 'breach',
-    })
-    expect(refused.state).toBe(placed)
-  })
-
-  it('is two-stage: hitting Mutinous arms the fuse, the next loss fires it', () => {
-    const { state, index } = fresh()
-    // Hungry and already at the edge: each travelled day bleeds 2 morale.
-    const onEdge: GameState = { ...state, morale: 26, supplies: 0 }
-
-    const armed = run(onEdge, hop(onEdge, index))
-    expect(armed.morale).toBeLessThan(25)
-    expect(armed.mutinyArmed).toBe(true)
-    expect(armed.outcome).toBe('seeking')
-    expect(armed.log.some((l) => l.text.includes('wardroom'))).toBe(true)
-
-    const taken = run(armed, hop(armed, index))
-    expect(taken.outcome).toBe('mutiny')
-    expect(taken.log[taken.log.length - 1]!.kind).toBe('ending')
-
-    // A mutinied ship accepts no further orders.
-    expect(reduce(taken, hop(taken, index)).state).toBe(taken)
-  })
-
-  it('recovering above the line stands the crew down', () => {
-    const { state, index } = fresh()
-    const armed: GameState = { ...state, morale: 24, mutinyArmed: true, supplies: 100 }
-    // Resupply is worth +3 — but we are full; collect evidence instead.
-    const social = armed.mystery.clues.find(
-      (c) => !['derelict-log', 'ruins-tablet', 'prisoner', 'listening-post'].includes(c.source.kind),
-    )!
-    const placed: GameState = { ...armed, ship: { at: social.source.at, fuel: 999 } }
-    const after = run(placed, { type: 'search', system: social.source.at })
-    expect(after.morale).toBeGreaterThanOrEqual(25)
-    expect(after.mutinyArmed).toBe(false)
-    void index
   })
 })
 
@@ -224,17 +174,16 @@ describe('the scarred drive and the yard', () => {
 })
 
 describe('stores', () => {
-  it('resupplies at inhabited or administered systems, for two days and a lift', () => {
+  it('resupplies at inhabited or administered systems, for two days alongside', () => {
     const { state, index } = fresh()
     const port = index.systems.find(
       (s) => s.features.includes('habitable-world') || s.faction !== null,
     )!
-    const low: GameState = { ...state, supplies: 20, morale: 50, ship: { at: port.id, fuel: 50 } }
+    const low: GameState = { ...state, supplies: 20, ship: { at: port.id, fuel: 50 } }
 
     const { state: after, events } = reduce(low, { type: 'resupply' })
     expect(after.supplies).toBe(SUPPLIES_MAX - 2) // filled, then two days alongside
     expect(after.day).toBe(low.day + 2)
-    expect(after.morale).toBeGreaterThan(low.morale)
     expect(events.some((e) => e.type === 'resupplied')).toBe(true)
 
     // Nowhere to buy from in an empty system.
@@ -259,11 +208,4 @@ describe('consulting the bridge', () => {
     expect(entry.text).toContain('Stores at')
   })
 
-  it('gets nothing from a mutinous crew', () => {
-    const { state } = fresh()
-    const surly: GameState = { ...state, morale: 20 }
-    const after = run(surly, { type: 'consult' })
-    const entry = after.log[after.log.length - 1]!
-    expect(entry.text).toContain('Nothing to add')
-  })
 })

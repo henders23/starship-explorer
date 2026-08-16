@@ -1,7 +1,6 @@
 import { useMemo, useState } from 'react'
 import { MAX_ESCORTS, MAX_HANDS, type AwayTeam, type OfficerRole } from '../engine/crew/types.js'
 import { approachesFor, approachOdds, type Site } from '../engine/missions/sites.js'
-import { moraleBand, volunteerCap } from '../engine/state/reducer.js'
 import { awayBonusFor } from '../engine/research/tech.js'
 import { useDispatch, useGame } from './store.js'
 import type { SystemId } from '../engine/worldgen/types.js'
@@ -22,8 +21,7 @@ export function MissionPanel({
 }) {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
-  const morale = useGame((s) => s.state.morale)
-  const cap = useGame((s) => volunteerCap(s.state))
+  const starving = useGame((s) => s.state.supplies <= 0)
   const techBonus = useGame((s) => awayBonusFor(s.state.unlockedTech))
   const systemNameById = useGame(
     (s) => s.state.galaxy.systems.find((x) => x.id === system)?.name ?? system,
@@ -54,8 +52,8 @@ export function MissionPanel({
     chosen !== null && (!chosen.needs || team.officers.includes(chosen.needs))
 
   const odds = useMemo(
-    () => (chosen ? approachOdds(chosen, team, roster, morale, techBonus) : null),
-    [chosen, team, roster, morale, techBonus],
+    () => (chosen ? approachOdds(chosen, team, roster, { bonus: techBonus, starving }) : null),
+    [chosen, team, roster, techBonus, starving],
   )
 
   return (
@@ -111,21 +109,20 @@ export function MissionPanel({
             <Stepper
               label="Security escorts"
               value={team.escorts}
-              max={Math.min(MAX_ESCORTS, cap, pools.security)}
+              max={Math.min(MAX_ESCORTS, pools.security)}
               onChange={(escorts) => setTeam((t) => ({ ...t, escorts }))}
             />
             <Stepper
               label="Crew hands"
               value={team.hands}
-              max={Math.min(MAX_HANDS, cap, pools.crew)}
+              max={Math.min(MAX_HANDS, pools.crew)}
               onChange={(hands) => setTeam((t) => ({ ...t, hands }))}
             />
           </div>
 
-          {moraleBand(morale) === 'fractious' || moraleBand(morale) === 'mutinous' ? (
+          {starving ? (
             <div className="text-alarm-dim mt-1.5 text-[10px]">
-              The mood below decks is ugly: no more than {cap} volunteers per detail, and the
-              teams work worse on the ground.
+              The stores are empty: the team goes down hungry, and the odds say so.
             </div>
           ) : null}
         </div>
@@ -136,7 +133,7 @@ export function MissionPanel({
             {approaches.map((approach) => {
               const locked = approach.needs !== null && !team.officers.includes(approach.needs)
               const active = approachId === approach.id
-              const rowOdds = approachOdds(approach, team, roster, morale, techBonus)
+              const rowOdds = approachOdds(approach, team, roster, { bonus: techBonus, starving })
               return (
                 <button
                   key={approach.id}

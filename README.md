@@ -15,9 +15,10 @@ When you think you know where home is, you commit everything to one jump.
 
 **Milestones 1–3 complete, and the narrative layer is in** — the deduction
 is playable and winnable, and it costs fuel, days and people. Every jump
-burns fuel and a day; supplies drain and hungry crews sour; wounded officers
-sit in the medbay by the calendar; the Rift surges on its own escalating
-schedule; and a crew pushed past Mutinous takes the ship. Defended evidence
+burns fuel and a day; supplies drain, and an empty hold stops damage control
+and sends away teams down hungry; wounded officers sit in the medbay by the
+calendar; and the Rift surges on its own escalating schedule. The crew are
+loyal to the end — the pressure is material, never political. Defended evidence
 takes an away team whose composition sets your options and your odds;
 artefacts come back unreadable without your science officer; the bridge,
 consulted, gives real answers.
@@ -30,9 +31,9 @@ score), and from characters (missions and favours that pay in route clues
 handed straight to the Nav Plot). Some encounters are hostile: real-time,
 pausable, FTL-school ship combat — reactor allocation, per-room damage,
 subsystem targeting, ion and beam mounts off the warfare tree, and a
-withdraw option that costs fuel and rarely ends the argument. Five ways for a
-run to end: home, the captain dead on the ground, the long silence, the
-mutiny, or the ship lost with all hands — and being right is no longer a cut
+withdraw option that costs fuel and rarely ends the argument. Four ways for a
+run to end: home, the captain dead on the ground, the long silence, or the
+ship lost with all hands — and being right is no longer a cut
 to black: the correct jump opens the Doorway, contested by the war if you
 let the war reach it, with four endings gated on what the ship actually did
 out here, and an epilogue that remembers every thread the campaign closed.

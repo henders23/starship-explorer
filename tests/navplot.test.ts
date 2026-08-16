@@ -56,13 +56,11 @@ function gatherEverything(from: GameState): GameState {
   for (const system of new Set(current.mystery.clues.map((c) => c.source.at))) {
     current = at(current, system)
     // These suites are about the deduction, not attrition: keep the crew fed,
-    // steady and healthy between sites so morale and the medbay (which have
+    // steady and healthy between sites so the stores and the medbay (which have
     // their own suites) cannot end the run mid-gather.
     current = {
       ...current,
       supplies: 100,
-      morale: 70,
-      mutinyArmed: false,
       roster: current.roster.map((o) =>
         o.status === 'injured' ? { ...o, status: 'fit' as const, healedAfter: undefined } : o,
       ),

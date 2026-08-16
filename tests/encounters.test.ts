@@ -234,7 +234,7 @@ describe('choosing', () => {
     const state = withEncounter({ ...rich(), flags: ['defector-aboard'] }, 'neutrality-inspection')
     const { state: next } = reduce(state, { type: 'encounterChoose', choice: 'submit' })
     expect(next.flags).not.toContain('defector-aboard')
-    expect(next.morale).toBeLessThan(state.morale)
+    expect(next.ship.fuel).toBe(Math.min(80, state.ship.fuel + 8))
     expect(next.standing.vekar).toBe(1)
   })
 

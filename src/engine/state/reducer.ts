@@ -60,8 +60,6 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     selected: puzzle.galaxy.start,
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX },
     day: 0,
-    morale: 70,
-    mutinyArmed: false,
     supplies: 100,
     driveScarred: false,
     surges: 0,
@@ -232,80 +230,21 @@ function collectClues(
       undecoded: undecodedNow,
     },
   ]
-  let next: GameState = {
+  const next: GameState = {
     ...state,
     collected: [...state.collected, ...found.map((c) => c.id)],
     clueStates,
     undecoded,
     log: appendLog(state.log, { kind: 'evidence', text: logText }),
   }
-  next = shiftMorale(next, 2, events)
   return { state: next, events }
 }
 
 /* ------------------------------------------------------------------------ *
- * Time, morale, and the Rift
+ * Time, stores, and the Rift
  * ------------------------------------------------------------------------ */
 
 export const SUPPLIES_MAX = 100
-export const MORALE_BANDS = { steady: 65, uneasy: 40, fractious: 25 } as const
-
-export type MoraleBand = 'steady' | 'uneasy' | 'fractious' | 'mutinous'
-
-export function moraleBand(morale: number): MoraleBand {
-  if (morale >= MORALE_BANDS.steady) return 'steady'
-  if (morale >= MORALE_BANDS.uneasy) return 'uneasy'
-  if (morale >= MORALE_BANDS.fractious) return 'fractious'
-  return 'mutinous'
-}
-
-/**
- * Morale moves once per cause, and the mutiny rule is two-stage and legible:
- * hitting Mutinous puts the captain on notice, and the *next* loss while down
- * there takes the ship. Climbing back above the line stands the crew down.
- */
-function shiftMorale(state: GameState, delta: number, events: GameEvent[]): GameState {
-  if (delta === 0 || state.outcome !== 'seeking') return state
-  const morale = Math.max(0, Math.min(100, state.morale + delta))
-  if (morale === state.morale) return state
-  events.push({ type: 'moraleShifted', delta, morale })
-
-  let next: GameState = { ...state, morale }
-
-  if (moraleBand(morale) !== 'mutinous') {
-    if (state.mutinyArmed) next = { ...next, mutinyArmed: false }
-    return next
-  }
-
-  if (!state.mutinyArmed) {
-    return {
-      ...next,
-      mutinyArmed: true,
-      log: appendLog(next.log, {
-        kind: 'crew',
-        text:
-          `The wardroom goes quiet when you enter, and stays quiet after you leave. ` +
-          `The ship is one more bad day from not being yours.`,
-      }),
-    }
-  }
-
-  if (delta < 0) {
-    events.push({ type: 'mutinyDeclared' })
-    return {
-      ...next,
-      outcome: 'mutiny',
-      log: appendLog(next.log, {
-        kind: 'ending',
-        text:
-          `It is done politely, which is somehow worse. Three of them at the cabin door, sidearms ` +
-          `holstered, and the ship already answering to someone else's voice. Nobody is going home ` +
-          `today, but it will no longer be you who decides when.`,
-      }),
-    }
-  }
-  return next
-}
 
 /** The Rift's schedule: fixed by the seed, escalating, never stored. */
 export function surgeDay(seed: string, ordinal: number): number {
@@ -317,7 +256,7 @@ export function surgeDay(seed: string, ordinal: number): number {
 }
 
 /**
- * The clock. Days drain supplies (or morale, once the stores are gone), heal
+ * The clock. Days drain supplies (and stop damage control once they run dry), heal
  * the medbay, and carry the ship across the Rift's surge schedule. Everything
  * that spends time funnels through here, so no consequence can be dodged by
  * doing something else first.
@@ -325,16 +264,17 @@ export function surgeDay(seed: string, ordinal: number): number {
 function advanceTime(state: GameState, days: number, events: GameEvent[]): GameState {
   if (days <= 0 || state.outcome !== 'seeking') return state
   const day = state.day + days
-  // Damage control works the calendar too: a point of hull a day.
-  const hullMax = hullMaxFor(state.unlockedTech)
-  let next: GameState = { ...state, day, hull: Math.min(hullMax, state.hull + days) }
 
-  // Stores, then hunger.
-  const shortfall = days - next.supplies
-  next = { ...next, supplies: Math.max(0, next.supplies - days) }
-  if (shortfall > 0) {
-    next = shiftMorale(next, -2 * shortfall, events)
-    if (next.outcome !== 'seeking') return next
+  // Damage control works the calendar too — a point of hull a day — but
+  // only while there is food in the hold. The crew stay loyal on empty
+  // stomachs; they just stop being any good at plating over holes.
+  const fedDays = Math.min(days, state.supplies)
+  const hullMax = hullMaxFor(state.unlockedTech)
+  let next: GameState = {
+    ...state,
+    day,
+    hull: Math.min(hullMax, state.hull + fedDays),
+    supplies: Math.max(0, state.supplies - days),
   }
 
   // The medbay discharges by the calendar, not by the mission counter.
@@ -408,8 +348,7 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
     text += `The drive screams for four seconds and does not sound the same afterwards. It will burn hot until refitted.`
   }
 
-  next = { ...next, log: appendLog(next.log, { kind: 'surge', text }) }
-  return shiftMorale(next, tier >= 3 ? -8 : -4, events)
+  return { ...next, log: appendLog(next.log, { kind: 'surge', text }) }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -508,10 +447,9 @@ function resupply(state: GameState): Transition {
       kind: 'travel',
       text:
         `Two days alongside, taking on stores. The hold smells of coffee and packing foam, ` +
-        `and the mood below decks lifts with it.`,
+        `and the damage-control rota fills back up with volunteers.`,
     }),
   }
-  next = shiftMorale(next, 3, events)
   next = advanceTime(next, 2, events)
   return { state: next, events }
 }
@@ -589,7 +527,7 @@ function declareIfStranded(
  * Consult the Bridge (DESIGN §7.2): each fit officer gives a working opinion.
  * It is a real instrument, not flavour — science points at the nearest
  * uncollected thread, medical reads the medbay and the stores, security
- * counts what is left to spend. A mutinous crew gives the captain nothing.
+ * counts what is left to spend.
  */
 function consult(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
@@ -597,9 +535,7 @@ function consult(state: GameState): Transition {
   const lines: string[] = []
   const index = new GalaxyIndex(state.galaxy)
 
-  if (moraleBand(state.morale) === 'mutinous') {
-    lines.push(`Nobody meets your eye. "Nothing to add, captain," says the bridge, eventually, as one.`)
-  } else {
+  {
     const science = state.roster.find((o) => o.role === 'science')
     if (science?.status === 'fit') {
       const remaining = [...evidenceSites(state)]
@@ -631,7 +567,7 @@ function consult(state: GameState): Transition {
     if (security?.status === 'fit') {
       lines.push(
         `${security.name}: "${state.pools.security} security staff and ${state.pools.crew} crew still ` +
-        `on the boards. ${moraleBand(state.morale) === 'fractious' ? 'Fewer of them are volunteering than you think.' : 'They will go where you send them.'}"`,
+        `on the boards. They will go where you send them."`,
       )
     }
 
@@ -661,16 +597,10 @@ function isFit(roster: readonly Officer[], role: OfficerRole): boolean {
   return officer(roster, role)?.status === 'fit'
 }
 
-/** How many generics will volunteer: a fractious crew sends fewer. */
-export function volunteerCap(state: GameState): number {
-  return moraleBand(state.morale) === 'fractious' || moraleBand(state.morale) === 'mutinous' ? 2 : 4
-}
-
-/** Validates a team against the roster, pools, and the mood below decks. */
+/** Validates a team against the roster and the pools. */
 function legalTeam(state: GameState, team: AwayTeam): AwayTeam | null {
-  const cap = volunteerCap(state)
-  if (team.escorts < 0 || team.escorts > Math.min(MAX_ESCORTS, cap, state.pools.security)) return null
-  if (team.hands < 0 || team.hands > Math.min(MAX_HANDS, cap, state.pools.crew)) return null
+  if (team.escorts < 0 || team.escorts > Math.min(MAX_ESCORTS, state.pools.security)) return null
+  if (team.hands < 0 || team.hands > Math.min(MAX_HANDS, state.pools.crew)) return null
   if (new Set(team.officers).size !== team.officers.length) return null
   for (const role of team.officers) {
     if (!isFit(state.roster, role)) return null
@@ -708,7 +638,10 @@ function runMission(
   next = advanceTime(next, 1, preEvents)
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
-  const odds = approachOdds(approach, team, next.roster, next.morale, awayBonusFor(next.unlockedTech))
+  const odds = approachOdds(approach, team, next.roster, {
+    bonus: awayBonusFor(next.unlockedTech),
+    starving: next.supplies <= 0,
+  })
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
@@ -717,7 +650,6 @@ function runMission(
   const events: GameEvent[] = [...preEvents, { type: 'missionResolved', at: systemId, outcome }]
 
   if (outcome === 'clean') {
-    next = shiftMorale(next, 2, events)
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     const salvage = applyDerelictSalvage(next, site, events)
@@ -759,8 +691,6 @@ function runMission(
 
   if (outcome === 'messy') {
     // Hurt, but the job got done.
-    next = shiftMorale(next, moraleCostOfHarm(state, next, -2), events)
-    if (next.outcome !== 'seeking') return { state: next, events }
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     next = applyDerelictSalvage(next, site, events)
@@ -777,8 +707,6 @@ function runMission(
   // Disaster: the team pulls out with nothing. The site remains — the
   // evidence must stay collectable or the puzzle can silently become
   // unwinnable, which the solvability contract exists to prevent.
-  next = shiftMorale(next, moraleCostOfHarm(state, next, -6), events)
-  if (next.outcome !== 'seeking') return { state: next, events }
   return {
     state: {
       ...next,
@@ -801,21 +729,6 @@ function applyDerelictSalvage(state: GameState, site: Site, events: GameEvent[])
     ...state,
     ship: { ...state.ship, fuel: Math.min(FUEL_MAX, state.ship.fuel + DERELICT_FUEL_SALVAGE) },
   }
-}
-
-/**
- * One aggregated morale hit per mission: the base cost of how it went plus
- * what it cost in people. Aggregated so a bad landing is one blow, not four —
- * the two-stage mutiny rule counts blows, and a single mission should not
- * arm the fuse and light it in the same breath.
- */
-function moraleCostOfHarm(before: GameState, after: GameState, base: number): number {
-  const generics = after.casualties.generics - before.casualties.generics
-  const deadOfficers = after.casualties.officers.length - before.casualties.officers.length
-  const injuries = after.roster.filter(
-    (o) => o.status === 'injured' && before.roster.find((p) => p.role === o.role)?.status === 'fit',
-  ).length
-  return base - 2 * generics - 4 * injuries - 8 * deadOfficers
 }
 
 interface Harm {
@@ -956,8 +869,6 @@ function promote(state: GameState, role: Exclude<OfficerRole, 'captain'>): Trans
         `Yesterday they were a number on a duty roster. Today the ship needs them to be more.`,
     }),
   }
-  // Someone stepping up steadies the ship: a small, real morale lift.
-  next = shiftMorale(next, 3, events)
   return { state: next, events }
 }
 
@@ -1045,8 +956,6 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
         `Attempt ${jumps.length}. We are still out here.`,
     }),
   }
-  next = shiftMorale(next, -15, events)
-  if (next.outcome !== 'seeking') return { state: next, events }
   next = advanceTime(next, 3, events)
   if (next.outcome !== 'seeking') return { state: next, events }
   return declareIfStranded(next, index, events)
@@ -1250,14 +1159,6 @@ function applyOutcome(
     }
   }
 
-  if (outcome.morale) {
-    next = shiftMorale(next, outcome.morale, events)
-    if (next.outcome !== 'seeking') {
-      // The ending takes the screen; the encounter concedes it.
-      return { state: { ...next, encounter: null, combat: null }, events }
-    }
-  }
-
   if (outcome.shareClues) {
     const shared = shareIntelligence(next, outcome.shareClues, rng, events)
     next = shared.state
@@ -1439,8 +1340,6 @@ function resolveCombat(
           `running, and the matter unsettled.`,
       }),
     }
-    next = shiftMorale(next, -4, events)
-    if (next.outcome !== 'seeking') return { state: next, events }
     next = advanceTime(next, 1, events)
     if (next.outcome !== 'seeking') return { state: next, events }
     return declareIfStranded(next, new GalaxyIndex(next.galaxy), events)
@@ -1481,9 +1380,6 @@ function resolveCombat(
     data: next.data + (rewards.data ?? 0),
   }
   if (rewards.data) events.push({ type: 'dataGained', amount: rewards.data })
-
-  next = shiftMorale(next, rewards.morale ?? 4, events)
-  if (next.outcome !== 'seeking') return { state: next, events }
 
   if (rewards.shareClues) {
     const rng = createRng(`${next.seed}:combat-intel:${next.encountersSeen}`)
