@@ -1,5 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { ENEMY_CLASSES, playerWeaponsFor } from '../src/engine/combat/ships.js'
+import {
+  COMBAT_STATIONS,
+  ENEMY_CLASSES,
+  helmEvadeBonus,
+  playerWeaponsFor,
+  weaponsChargeBoost,
+} from '../src/engine/combat/ships.js'
 import { newGame, reduce } from '../src/engine/state/reducer.js'
 import type { GameState } from '../src/engine/state/types.js'
 
@@ -40,6 +46,44 @@ describe('the loadout', () => {
       expect(cls.shields).toBeGreaterThanOrEqual(0)
       expect(cls.shields).toBeLessThanOrEqual(2)
     }
+  })
+})
+
+describe('battle stations', () => {
+  it('defines a station per officer, with the passive medbay last', () => {
+    expect(COMBAT_STATIONS.map((s) => s.role)).toEqual(['captain', 'security', 'science', 'medical'])
+    expect(COMBAT_STATIONS.find((s) => s.role === 'medical')?.room).toBeNull()
+    expect(helmEvadeBonus(3)).toBeGreaterThan(helmEvadeBonus(1))
+    expect(weaponsChargeBoost(5)).toBeGreaterThan(weaponsChargeBoost(1))
+    expect(weaponsChargeBoost(1)).toBeGreaterThan(1)
+  })
+
+  it('wounds taken at stations reach the medbay through the verdict', () => {
+    const state = inBattle()
+    const { state: next, events } = reduce(state, {
+      type: 'resolveCombat',
+      result: 'victory',
+      hull: 20,
+      injured: ['science'],
+    })
+    const science = next.roster.find((o) => o.role === 'science')!
+    expect(science.status).toBe('injured')
+    // A fit medical officer halves the stay: 6 days from the resolution day.
+    expect(science.healedAfter).toBe(state.day + 6)
+    expect(events.some((e) => e.type === 'officerInjured' && e.role === 'science')).toBe(true)
+    expect(next.log.some((l) => l.text.includes('medbay'))).toBe(true)
+  })
+
+  it('a wounded medical officer means everyone heals the slow way', () => {
+    const state = inBattle()
+    const { state: next } = reduce(state, {
+      type: 'resolveCombat',
+      result: 'withdrawn',
+      hull: 12,
+      injured: ['medical', 'captain'],
+    })
+    expect(next.roster.find((o) => o.role === 'medical')?.healedAfter).toBe(state.day + 12)
+    expect(next.roster.find((o) => o.role === 'captain')?.healedAfter).toBe(state.day + 12)
   })
 })
 

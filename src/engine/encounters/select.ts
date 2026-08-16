@@ -57,15 +57,32 @@ export function eligibleHere(def: EncounterDef, state: GameState, system: StarSy
 }
 
 /**
- * The encounter this arrival produces, if any. Pure: draws only from the
- * supplied rng. Follow-ups fire the moment they are due and their own
- * conditions (if any) pass; among several due, the earliest scheduled wins,
- * ties broken by id so replays agree.
+ * Pacing: the flat catalog weight, shaped by what the run has been doing.
+ * An encounter whose flag requirements the ship has already satisfied is a
+ * story mid-sentence — boosted. One that repeats a recently seen tag, or
+ * literally re-runs a recent non-unique, cools down. Selection stays a
+ * plain weighted draw; only the weights learn.
+ */
+export function shapedWeight(def: EncounterDef, state: GameState): number {
+  let weight = def.weight
+  if (def.when?.flagsAll && def.when.flagsAll.length > 0) weight *= 1.6
+  const lastTwo = state.recent.slice(-2)
+  if (lastTwo.some((r) => r.tag === def.tag)) weight *= 0.5
+  if (state.recent.some((r) => r.id === def.id)) weight *= 0.3
+  return weight
+}
+
+/**
+ * The encounter this arrival (or idle day) produces, if any. Pure: draws
+ * only from the supplied rng. Follow-ups fire the moment they are due and
+ * their own conditions (if any) pass; among several due, the earliest
+ * scheduled wins, ties broken by id so replays agree.
  */
 export function chooseEncounter(
   state: GameState,
   at: SystemId,
   rng: Rng,
+  chance: number = ENCOUNTER_CHANCE,
 ): { def: EncounterDef; fromPending: boolean } | null {
   const system = state.galaxy.systems.find((s) => s.id === at)
   if (!system) return null
@@ -78,10 +95,10 @@ export function chooseEncounter(
     if (def && passesWhen(def.when, state, system)) return { def, fromPending: true }
   }
 
-  if (!rng.chance(ENCOUNTER_CHANCE)) return null
+  if (!rng.chance(chance)) return null
 
   const pool = ENCOUNTERS.filter((def) => eligibleHere(def, state, system))
   if (pool.length === 0) return null
-  const def = rng.weighted(pool.map((def) => [def, def.weight] as const))
+  const def = rng.weighted(pool.map((def) => [def, shapedWeight(def, state)] as const))
   return { def, fromPending: false }
 }

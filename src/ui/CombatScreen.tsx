@@ -1,5 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { ENEMY_CLASSES, playerWeaponsFor, type EnemyGun, type PendingCombat, type PlayerWeaponSpec } from '../engine/combat/ships.js'
+import {
+  COMBAT_STATIONS,
+  ENEMY_CLASSES,
+  helmEvadeBonus,
+  playerWeaponsFor,
+  SCIENCE_ACCURACY_BONUS,
+  STATION_INJURY_CHANCE,
+  weaponsChargeBoost,
+  type EnemyGun,
+  type PendingCombat,
+  type PlayerWeaponSpec,
+} from '../engine/combat/ships.js'
+import type { Officer, OfficerRole } from '../engine/crew/types.js'
 import { hullMaxFor, reactorFor } from '../engine/research/tech.js'
 import { createRng, type Rng } from '../engine/rng/prng.js'
 import { useDispatch, useGame } from './store.js'
@@ -81,6 +93,17 @@ interface LogLine {
   color: string
 }
 
+interface StationState {
+  role: OfficerRole
+  name: string
+  skill: number
+  /** Fit to serve when the battle opened. */
+  aboard: boolean
+  /** Standing at the station now (false when stood down or wounded). */
+  manning: boolean
+  wounded: boolean
+}
+
 interface Battle {
   phase: 'playing' | 'victory' | 'defeat' | 'withdrawn'
   paused: boolean
@@ -94,6 +117,7 @@ interface Battle {
   craft: number
   withdrawArmed: boolean
   withdrawCharge: number
+  stations: StationState[]
   sys: Record<PRoomId, SysState>
   weapons: BattleWeapon[]
   selWeapon: number | null
@@ -115,8 +139,27 @@ interface Battle {
   log: LogLine[]
 }
 
-function freshBattle(combat: PendingCombat, hull: number, maxHull: number, reactor: number, weapons: PlayerWeaponSpec[]): Battle {
+function freshBattle(
+  combat: PendingCombat,
+  hull: number,
+  maxHull: number,
+  reactor: number,
+  weapons: PlayerWeaponSpec[],
+  roster: readonly Officer[],
+): Battle {
   const cls = ENEMY_CLASSES[combat.enemy]
+  const stations: StationState[] = COMBAT_STATIONS.map((spec) => {
+    const officer = roster.find((o) => o.role === spec.role)
+    const aboard = officer?.status === 'fit'
+    return {
+      role: spec.role,
+      name: officer?.name ?? '—',
+      skill: officer?.skill ?? 0,
+      aboard,
+      manning: aboard,
+      wounded: false,
+    }
+  })
   return {
     phase: 'playing',
     paused: false,
@@ -130,6 +173,7 @@ function freshBattle(combat: PendingCombat, hull: number, maxHull: number, react
     craft: 12,
     withdrawArmed: false,
     withdrawCharge: 0,
+    stations,
     sys: {
       shields: { pw: 4, hp: 4, max: 4 },
       engines: { pw: 2, hp: 3, max: 3 },
@@ -178,6 +222,7 @@ export function CombatScreen() {
   const combat = useGame((s) => s.state.combat)
   const hull = useGame((s) => s.state.hull)
   const unlockedTech = useGame((s) => s.state.unlockedTech)
+  const roster = useGame((s) => s.state.roster)
   const dispatch = useDispatch()
 
   const maxHull = hullMaxFor(unlockedTech)
@@ -192,7 +237,7 @@ export function CombatScreen() {
   const [scale, setScale] = useState(0.8)
 
   if (combat && !battleRef.current) {
-    battleRef.current = freshBattle(combat, hull, maxHull, reactor, weapons)
+    battleRef.current = freshBattle(combat, hull, maxHull, reactor, weapons, roster)
     rngRef.current = createRng(combat.seed)
   }
 
@@ -309,6 +354,20 @@ export function CombatScreen() {
     const s = b.sys
     return b.reactor - (s.shields.pw ?? 0) - (s.engines.pw ?? 0) - (s.launch.pw ?? 0) - (s.sensors.pw ?? 0) - weaponPowerUsed(b)
   }
+  /** The officer at a station, live: manning, unwounded, room intact. */
+  function stationLive(b: Battle, role: OfficerRole): StationState | null {
+    const st = b.stations.find((x) => x.role === role)
+    if (!st || !st.manning || st.wounded) return null
+    const spec = COMBAT_STATIONS.find((x) => x.role === role)
+    if (spec?.room && b.sys[spec.room].hp <= 0) return null
+    return st
+  }
+
+  function playerEvade(b: Battle): number {
+    const helm = stationLive(b, 'captain')
+    return (b.sys.engines.pw ?? 0) * 5 + (helm ? helmEvadeBonus(helm.skill) : 0)
+  }
+
   function addLog(b: Battle, text: string, color: string) {
     b.log.unshift({ text, color })
     if (b.log.length > 6) b.log.length = 6
@@ -357,10 +416,12 @@ export function CombatScreen() {
       }
     }
 
-    // Weapons charge; auto weapons fire when ready.
+    // Weapons charge — faster with the security officer running the guns.
+    const gunnery = stationLive(b, 'security')
+    const chargeBoost = gunnery ? weaponsChargeBoost(gunnery.skill) : 1
     for (const w of b.weapons) {
       if (w.mode === 'off') continue
-      w.charge = Math.min(1, w.charge + dt / w.spec.time)
+      w.charge = Math.min(1, w.charge + (dt * chargeBoost) / w.spec.time)
       if (w.charge >= 1 && w.target && w.mode === 'auto') fireWeapon(b, rng, w, now)
     }
 
@@ -445,7 +506,8 @@ export function CombatScreen() {
     const from = pt('proom-' + w.spec.room)
     const to = pt('eroom-' + w.target)
     const eng = effE(e.sys.engines, now)
-    const evade = eng > 0 ? 8 + eng * 3 + (effE(e.sys.helm, now) > 0 ? 4 : 0) : 0
+    let evade = eng > 0 ? 8 + eng * 3 + (effE(e.sys.helm, now) > 0 ? 4 : 0) : 0
+    if (stationLive(b, 'science')) evade = Math.max(0, evade - SCIENCE_ACCURACY_BONUS)
     for (let i = 0; i < w.spec.shots; i++) {
       const miss = w.spec.kind !== 'beam' && rng.next() * 100 < evade
       spawnShot(b, 'player', w.spec.kind, w.spec.dmg, w.spec.color, from, to, miss, now + i * 240, w.target!, rng)
@@ -469,7 +531,7 @@ export function CombatScreen() {
     const rooms: PRoomId[] = ['helm', 'weapons1', 'weapons2', 'launch', 'shields', 'engines', 'sensors']
     const wts = [10, 15, 15, 13, 18, 15, 14]
     const from = pt('eroom-weapons')
-    const evade = (b.sys.engines.pw ?? 0) * 5
+    const evade = playerEvade(b)
     for (let i = 0; i < g.shots; i++) {
       let roll = rng.next() * 100
       let target: PRoomId = rooms[0]!
@@ -598,6 +660,17 @@ export function CombatScreen() {
         if (sys.pw !== undefined) sys.pw = Math.min(sys.pw, sys.hp)
       }
       if (p.target === 'weapons1' || p.target === 'weapons2') enforceWeaponCap(b, p.target)
+      // A hit on a manned room can put its officer on the deck.
+      const spec = COMBAT_STATIONS.find((x) => x.room === p.target)
+      if (spec) {
+        const officer = b.stations.find((x) => x.role === spec.role)
+        if (officer && officer.manning && !officer.wounded && rngRef.current!.chance(STATION_INJURY_CHANCE)) {
+          officer.wounded = true
+          officer.manning = false
+          float(b, p.x1, p.y1 - 16, 'OFFICER DOWN', '#ff6b5e')
+          addLog(b, officer.name + ' is down at the ' + spec.label + ' station.', '#ff6b5e')
+        }
+      }
       b.flash['p-' + p.target] = now + 340
       float(b, p.x1, p.y1, '-' + p.dmg, '#ff6b5e')
       addLog(b, 'Enemy ' + (p.kind === 'missile' ? 'missile' : 'laser') + ' hit ' + p.target.toUpperCase() + ' −' + p.dmg + ' hull.', '#ffb454')
@@ -668,7 +741,8 @@ export function CombatScreen() {
 
   const finish = () => {
     const result = b.phase === 'victory' ? 'victory' : b.phase === 'defeat' ? 'defeat' : 'withdrawn'
-    dispatch({ type: 'resolveCombat', result, hull: b.hull })
+    const injured = b.stations.filter((st) => st.wounded).map((st) => st.role)
+    dispatch({ type: 'resolveCombat', result, hull: b.hull, injured })
   }
 
   const mono = "'IBM Plex Mono', monospace"
@@ -693,7 +767,7 @@ export function CombatScreen() {
           </div>
         </div>
         <div style={{ fontWeight: 700, fontSize: 15, letterSpacing: 2.5, color: '#e8f2ff' }}>ISS ITHACA</div>
-        <div style={{ fontFamily: mono, fontSize: 11, color: '#9fdfb4' }}>EVADE {(b.sys.engines.pw ?? 0) * 5}%</div>
+        <div style={{ fontFamily: mono, fontSize: 11, color: '#9fdfb4' }}>EVADE {playerEvade(b)}%</div>
         <div style={{ fontFamily: mono, fontSize: 11, color: freePw > 0 ? '#7dffa8' : '#ffb454' }}>
           REACTOR {freePw}/{b.reactor} FREE
         </div>
@@ -956,6 +1030,38 @@ export function CombatScreen() {
                   <button onClick={() => addPower(id, 1)} style={{ width: 16, height: 14, border: '1px solid #2c4568', borderRadius: 2, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#bcd6f2', fontSize: 11, background: 'rgba(20,34,55,.6)', padding: 0 }}>+</button>
                 </div>
               </div>
+            )
+          })}
+        </div>
+        <div style={{ width: 1, background: '#1a2940' }} />
+        <div style={{ width: 194, display: 'flex', flexDirection: 'column', gap: 2, alignSelf: 'flex-start' }}>
+          <div style={{ fontFamily: mono, fontSize: 8, color: '#8ea6c4', letterSpacing: 1 }}>BATTLE STATIONS</div>
+          {b.stations.map((st) => {
+            const spec = COMBAT_STATIONS.find((x) => x.role === st.role)!
+            const passive = spec.room === null
+            const roomDown = spec.room !== null && b.sys[spec.room].hp <= 0
+            const live = st.manning && !st.wounded && !roomDown
+            const status = st.wounded ? 'WOUNDED' : !st.aboard ? 'UNFIT' : passive ? 'STANDING BY' : !st.manning ? 'STOOD DOWN' : roomDown ? 'ROOM DOWN' : 'MANNED'
+            const tone = st.wounded ? '#ff6b5e' : live || (passive && st.aboard) ? '#7dffa8' : '#5a7089'
+            return (
+              <button
+                key={st.role}
+                disabled={passive || !st.aboard || st.wounded}
+                onClick={() => {
+                  st.manning = !st.manning
+                  setTick((t) => t + 1)
+                }}
+                title={spec.blurb + (passive || !st.aboard ? '' : ' — a hit on the manned room can wound the officer')}
+                style={{
+                  display: 'flex', alignItems: 'center', gap: 6, padding: '2px 6px', textAlign: 'left',
+                  border: `1px solid ${st.wounded ? '#8a3a30' : live ? '#2a6b42' : '#2c4568'}`, borderRadius: 2,
+                  background: 'rgba(10,18,30,.7)', cursor: passive || !st.aboard || st.wounded ? 'default' : 'pointer',
+                }}
+              >
+                <span style={{ fontFamily: mono, fontSize: 8, color: '#8ea6c4', width: 46, letterSpacing: 0.5 }}>{spec.label}</span>
+                <span style={{ fontFamily: mono, fontSize: 8.5, color: '#bcd6f2', flex: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{st.name}</span>
+                <span style={{ fontFamily: mono, fontSize: 7.5, color: tone, letterSpacing: 0.5 }}>{status}</span>
+              </button>
             )
           })}
         </div>

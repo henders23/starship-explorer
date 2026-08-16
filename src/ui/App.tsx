@@ -4,6 +4,7 @@ import { EncounterScreen } from './EncounterScreen.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { IntelScreen } from './IntelScreen.js'
+import { JournalScreen } from './JournalScreen.js'
 import { LabScreen } from './LabScreen.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
@@ -29,6 +30,7 @@ export function App() {
   const combatOpen = useGame((s) => s.state.combat !== null)
   const [screen, setScreen] = useState<Screen>('ship')
   const [started, setStarted] = useState(false)
+  const [journalOpen, setJournalOpen] = useState(false)
   const ambientRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -77,7 +79,8 @@ export function App() {
         {screen === 'lab' && <LabScreen />}
         {screen === 'intel' && <IntelScreen />}
       </div>
-      <CaptainsLog />
+      <CaptainsLog onOpenJournal={() => setJournalOpen(true)} />
+      {journalOpen && <JournalScreen onClose={() => setJournalOpen(false)} />}
       {encounterOpen && <EncounterScreen />}
       {!encounterOpen && combatOpen && <CombatScreen />}
       {outcome === 'home' && <Ending />}
@@ -262,15 +265,21 @@ function FuelGauge() {
   )
 }
 
-function CaptainsLog() {
+function CaptainsLog({ onOpenJournal }: { onOpenJournal: () => void }) {
   const log = useGame((s) => s.state.log)
   const latest = log[log.length - 1]
   if (!latest) return null
 
   return (
-    <footer className="border-rule text-ink-dim shrink-0 border-t px-4 py-2 text-[11px] leading-relaxed">
-      <span className="text-ink-faint mr-2">{String(latest.id).padStart(3, '0')}</span>
-      {latest.text}
+    <footer className="border-rule text-ink-dim flex shrink-0 items-baseline gap-2 border-t px-4 py-2 text-[11px] leading-relaxed">
+      <span className="text-ink-faint shrink-0">{String(latest.id).padStart(3, '0')}</span>
+      <span className="min-w-0 flex-1 truncate">{latest.text}</span>
+      <button
+        onClick={onOpenJournal}
+        className="text-ink-faint hover:text-amber shrink-0 text-[10px] tracking-wide uppercase"
+      >
+        Journal ▸
+      </button>
     </footer>
   )
 }

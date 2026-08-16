@@ -21,14 +21,80 @@ interface Store {
 
 const DEFAULT_SEED = 'voyager'
 
+/* ------------------------------------------------------------------------ *
+ * Persistence. The entire game state is plain, serialisable data by design,
+ * so a save is one JSON.stringify. Autosaved on every dispatch; restored on
+ * launch; discarded (never migrated) when the shape no longer matches —
+ * a stale save from an older build starts a fresh voyage rather than a
+ * corrupted one.
+ * ------------------------------------------------------------------------ */
+
+const SAVE_KEY = 'starship-explorer:save'
+const SAVE_VERSION = 3
+
+function looksLikeCurrentState(state: unknown): state is GameState {
+  if (typeof state !== 'object' || state === null) return false
+  const s = state as Record<string, unknown>
+  return (
+    typeof s.seed === 'string' &&
+    typeof s.day === 'number' &&
+    typeof s.hull === 'number' &&
+    typeof s.data === 'number' &&
+    Array.isArray(s.flags) &&
+    Array.isArray(s.pending) &&
+    Array.isArray(s.recent) &&
+    'ending' in s &&
+    'combat' in s &&
+    !('morale' in s)
+  )
+}
+
+export function loadSave(): GameState | null {
+  try {
+    const raw = localStorage.getItem(SAVE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as { v?: number; state?: unknown }
+    if (parsed.v !== SAVE_VERSION || !looksLikeCurrentState(parsed.state)) return null
+    return parsed.state
+  } catch {
+    return null
+  }
+}
+
+function persist(state: GameState) {
+  try {
+    localStorage.setItem(SAVE_KEY, JSON.stringify({ v: SAVE_VERSION, state }))
+  } catch {
+    // Storage full or unavailable: the game plays on, unsaved.
+  }
+}
+
+export function clearSave() {
+  try {
+    localStorage.removeItem(SAVE_KEY)
+  } catch {
+    // Nothing to do.
+  }
+}
+
+/** A seed no other voyage has used: time-based, outside the pure engine. */
+export function freshSeed(): string {
+  return `voyage-${Date.now().toString(36)}`
+}
+
 export const useGame = create<Store>((set, get) => ({
-  state: newGame(DEFAULT_SEED),
+  state: loadSave() ?? newGame(DEFAULT_SEED),
   lastEvents: [],
   dispatch: (action) => {
     const { state, events } = reduce(get().state, action)
     set({ state, lastEvents: events })
+    persist(state)
   },
-  restart: (seed) => set({ state: newGame(seed), lastEvents: [] }),
+  restart: (seed) => {
+    const state = newGame(seed)
+    set({ state, lastEvents: [] })
+    persist(state)
+  },
 }))
 
 /**

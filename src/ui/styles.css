@@ -560,3 +560,52 @@ button:disabled {
 .resonance-ring {
   animation: shieldpulse 2.6s infinite;
 }
+
+/* ------------------------------------------------------------------ *
+ * Start screen: resume / new voyage
+ * ------------------------------------------------------------------ */
+
+.start-new {
+  margin-top: 10px;
+  border: 1px solid var(--color-rule);
+  background: transparent;
+  color: var(--color-ink-dim);
+  padding: 7px 18px;
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.start-new:hover {
+  border-color: var(--color-amber-dim);
+  color: var(--color-amber);
+}
+
+.start-confirm {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 11px;
+  color: var(--color-ink-dim);
+}
+
+.start-confirm button {
+  border: 1px solid var(--color-rule);
+  background: transparent;
+  color: var(--color-ink-dim);
+  padding: 4px 12px;
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.start-confirm button:first-of-type {
+  border-color: var(--color-alarm-dim);
+  color: var(--color-alarm);
+}
+
+.start-confirm button:hover {
+  border-color: var(--color-amber-dim);
+  color: var(--color-amber);
+}

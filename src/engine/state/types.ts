@@ -65,6 +65,8 @@ export interface GameState {
   encounter: ActiveEncounter | null
   /** Encounters begun so far — the RNG stream discriminator for dialogue. */
   encountersSeen: number
+  /** The last few encounters, newest last, for pacing: repeats cool down. */
+  recent: Array<{ id: string; tag: string; day: number }>
   /** A battle ordered but not yet resolved. Blocks most other actions. */
   combat: PendingCombat | null
 
@@ -132,6 +134,8 @@ export type Action =
       result: 'victory' | 'defeat' | 'withdrawn'
       /** Hull remaining when the engagement ended, from the combat screen. */
       hull: number
+      /** Officers wounded at their stations during the battle. */
+      injured?: OfficerRole[]
     }
 
 /**

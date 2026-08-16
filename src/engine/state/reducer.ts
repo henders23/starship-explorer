@@ -72,6 +72,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     pending: [],
     encounter: null,
     encountersSeen: 0,
+    recent: [],
     combat: null,
     roster: generateRoster(seed),
     pools: { ...STARTING_POOLS },
@@ -127,7 +128,7 @@ export function reduce(state: GameState, action: Action): Transition {
     case 'research':
       return research(state, action.tech)
     case 'resolveCombat':
-      return resolveCombat(state, action.result, action.hull)
+      return resolveCombat(state, action.result, action.hull, action.injured ?? [])
   }
 }
 
@@ -423,7 +424,7 @@ function scoop(state: GameState): Transition {
     }),
   }
   next = advanceTime(next, days, events)
-  return { state: next, events }
+  return idleEncounter({ state: next, events })
 }
 
 /** Where the ship can take on stores: anywhere inhabited or administered. */
@@ -451,7 +452,7 @@ function resupply(state: GameState): Transition {
     }),
   }
   next = advanceTime(next, 2, events)
-  return { state: next, events }
+  return idleEncounter({ state: next, events })
 }
 
 function refit(state: GameState): Transition {
@@ -474,7 +475,7 @@ function refit(state: GameState): Transition {
     }),
   }
   next = advanceTime(next, 4, events)
-  return { state: next, events }
+  return idleEncounter({ state: next, events })
 }
 
 /**
@@ -970,14 +971,19 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
  * Fires only on a still-seeking ship, and marks the encounter done the
  * moment it opens so a unique can never roll twice.
  */
-function maybeEncounter(state: GameState, at: SystemId, events: GameEvent[]): Transition {
+function maybeEncounter(
+  state: GameState,
+  at: SystemId,
+  events: GameEvent[],
+  chance?: number,
+): Transition {
   // A scheduled thread the story has since closed (its flag conditions can
   // no longer pass) is quietly dropped — the hunter died, the debt was paid.
   const pruned = state.pending.filter((p) => !flagsBlock(p.id, state))
   if (pruned.length !== state.pending.length) state = { ...state, pending: pruned }
 
   const rng = createRng(`${state.seed}:encounter:${at}:${state.day}:${state.encountersSeen}`)
-  const chosen = chooseEncounter(state, at, rng)
+  const chosen = chooseEncounter(state, at, rng, chance)
   if (!chosen) return { state, events }
 
   const { def, fromPending } = chosen
@@ -986,6 +992,7 @@ function maybeEncounter(state: GameState, at: SystemId, events: GameEvent[]): Tr
     ...state,
     encounter: { id: def.id, node: def.entry },
     encountersSeen: state.encountersSeen + 1,
+    recent: [...state.recent, { id: def.id, tag: def.tag, day: state.day }].slice(-6),
     flags: state.flags.includes(doneFlag(def.id)) ? state.flags : [...state.flags, doneFlag(def.id)],
     pending: fromPending ? state.pending.filter((p) => p.id !== def.id) : state.pending,
     log: appendLog(state.log, {
@@ -994,6 +1001,20 @@ function maybeEncounter(state: GameState, at: SystemId, events: GameEvent[]): Tr
     }),
   }
   return { state: next, events }
+}
+
+/**
+ * Days spent in-system are not days spent unnoticed: scooping, resupply,
+ * refits and lab work all roll a quieter encounter chance, and a due
+ * follow-up will find a ship that sits still just as surely as one that
+ * runs.
+ */
+const IDLE_ENCOUNTER_CHANCE = 0.25
+
+function idleEncounter(transition: Transition): Transition {
+  const { state, events } = transition
+  if (state.outcome !== 'seeking' || state.encounter || state.combat) return transition
+  return maybeEncounter(state, state.ship.at, events, IDLE_ENCOUNTER_CHANCE)
 }
 
 /** Whether a choice's visible requirements are met. Shared with the UI. */
@@ -1282,6 +1303,7 @@ function resolveCombat(
   state: GameState,
   result: 'victory' | 'defeat' | 'withdrawn',
   hullLeft: number,
+  injured: OfficerRole[],
 ): Transition {
   const combat = state.combat
   if (!combat || state.outcome !== 'seeking') return { state, events: [] }
@@ -1290,6 +1312,37 @@ function resolveCombat(
   const events: GameEvent[] = [{ type: 'combatEnded', result }]
   const hullMax = hullMaxFor(state.unlockedTech)
   const hull = Math.max(0, Math.min(hullMax, Math.floor(hullLeft)))
+
+  // Officers wounded at their stations go to the medbay on the usual
+  // calendar; a fit medical officer halves everyone else's stay.
+  if (injured.length > 0 && result !== 'defeat') {
+    const woundedRoles = new Set(injured)
+    const medicalFit =
+      isFit(state.roster, 'medical') && !woundedRoles.has('medical')
+    const names: string[] = []
+    const roster = state.roster.map((o) => {
+      if (!woundedRoles.has(o.role) || o.status !== 'fit') return o
+      names.push(o.name)
+      events.push({ type: 'officerInjured', role: o.role, name: o.name })
+      return {
+        ...o,
+        status: 'injured' as const,
+        healedAfter: state.day + (medicalFit && o.role !== 'medical' ? 6 : 12),
+      }
+    })
+    if (names.length > 0) {
+      state = {
+        ...state,
+        roster,
+        log: appendLog(state.log, {
+          kind: 'combat',
+          text: `${names.join(' and ')} ${names.length === 1 ? 'is' : 'are'} carried from ${
+            names.length === 1 ? 'their station' : 'their stations'
+          } to the medbay.`,
+        }),
+      }
+    }
+  }
 
   if (result === 'defeat') {
     events.push({ type: 'shipDestroyed' })
@@ -1434,7 +1487,7 @@ function research(state: GameState, techId: TechId): Transition {
   // New armour plating is fitted at full thickness.
   next = { ...next, hull: Math.min(hullMaxFor(next.unlockedTech), Math.max(next.hull, state.hull + (techId === 'war-armour' ? 6 : 0))) }
   next = advanceTime(next, RESEARCH_DAYS, events)
-  return { state: next, events }
+  return idleEncounter({ state: next, events })
 }
 
 /** The reserve the Long Jump currently demands, for the UI. */

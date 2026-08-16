@@ -209,3 +209,16 @@ describe('consulting the bridge', () => {
   })
 
 })
+
+describe('serialisation', () => {
+  it('the whole state survives a JSON round trip — the save format is stringify', () => {
+    const { state, index } = fresh()
+    const played = run(state, hop(state, index))
+    const revived = JSON.parse(JSON.stringify(played)) as GameState
+    expect(revived).toEqual(played)
+    // And the revived state reduces identically.
+    const a = run(played, hop(played, index))
+    const b = run(revived, hop(revived, index))
+    expect(a).toEqual(b)
+  })
+})

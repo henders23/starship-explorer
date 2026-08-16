@@ -1,3 +1,4 @@
+import type { OfficerRole } from '../crew/types.js'
 import type { TechId } from '../research/tech.js'
 import { hasTech } from '../research/tech.js'
 import type { CultureId } from '../encounters/types.js'
@@ -161,3 +162,47 @@ export function playerWeaponsFor(unlocked: readonly TechId[]): PlayerWeaponSpec[
   }
   return weapons
 }
+
+/* ------------------------------------------------------------------------ *
+ * Battle stations: the crew in combat.
+ *
+ * Fit officers man stations automatically (the captain can stand anyone
+ * down from the tactical display). Manning is a real wager: the bonus is
+ * live only while the officer's room has hull, and a hit that damages a
+ * manned room can put its officer on the deck — the wound rides the
+ * resolveCombat action back to the roster and the medbay, where the usual
+ * calendar (and the medical officer) takes over. Medical has no station to
+ * man; their combat value is that everyone hurt today heals in half the
+ * time.
+ * ------------------------------------------------------------------------ */
+
+export interface CombatStation {
+  role: OfficerRole
+  label: string
+  /** The player room whose survival the bonus depends on; null = passive. */
+  room: 'helm' | 'weapons1' | 'sensors' | null
+  blurb: string
+}
+
+export const COMBAT_STATIONS: CombatStation[] = [
+  { role: 'captain', label: 'HELM', room: 'helm', blurb: 'evasive command: +evade by skill' },
+  { role: 'security', label: 'WEAPONS', room: 'weapons1', blurb: 'gunnery drill: weapons charge faster' },
+  { role: 'science', label: 'SENSORS', room: 'sensors', blurb: 'target solutions: +accuracy, sensors live unpowered' },
+  { role: 'medical', label: 'MEDBAY', room: null, blurb: 'triage: combat wounds heal in half the time' },
+]
+
+/** Chance a damaging hit on a manned room wounds its officer. */
+export const STATION_INJURY_CHANCE = 0.3
+
+/** Extra evade with the captain at the helm, by skill. */
+export function helmEvadeBonus(skill: number): number {
+  return 4 + skill
+}
+
+/** Weapon charge multiplier with the security officer on the guns. */
+export function weaponsChargeBoost(skill: number): number {
+  return 1 + 0.06 + 0.02 * skill
+}
+
+/** Enemy evade shaved off the Ithaca's fire with science on sensors. */
+export const SCIENCE_ACCURACY_BONUS = 5

@@ -44,13 +44,18 @@ same dice, the same hunters arriving on the same days.
 `warPressure`, `pending` (scheduled follow-ups), `encounter` (the open
 dialogue), `hull`, `combat`, and the `destroyed` outcome.
 
-### Selection, on every arrival
+### Selection, on every arrival — and on idle days
 
 1. If a scheduled follow-up is **due** (`day >= notBefore`) and its
-   conditions pass, it fires — hunters find you wherever you jump.
+   conditions pass, it fires — hunters find you wherever you jump, and a
+   ship that sits still scooping or researching is just as findable
+   (idle days roll at a quieter 25%).
 2. Otherwise the arrival rolls at `ENCOUNTER_CHANCE` (55%) and picks by
-   weight from every encounter whose `when` clause the system, calendar,
-   war pressure and story flags satisfy.
+   **shaped weight**: the flat catalog weight, boosted ×1.6 for an
+   encounter whose flag requirements the run has already satisfied (a
+   story mid-sentence), halved when it repeats one of the last two
+   encounters' tags, and cut to ×0.3 for a literal recent re-run. The
+   last six encounters are tracked in `state.recent`.
 3. Uniques are barred by a `done:<id>` flag the moment they open.
 
 ### Outcomes
@@ -138,7 +143,18 @@ two days a project, a fit science officer required.
 Data comes from encounters, quests and combat salvage. The full tree costs
 more than a typical run earns — choosing what to know is the strategy.
 
-## 6. Ship combat
+## 6. The journal
+
+The log footer opens the Captain's Journal: the full log with kind tags,
+**open threads** (debts, contracts, hunted passengers — rules in
+`journal.ts`, keyed on the same flags the encounters set, so a thread
+appears when it opens and vanishes when the story closes it), the
+**expected** list of scheduled follow-ups, and **friends of the ship** —
+the standing assets a run has earned. When an encounter sets a
+consequential flag, give it a thread or friend line here and an epilogue
+line in `epilogue.ts`; together they are the memory of the game.
+
+## 7. Ship combat
 
 The tactical display (`src/ui/CombatScreen.tsx`) is the FTL-school
 prototype, ported: reactor allocation across shields/engines/launch/
@@ -157,7 +173,23 @@ battle**. Victory pays the encounter's promised rewards (fuel, data,
 clues, standing, flags); defeat is the `destroyed` ending; hull persists
 between fights and heals a point a day, or fully at a yard refit.
 
-## 7. Testing
+### The crew at battle stations
+
+Fit officers man stations automatically (each can be stood down from the
+tactical display): the captain at the **helm** adds evade by skill, the
+security officer on **weapons** speeds every charge, the science officer
+on **sensors** keeps them live unpowered and sharpens targeting, and the
+medical officer's **medbay** halves the recovery of anyone wounded today.
+Manning is a wager — a hit that damages a manned room can put its officer
+on the deck, and the wound rides the `resolveCombat` action back to the
+roster and the medbay calendar.
+
+There is no morale and no mutiny: the crew of the Ithaca are loyal to the
+end. The material pressures — stores, hull, fuel, injuries — carry the
+weight instead. An empty hold stops damage control and sends away teams
+down at −10% clean.
+
+## 8. Testing
 
 - `tests/encounters.test.ts` — catalog integrity, seeded selection,
   follow-up scheduling, choice gating, spends, clue sharing, combat
@@ -165,7 +197,7 @@ between fights and heals a point a day, or fully at a yard refit.
 - `tests/research.test.ts` — action guards and every numeric effect.
 - `tests/combat.test.ts` — loadout growth and all three resolutions.
 
-## 8. The Doorway Home — the ending sequence
+## 9. The Doorway Home — the ending sequence
 
 The correct Long Jump no longer cuts straight to the ending: it opens
 `doorway-home`, the finale encounter (pack 030/110/200), and the run ends
