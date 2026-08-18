@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { MAX_ESCORTS, MAX_HANDS, type AwayTeam, type OfficerRole } from '../engine/crew/types.js'
+import { gearCleanBonus, teamHasMedkit } from '../engine/missions/gear.js'
 import { approachesFor, approachOdds, type Site } from '../engine/missions/sites.js'
 import { moraleBand, volunteerCap } from '../engine/state/reducer.js'
 import { useDispatch, useGame } from './store.js'
@@ -22,6 +23,7 @@ export function MissionPanel({
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
   const morale = useGame((s) => s.state.morale)
+  const loadouts = useGame((s) => s.state.loadouts)
   const cap = useGame((s) => volunteerCap(s.state))
   const systemNameById = useGame(
     (s) => s.state.galaxy.systems.find((x) => x.id === system)?.name ?? system,
@@ -52,9 +54,11 @@ export function MissionPanel({
     chosen !== null && (!chosen.needs || team.officers.includes(chosen.needs))
 
   const odds = useMemo(
-    () => (chosen ? approachOdds(chosen, team, roster, morale) : null),
-    [chosen, team, roster, morale],
+    () => (chosen ? approachOdds(chosen, team, roster, morale, loadouts) : null),
+    [chosen, team, roster, morale, loadouts],
   )
+  const gearBonus = chosen ? gearCleanBonus(chosen, team, roster, loadouts) : 0
+  const medkitAboard = teamHasMedkit(team, roster, loadouts)
 
   return (
     <div className="fixed inset-0 z-30 grid place-items-center bg-black/75 px-6">
@@ -134,7 +138,7 @@ export function MissionPanel({
             {approaches.map((approach) => {
               const locked = approach.needs !== null && !team.officers.includes(approach.needs)
               const active = approachId === approach.id
-              const rowOdds = approachOdds(approach, team, roster, morale)
+              const rowOdds = approachOdds(approach, team, roster, morale, loadouts)
               return (
                 <button
                   key={approach.id}
@@ -177,6 +181,16 @@ export function MissionPanel({
               — a costly landing still recovers the evidence; a disaster recovers nothing and the
               site must be attempted again.
             </span>
+            <div className="text-ink-faint mt-1 text-[10px]">
+              Issued gear:{' '}
+              <span className={gearBonus >= 0 ? 'text-phosphor-dim' : 'text-alarm-dim'}>
+                {gearBonus >= 0 ? '+' : ''}
+                {gearBonus} clean
+              </span>{' '}
+              for this approach
+              {medkitAboard && <span> · a trauma kit aboard negates one officer injury</span>}
+              <span> — change it in the equipment locker.</span>
+            </div>
           </div>
         )}
 

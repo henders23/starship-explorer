@@ -1,5 +1,6 @@
 import type { ClueSourceKind } from '../mystery/types.js'
 import type { AwayTeam, Officer, OfficerRole } from '../crew/types.js'
+import { gearCleanBonus, type Loadouts } from './gear.js'
 
 /**
  * Away missions, M3 scope.
@@ -150,6 +151,7 @@ export function approachOdds(
   team: AwayTeam,
   roster: readonly Officer[],
   morale = 100,
+  loadouts?: Loadouts,
 ): Odds {
   let bonus = 0
 
@@ -157,6 +159,9 @@ export function approachOdds(
   if (morale < 40) bonus -= 5
 
   if (team.captain) bonus += 8
+
+  // Issued gear is real: what the lockers hold shifts the odds too.
+  if (loadouts) bonus += gearCleanBonus(approach, team, roster, loadouts)
 
   for (const role of team.officers) {
     const officer = roster.find((o) => o.role === role && o.status === 'fit')

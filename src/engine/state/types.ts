@@ -1,4 +1,5 @@
 import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
+import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 
@@ -46,6 +47,8 @@ export interface GameState {
 
   /** The captain and department officers — the named people. */
   roster: Officer[]
+  /** What each station's locker holds. Missions read this, per carrier. */
+  loadouts: Loadouts
   /** The generic pools: alive counts, nothing more. */
   pools: CrewPools
   /** Missions attempted, successful or not. Drives injury recovery and RNG. */
@@ -90,6 +93,7 @@ export type Action =
   | { type: 'consult' }
   | { type: 'search'; system: SystemId }
   | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
+  | { type: 'equip'; role: OfficerRole; slot: GearSlot; item: string }
   | { type: 'decode'; clue: ClueId }
   | { type: 'promote'; role: Exclude<OfficerRole, 'captain'> }
   | { type: 'file'; clue: ClueId; state: ClueState }
@@ -116,6 +120,8 @@ export type GameEvent =
   | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId; undecoded: ClueId[] }
   | { type: 'nothingFound'; at: SystemId }
   | { type: 'missionResolved'; at: SystemId; outcome: 'clean' | 'messy' | 'disaster' }
+  | { type: 'equipped'; role: OfficerRole; item: string }
+  | { type: 'injurySpared'; role: OfficerRole; name: string }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }

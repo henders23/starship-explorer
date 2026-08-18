@@ -1,6 +1,13 @@
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
 import {
+  defaultLoadouts,
+  GEAR_BY_ID,
+  gearGuard,
+  teamHasMedkit,
+  type GearSlot,
+} from '../missions/gear.js'
+import {
   approachesFor,
   approachOdds,
   dominantSite,
@@ -50,6 +57,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     driveScarred: false,
     surges: 0,
     roster: generateRoster(seed),
+    loadouts: defaultLoadouts(),
     pools: { ...STARTING_POOLS },
     missionsRun: 0,
     promotions: 0,
@@ -87,6 +95,8 @@ export function reduce(state: GameState, action: Action): Transition {
       return search(state, action.system)
     case 'runMission':
       return runMission(state, action.system, action.team, action.approach)
+    case 'equip':
+      return equip(state, action.role, action.slot, action.item)
     case 'decode':
       return decode(state, action.clue)
     case 'promote':
@@ -597,6 +607,25 @@ function consult(state: GameState): Transition {
   }
 }
 
+/**
+ * Issue an item from the locker. Free and instant — kit is preparation, not
+ * a spend — but it goes through the reducer because missions read it there.
+ */
+function equip(state: GameState, role: OfficerRole, slot: GearSlot, itemId: string): Transition {
+  const item = GEAR_BY_ID[itemId]
+  if (!item || item.slot !== slot) return { state, events: [] }
+  if (!state.roster.some((o) => o.role === role)) return { state, events: [] }
+  if (state.loadouts[role][slot] === itemId) return { state, events: [] }
+
+  return {
+    state: {
+      ...state,
+      loadouts: { ...state.loadouts, [role]: { ...state.loadouts[role], [slot]: itemId } },
+    },
+    events: [{ type: 'equipped', role, item: itemId }],
+  }
+}
+
 /* ------------------------------------------------------------------------ *
  * Away missions
  * ------------------------------------------------------------------------ */
@@ -655,7 +684,7 @@ function runMission(
   next = advanceTime(next, 1, preEvents)
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
-  const odds = approachOdds(approach, team, next.roster, next.morale)
+  const odds = approachOdds(approach, team, next.roster, next.morale, next.loadouts)
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
@@ -799,14 +828,25 @@ function applyHarm(
     .filter((o) => o.role !== 'captain' && team.officers.includes(o.role as Exclude<OfficerRole, 'captain'>))
     .map((o) => o.role)
 
+  // A trauma kit in someone's pack turns one officer injury into a close call.
+  let medkitCharge = teamHasMedkit(team, state.roster, state.loadouts)
+
   for (const role of officers) {
     const target = roster.find((o) => o.role === role)!
     if (target.status !== 'fit') continue
 
+    // Armour is real: what this officer wears comes off their injury roll.
+    const injuryChance = Math.max(0, harm.officerInjury - gearGuard(state.loadouts, role) / 100)
+
     if (harm.officerDeath > 0 && rng.chance(harm.officerDeath)) {
       target.status = 'dead'
       events.push({ type: 'officerDied', role: target.role, name: target.name })
-    } else if (rng.chance(harm.officerInjury)) {
+    } else if (rng.chance(injuryChance)) {
+      if (medkitCharge) {
+        medkitCharge = false
+        events.push({ type: 'injurySpared', role: target.role, name: target.name })
+        continue
+      }
       target.status = 'injured'
       // Days in the medbay, not missions: the wound heals on the calendar,
       // and a fit medical officer roughly halves the stay.
