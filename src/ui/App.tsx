@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { BriefingScreen } from './BriefingScreen.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
@@ -17,10 +18,13 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
   { id: 'lab', label: 'Lab', code: '04' },
 ]
 
+/** Title → briefing → the game. The briefing is the crew handing over context. */
+type Phase = 'title' | 'briefing' | 'game'
+
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
   const [screen, setScreen] = useState<Screen>('ship')
-  const [started, setStarted] = useState(false)
+  const [phase, setPhase] = useState<Phase>('title')
   const ambientRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -32,29 +36,38 @@ export function App() {
     return () => window.removeEventListener('starship:navigate', navigate)
   }, [])
 
-  // The ship's ambience runs only while the cutaway is on screen. Playback
-  // must begin inside the "Take command" click — browsers refuse audio that
-  // was never sanctioned by a user gesture.
+  // The ship's ambience runs aboard ship — the briefing on the bridge and the
+  // cutaway both count. Playback must begin inside the "Take command" click —
+  // browsers refuse audio that was never sanctioned by a user gesture.
   const begin = () => {
     const ambient = ambientRef.current ?? new Audio('/assets/audio/ship-ambient.mp3')
     ambientRef.current = ambient
     ambient.loop = true
     ambient.volume = 0.15
     void ambient.play().catch(() => {})
-    setStarted(true)
+    setPhase('briefing')
   }
 
   useEffect(() => {
     const ambient = ambientRef.current
     if (!ambient) return
-    if (started && screen === 'ship') void ambient.play().catch(() => {})
+    if (phase === 'briefing' || (phase === 'game' && screen === 'ship'))
+      void ambient.play().catch(() => {})
     else ambient.pause()
-  }, [started, screen])
+  }, [phase, screen])
 
-  if (!started) {
+  if (phase === 'title') {
     return (
       <div className="crt app-shell h-full">
         <StartScreen onBegin={begin} />
+      </div>
+    )
+  }
+
+  if (phase === 'briefing') {
+    return (
+      <div className="crt app-shell h-full">
+        <BriefingScreen onComplete={() => setPhase('game')} />
       </div>
     )
   }
@@ -63,10 +76,14 @@ export function App() {
     <div className="crt app-shell flex h-full flex-col">
       <Header screen={screen} onScreen={setScreen} />
       <div className="min-h-0 flex-1 overflow-hidden">
-        {screen === 'ship' && <ShipHub onNavigate={setScreen} />}
-        {screen === 'galaxy' && <GalaxyDeck />}
-        {screen === 'loadout' && <LoadoutScreen />}
-        {screen === 'lab' && <LabScreen />}
+        {/* Keyed on the screen so switching stations plays the same short
+            arrival transition everywhere, instead of a hard cut. */}
+        <div key={screen} className="screen-stage h-full">
+          {screen === 'ship' && <ShipHub onNavigate={setScreen} />}
+          {screen === 'galaxy' && <GalaxyDeck />}
+          {screen === 'loadout' && <LoadoutScreen />}
+          {screen === 'lab' && <LabScreen />}
+        </div>
       </div>
       <CaptainsLog />
       {outcome === 'home' && <Ending />}

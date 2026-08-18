@@ -119,6 +119,8 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
 
   const wounded = state.roster.filter((officer) => officer.status === 'injured').length
   const unread = state.undecoded.length
+  // Live count of the queue entries that actually demand attention right now.
+  const pending = 1 + (unread > 0 ? 1 : 0) + (wounded > 0 ? 1 : 0)
 
   return (
     <div className="ship-hub relative h-full overflow-hidden">
@@ -154,7 +156,7 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
       <aside className="hub-right-panel panel-glass absolute right-5 bottom-5 z-10 w-[310px]">
         <div className="panel-heading">
           <span>Command queue</span>
-          <span>03 pending</span>
+          <span>{String(pending).padStart(2, '0')} pending</span>
         </div>
         <HubTask
           tone="amber"
