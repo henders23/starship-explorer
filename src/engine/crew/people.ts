@@ -18,18 +18,27 @@ const person = (name: string, file: string): CrewPerson => ({
   portrait: `/assets/portraits/${file}`,
 })
 
-/** Mid-career command presences. One becomes the captain, per seed. */
+/**
+ * The three the intro comic puts on the bridge for the aperture test. They
+ * are cast, not rolled: the faces that take the Ithaca through the gate are
+ * the faces waiting at their stations when the briefing opens.
+ */
+export const FOUNDING_CAPTAIN = person('Alexander Vale', '01_alexander_vale.png')
+export const FOUNDING_SCIENCE = person('Helen Morozova', '26_helen_morozova.png')
+export const FOUNDING_SECURITY = person('Gabriel Cross', '14_gabriel_cross.png')
+
+/** Mid-career command presences. The captain is always Vale. */
 export const COMMAND_POOL: CrewPerson[] = [
-  person('Alexander Vale', '01_alexander_vale.png'),
+  FOUNDING_CAPTAIN,
   person('Lena Mori', '02_lena_mori.png'),
   person('Jonas Kerr', '03_jonas_kerr.png'),
   person('Talia Ryder', '04_talia_ryder.png'),
   person('Thomas Grey', '27_thomas_grey.png'),
 ]
 
-/** The older heads. Science and medical draw from here, without reuse. */
+/** The older heads. Morozova holds science; medical is seeded from the rest. */
 export const SPECIALIST_POOL: CrewPerson[] = [
-  person('Helen Morozova', '26_helen_morozova.png'),
+  FOUNDING_SCIENCE,
   person('Isabella Corelli', '28_isabella_corelli.png'),
   person('Julian Ashford', '29_julian_ashford.png'),
   person('Margaret Halloway', '30_margaret_halloway.png'),
@@ -37,9 +46,9 @@ export const SPECIALIST_POOL: CrewPerson[] = [
   person('Sarah Connor', '32_sarah_connor.png'),
 ]
 
-/** The young. Security is a fit body's job. */
+/** The young. Security is a fit body's job; Cross has the chair. */
 export const SECURITY_POOL: CrewPerson[] = [
-  person('Gabriel Cross', '14_gabriel_cross.png'),
+  FOUNDING_SECURITY,
   person('Darius Cole', '16_darius_cole.png'),
   person('Benjamin Taylor', '17_benjamin_taylor.png'),
   person("Kiara N'Dala", '20_kiara_n_dala.png'),

@@ -19,7 +19,12 @@ by scenes between people.
 ## 1. The pitch
 
 The *Ithaca* enters a jump anomaly and comes out somewhere the star
-charts do not describe. Familiar space is reachable — the anomaly has a far
+charts do not describe. A five-panel intro comic plays that transit before the
+briefing: Cpt. Alexander Vale, Lt. Helen Morozova and Chief Gabriel Cross take
+the ship into an engineered aperture, the field inverts halfway through, and
+the drive and the astrogation core are gone by the time it lets go of them.
+Those three are pinned in the roster generator, so the faces in the comic are
+the faces at the stations for the rest of the voyage. Familiar space is reachable — the anomaly has a far
 end — but nobody aboard knows which of ninety stars it hides behind, and the
 drive that was dragged through it could not make the return transit even if
 they did.
