@@ -1,9 +1,9 @@
 {
   "seed": "golden-3",
-  "hash": "e2ef8fe5d1e1aab8",
+  "hash": "cc53a1fd501ac3c6",
   "outcome": "home",
-  "day": 75,
-  "actionCount": 78,
+  "day": 93,
+  "actionCount": 103,
   "cluesCollected": 15,
   "jumps": 1,
   "casualties": {
@@ -96,6 +96,14 @@
     },
     {
       "type": "sceneOption",
+      "option": "board"
+    },
+    {
+      "type": "travel",
+      "to": "sys-077"
+    },
+    {
+      "type": "sceneOption",
       "option": "plan"
     },
     {
@@ -118,6 +126,10 @@
       "choice": "read"
     },
     {
+      "type": "startResearch",
+      "tech": "rift-telemetry"
+    },
+    {
       "type": "file",
       "clue": "clue-05",
       "state": "trusted"
@@ -126,22 +138,8 @@
       "type": "scoop"
     },
     {
-      "type": "startResearch",
-      "tech": "rift-telemetry"
-    },
-    {
       "type": "travel",
       "to": "sys-075"
-    },
-    {
-      "type": "combatContact",
-      "choice": "evade"
-    },
-    {
-      "type": "combatResolve",
-      "result": "fled",
-      "hullLeft": 85,
-      "missilesLeft": 8
     },
     {
       "type": "sceneOption",
@@ -177,6 +175,36 @@
     },
     {
       "type": "sceneOption",
+      "option": "crack"
+    },
+    {
+      "type": "travel",
+      "to": "sys-009"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "combatResolve",
+      "result": "fled",
+      "hullLeft": 85,
+      "missilesLeft": 8
+    },
+    {
+      "type": "travel",
+      "to": "sys-009"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "travel",
+      "to": "sys-009"
+    },
+    {
+      "type": "sceneOption",
       "option": "aboard"
     },
     {
@@ -187,10 +215,6 @@
     {
       "type": "travel",
       "to": "sys-029"
-    },
-    {
-      "type": "combatContact",
-      "choice": "hail"
     },
     {
       "type": "sceneOption",
@@ -217,7 +241,26 @@
       "state": "doubted"
     },
     {
-      "type": "scoop"
+      "type": "travel",
+      "to": "sys-087"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "combatResolve",
+      "result": "fled",
+      "hullLeft": 70,
+      "missilesLeft": 6
+    },
+    {
+      "type": "travel",
+      "to": "sys-087"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
     },
     {
       "type": "travel",
@@ -250,18 +293,8 @@
       "to": "sys-054"
     },
     {
-      "type": "combatContact",
-      "choice": "evade"
-    },
-    {
-      "type": "combatResolve",
-      "result": "fled",
-      "hullLeft": 70,
-      "missilesLeft": 6
-    },
-    {
       "type": "sceneOption",
-      "option": "plan"
+      "option": "sweep"
     },
     {
       "type": "decode",
@@ -275,6 +308,14 @@
       "type": "file",
       "clue": "clue-00",
       "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-054"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
     },
     {
       "type": "runMission",
@@ -298,16 +339,33 @@
     },
     {
       "type": "travel",
-      "to": "sys-049"
+      "to": "sys-039"
     },
     {
       "type": "sceneOption",
-      "option": "recall"
+      "option": "press"
     },
     {
-      "type": "file",
-      "clue": "clue-04",
-      "state": "trusted"
+      "type": "travel",
+      "to": "sys-076"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "travel",
+      "to": "sys-076"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "scoop"
+    },
+    {
+      "type": "refit"
     },
     {
       "type": "travel",
@@ -321,6 +379,17 @@
       "type": "file",
       "clue": "clue-01",
       "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-004"
+    },
+    {
+      "type": "sceneOption",
+      "option": "board"
+    },
+    {
+      "type": "refit"
     },
     {
       "type": "travel",
@@ -394,16 +463,6 @@
       "type": "refit"
     },
     {
-      "type": "refit"
-    },
-    {
-      "type": "travel",
-      "to": "sys-073"
-    },
-    {
-      "type": "scoop"
-    },
-    {
       "type": "travel",
       "to": "sys-018"
     },
@@ -415,6 +474,47 @@
       "type": "file",
       "clue": "clue-03",
       "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-049"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "travel",
+      "to": "sys-049"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "combatResolve",
+      "result": "fled",
+      "hullLeft": 85,
+      "missilesLeft": 8
+    },
+    {
+      "type": "sceneOption",
+      "option": "recall"
+    },
+    {
+      "type": "file",
+      "clue": "clue-04",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-039"
+    },
+    {
+      "type": "scoop"
+    },
+    {
+      "type": "refit"
     },
     {
       "type": "plotTheJump",

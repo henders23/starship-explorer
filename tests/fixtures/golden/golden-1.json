@@ -1,9 +1,9 @@
 {
   "seed": "golden-1",
-  "hash": "822dbee0bc4b53bb",
+  "hash": "0a41b8515f1715a6",
   "outcome": "home",
-  "day": 78,
-  "actionCount": 67,
+  "day": 77,
+  "actionCount": 90,
   "cluesCollected": 14,
   "jumps": 1,
   "casualties": {
@@ -55,6 +55,14 @@
     },
     {
       "type": "sceneOption",
+      "option": "board"
+    },
+    {
+      "type": "travel",
+      "to": "sys-076"
+    },
+    {
+      "type": "sceneOption",
       "option": "plan"
     },
     {
@@ -82,6 +90,10 @@
       "to": "sys-048"
     },
     {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
       "type": "sceneOption",
       "option": "plan"
     },
@@ -101,6 +113,10 @@
       "approach": "treat"
     },
     {
+      "type": "startResearch",
+      "tech": "rift-drive"
+    },
+    {
       "type": "file",
       "clue": "clue-01",
       "state": "trusted"
@@ -110,12 +126,18 @@
       "to": "sys-027"
     },
     {
-      "type": "sceneOption",
-      "option": "recall"
+      "type": "combatContact",
+      "choice": "evade"
     },
     {
-      "type": "startResearch",
-      "tech": "rift-drive"
+      "type": "combatResolve",
+      "result": "fled",
+      "hullLeft": 85,
+      "missilesLeft": 8
+    },
+    {
+      "type": "sceneOption",
+      "option": "recall"
     },
     {
       "type": "file",
@@ -123,7 +145,28 @@
       "state": "trusted"
     },
     {
-      "type": "scoop"
+      "type": "travel",
+      "to": "sys-086"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "travel",
+      "to": "sys-086"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "travel",
+      "to": "sys-086"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
     },
     {
       "type": "travel",
@@ -143,8 +186,15 @@
       "state": "doubted"
     },
     {
+      "type": "scoop"
+    },
+    {
       "type": "travel",
       "to": "sys-016"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
     },
     {
       "type": "sceneOption",
@@ -183,6 +233,10 @@
       "option": "plan"
     },
     {
+      "type": "startResearch",
+      "tech": "rift-telemetry"
+    },
+    {
       "type": "runMission",
       "system": "sys-039",
       "team": {
@@ -207,12 +261,12 @@
       "to": "sys-072"
     },
     {
-      "type": "sceneOption",
-      "option": "plan"
+      "type": "combatContact",
+      "choice": "evade"
     },
     {
-      "type": "startResearch",
-      "tech": "rift-telemetry"
+      "type": "sceneOption",
+      "option": "plan"
     },
     {
       "type": "runMission",
@@ -230,20 +284,48 @@
       "approach": "treat"
     },
     {
+      "type": "startResearch",
+      "tech": "fire-control"
+    },
+    {
       "type": "file",
       "clue": "clue-04",
       "state": "trusted"
     },
     {
       "type": "travel",
-      "to": "sys-022"
+      "to": "sys-059"
     },
     {
-      "type": "startResearch",
-      "tech": "fire-control"
+      "type": "combatContact",
+      "choice": "evade"
     },
     {
       "type": "scoop"
+    },
+    {
+      "type": "travel",
+      "to": "sys-059"
+    },
+    {
+      "type": "sceneOption",
+      "option": "leave"
+    },
+    {
+      "type": "travel",
+      "to": "sys-059"
+    },
+    {
+      "type": "sceneOption",
+      "option": "patch"
+    },
+    {
+      "type": "travel",
+      "to": "sys-059"
+    },
+    {
+      "type": "sceneOption",
+      "option": "board"
     },
     {
       "type": "travel",
@@ -279,6 +361,22 @@
       "type": "file",
       "clue": "clue-05",
       "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-000"
+    },
+    {
+      "type": "sceneOption",
+      "option": "press"
+    },
+    {
+      "type": "travel",
+      "to": "sys-000"
+    },
+    {
+      "type": "sceneOption",
+      "option": "press"
     },
     {
       "type": "travel",
@@ -336,9 +434,6 @@
       "type": "file",
       "clue": "clue-08",
       "state": "trusted"
-    },
-    {
-      "type": "refit"
     },
     {
       "type": "refit"

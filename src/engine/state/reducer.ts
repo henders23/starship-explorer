@@ -16,6 +16,7 @@ import { generateRoster, promoteGeneric } from '../crew/generate.js'
 import { placeSpecialists } from '../crew/specialists.js'
 import { FOCUS_LABELS, SKILL_MAX, xpToNextSkill } from '../crew/types.js'
 import { castScene } from '../encounters/templates.js'
+import { castTransit } from '../encounters/transit.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
 import { castCrisis, crisisFires, shiftOdds } from '../missions/crisis.js'
 import {
@@ -37,6 +38,7 @@ import {
   DERELICT_FUEL_SALVAGE,
   FUEL_MAX,
   fuelDistances,
+  laneCost,
   LONG_JUMP_RESERVE,
   routeTo,
 } from '../travel/travel.js'
@@ -709,6 +711,41 @@ function sceneOption(state: GameState, optionId: string): Transition {
     }
   }
 
+  // A transit find, worked for a day. Every gain is clamped here: the scene
+  // proposes, the engine remains the authority on what anything may pay.
+  if (option.effect.kind === 'salvage') {
+    const { days, fuel = 0, ordnance = 0, hull = 0, research = 0 } = option.effect
+    const gainedFuel = Math.min(FUEL_MAX - state.ship.fuel, Math.max(0, fuel))
+    let next: GameState = {
+      ...closed,
+      ship: {
+        ...closed.ship,
+        fuel: closed.ship.fuel + gainedFuel,
+        hull: Math.min(HULL_MAX, closed.ship.hull + Math.max(0, hull)),
+      },
+      ordnance: Math.min(ORDNANCE_MAX, closed.ordnance + Math.max(0, ordnance)),
+      log: appendLog(closed.log, {
+        kind: 'travel',
+        text:
+          `${systemName(state, scene.at)}: a day of it, and the ship is the better for the stop` +
+          `${gainedFuel > 0 ? ` — ${gainedFuel} fuel aboard` : ''}.`,
+      }),
+    }
+    if (gainedFuel > 0) events.push({ type: 'fuelSalvaged', amount: gainedFuel })
+    // Days off the bench's project: work done in the field, not at the bench.
+    if (research > 0 && next.tech.active) {
+      next = {
+        ...next,
+        tech: {
+          ...next.tech,
+          active: { ...next.tech.active, daysLeft: Math.max(1, next.tech.active.daysLeft - research) },
+        },
+      }
+    }
+    next = advanceTime(next, days, events)
+    return { state: next, events }
+  }
+
   if (option.effect.kind === 'recruit') {
     const specialist = state.recruits.sites[scene.at]
     if (!specialist) return { state: closed, events }
@@ -889,6 +926,21 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
  * Travel and fuel
  * ------------------------------------------------------------------------ */
 
+/**
+ * Travel, flown lane by lane (R11).
+ *
+ * A journey used to resolve as one hop: all its days at once, one danger
+ * roll at the far end, against the destination's region. That made long
+ * hauls through hostile space safer per lane than short ones, and left most
+ * of a voyage's flying hours empty. Now the ship crosses each lane in turn —
+ * a day, a region, a roll — and anything that happens stops it where it
+ * happened, with the original destination still selected so the order can be
+ * given again.
+ *
+ * Three things can cut a transit short: an interception, something worth a
+ * day found in a system the route was only passing through, and a tank that
+ * a Rift Surge emptied mid-flight.
+ */
 function travel(state: GameState, to: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
   if (to === state.ship.at) return { state, events: [] }
@@ -896,55 +948,98 @@ function travel(state: GameState, to: SystemId): Transition {
   const index = new GalaxyIndex(state.galaxy)
   const route = routeTo(index, state.ship.at, to)
   if (!route) return { state, events: [] }
+  // The whole course must be affordable before the ship sets out on it.
+  if (travelCost(state, route.cost) > state.ship.fuel) return { state, events: [] }
 
-  // A scarred drive runs hot: the same lanes, 30% more fuel.
-  const cost = state.driveScarred ? Math.ceil(route.cost * 1.3) : route.cost
-  if (cost > state.ship.fuel) return { state, events: [] }
+  const origin = state.ship.at
+  const events: GameEvent[] = []
+  // Breaking orbit walks away from whatever was playing here; the chart
+  // keeps pointing at where the ship was going.
+  let next: GameState = { ...state, selected: to, encounter: null }
+  let spent = 0
+  let jumps = 0
 
-  const from = state.ship.at
-  const jumpsMade = route.path.length - 1
-  let next: GameState = {
-    ...state,
-    ship: { ...state.ship, at: to, fuel: state.ship.fuel - cost },
-    selected: to,
-    // Breaking orbit walks away from whatever was playing there.
-    encounter: null,
-    log: appendLog(state.log, {
-      kind: 'travel',
-      text:
-        `${systemName(state, to)}: arrived, ${jumpsMade} ` +
-        `${jumpsMade === 1 ? 'jump' : 'jumps'}, ${cost} fuel spent` +
-        `${state.driveScarred ? ' (the scarred drive ran hot)' : ''}. ` +
-        `${state.ship.fuel - cost} in the tank.`,
-    }),
-  }
+  const legLog = (text: string): GameState => ({
+    ...next,
+    log: appendLog(next.log, { kind: 'travel', text }),
+  })
+  const shortOf = (at: SystemId): string =>
+    `${systemName(next, at)}, ${route.path.length - 1 - jumps} ` +
+    `${route.path.length - 1 - jumps === 1 ? 'jump' : 'jumps'} short of ${systemName(next, to)}`
+  const traveled = (): GameEvent => ({ type: 'traveled', from: origin, to: next.ship.at, fuelSpent: spent })
 
-  const events: GameEvent[] = [{ type: 'traveled', from, to, fuelSpent: cost }]
-  next = advanceTime(next, jumpsMade, events)
-  if (next.outcome !== 'seeking') return { state: next, events }
+  for (let leg = 1; leg < route.path.length; leg++) {
+    const into = route.path[leg]!
+    // The premium is charged per lane, so a drive scarred mid-course starts
+    // costing on the very next one.
+    const legCost = travelCost(next, laneCost(index, route.path[leg - 1]!, into))
 
-  const strandCheck = declareIfStranded(next, index, events)
-  if (strandCheck.state.outcome !== 'seeking') return strandCheck
-  next = strandCheck.state
-
-  // The dangerous regions intercept, once the early grace days are spent.
-  // A contact pre-empts the arrival scene; whatever waited here plays after.
-  const roll = createRng(`${state.seed}:contact:${next.day}:${to}`)
-  const chance = contactChance(next, index.system(to).region)
-  if (chance > 0 && roll.chance(chance)) {
-    const enemy = buildContact(roll, next, to, index)
-    next = {
-      ...next,
-      combats: next.combats + 1,
-      combat: { at: to, enemy, phase: 'contact', toll: TOLL_FUEL },
-      log: appendLog(next.log, {
-        kind: 'travel',
-        text: `${systemName(next, to)}: an intercept course on the boards — ${enemy.name}. They have seen us.`,
-      }),
+    // A surge can empty the tank between stars. The ship stops where the
+    // fuel ran out, which is how a voyage becomes a predicament.
+    if (legCost > next.ship.fuel) {
+      next = legLog(
+        `The tank runs dry at ${shortOf(next.ship.at)}. Whatever the rift took out of the ` +
+          `manifolds, it took at the worst possible moment.`,
+      )
+      events.push(traveled())
+      return { state: next, events }
     }
-    events.push({ type: 'contactMade', at: to, enemy: enemy.name })
-    return { state: next, events }
+
+    next = { ...next, ship: { ...next.ship, at: into, fuel: next.ship.fuel - legCost } }
+    spent += legCost
+    jumps += 1
+    next = advanceTime(next, 1, events)
+    if (next.outcome !== 'seeking') {
+      events.push(traveled())
+      return { state: next, events }
+    }
+
+    // Every lane crossed rolls against the region it carries the ship into.
+    const roll = createRng(`${state.seed}:contact:${next.day}:${into}`)
+    const chance = contactChance(next, index.system(into).region)
+    if (chance > 0 && roll.chance(chance)) {
+      const enemy = buildContact(roll, next, into, index)
+      const where = into === to ? systemName(next, into) : shortOf(into)
+      next = {
+        ...next,
+        combats: next.combats + 1,
+        combat: { at: into, enemy, phase: 'contact', toll: TOLL_FUEL },
+        log: appendLog(next.log, {
+          kind: 'travel',
+          text: `An intercept course on the boards at ${where} — ${enemy.name}. They have seen us.`,
+        }),
+      }
+      events.push(traveled())
+      events.push({ type: 'contactMade', at: into, enemy: enemy.name })
+      return { state: next, events }
+    }
+
+    // Something worth a day, in a system the course was only crossing. The
+    // destination is never one of these: its own arrival scene owns it.
+    if (into !== to && !evidenceSites(next).has(into)) {
+      const find = castTransit(next, index.system(into))
+      if (find) {
+        next = {
+          ...next,
+          encounter: find,
+          log: appendLog(next.log, {
+            kind: 'travel',
+            text: `The transit halts at ${shortOf(into)}: there is something out here.`,
+          }),
+        }
+        events.push(traveled())
+        events.push({ type: 'sceneOpened', at: into })
+        return { state: next, events }
+      }
+    }
   }
+
+  next = legLog(
+    `${systemName(next, to)}: arrived, ${jumps} ${jumps === 1 ? 'jump' : 'jumps'}, ` +
+      `${spent} fuel spent${state.driveScarred ? ' (the scarred drive ran hot)' : ''}. ` +
+      `${next.ship.fuel} in the tank.`,
+  )
+  events.push(traveled())
 
   // Arrival is where things happen: a system holding content opens its scene
   // at once. Empty and exhausted systems stay quiet — silence keeps meaning.

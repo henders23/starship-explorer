@@ -39,21 +39,41 @@ export interface CombatState {
   toll: number
 }
 
-/** Where space has teeth. The Shallows and the Trade Reach stay quiet. */
+/**
+ * Where space has teeth, priced **per jump** (R11).
+ *
+ * Danger used to be rolled once per journey, against the destination's
+ * region — which made a six-jump haul through the Margin mechanically safer
+ * per lane than a single hop, and left most of a run's flying hours empty.
+ * Now every lane crossed rolls against the region it carries the ship into,
+ * so the chart is a standing question: the short cut through the Cinder
+ * Belt, or the long way round through the Shallows.
+ *
+ * The Shallows stay silent by design — the arrival region is where a
+ * captain learns the game, and silence there keeps meaning something.
+ */
 const CONTACT_CHANCE: Record<RegionId, number> = {
   shallows: 0,
-  'trade-reach': 0.08,
-  xenoline: 0.15,
-  'cinder-belt': 0.2,
-  'rift-margin': 0.25,
+  'trade-reach': 0.06,
+  xenoline: 0.11,
+  'cinder-belt': 0.13,
+  'rift-margin': 0.17,
 }
 
 /** The first days are for learning the game, not fighting it. */
 export const CONTACT_GRACE_DAYS = 12
 
+/**
+ * The chance that crossing one lane into `region` draws an interception.
+ *
+ * The rift's escalation *scales* the danger a region already has rather
+ * than adding to it, so the Shallows stay silent however bad things get.
+ * A sector needs one corner a battered ship can retreat into; without it,
+ * "go somewhere quiet and finish the research" stops being a move.
+ */
 export function contactChance(state: GameState, region: RegionId): number {
   if (state.day < CONTACT_GRACE_DAYS) return 0
-  return Math.min(0.35, CONTACT_CHANCE[region] + state.surges * 0.02)
+  return Math.min(0.26, CONTACT_CHANCE[region] * (1 + state.surges * 0.12))
 }
 
 /** Cast the intercepting ship: archetype by claim, tier by escalation. */

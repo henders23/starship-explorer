@@ -29,6 +29,19 @@ export type SceneOptionEffect =
   | { kind: 'dismiss' }
   /** The gateway threshold only: commit the transit and end the voyage. */
   | { kind: 'transit' }
+  /**
+   * Transit finds: a day spent on something the lane turned up. Every field
+   * is a bounded gain the reducer clamps — fuel and hull to their maxima,
+   * ordnance to the magazine, research to days off the active project.
+   */
+  | {
+      kind: 'salvage'
+      days: number
+      fuel?: number
+      ordnance?: number
+      hull?: number
+      research?: number
+    }
 
 export interface SceneOption {
   id: string

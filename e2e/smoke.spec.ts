@@ -37,9 +37,20 @@ test('title → briefing → scene → collect', async ({ page }) => {
   await page.locator('[data-system="sys-014"]').dispatchEvent('click')
   await page.getByRole('button', { name: /^Travel here/ }).click()
 
-  // Arrival casts the scene. Play the beats out, then take the walk-in offer.
+  // Arrival casts the scene. A course can be cut short by something the
+  // lane turned up, so press on until the ship actually makes port.
   const overlay = page.locator('.scene-overlay')
   await expect(overlay).toBeVisible()
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const kind = (await overlay.getAttribute('data-scene')) ?? ''
+    if (!kind.startsWith('transit-')) break
+    while (await overlay.getByRole('button', { name: /^Continue/ }).isVisible()) {
+      await overlay.getByRole('button', { name: /^Continue/ }).click()
+    }
+    await overlay.getByRole('button', { name: /press on|hold course|Not today|She will hold/i }).click()
+    await page.getByRole('button', { name: /^Travel here/ }).click()
+    await expect(overlay).toBeVisible()
+  }
   while (await overlay.getByRole('button', { name: /^Continue/ }).isVisible()) {
     await overlay.getByRole('button', { name: /^Continue/ }).click()
   }

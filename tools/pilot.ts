@@ -253,6 +253,17 @@ function decideScene(state: GameState): Action {
   const transit = usable.find((o) => o.effect.kind === 'transit')
   if (transit) return { type: 'sceneOption', option: transit.id }
 
+  // A transit find: take it when the ship actually wants what it offers.
+  const salvage = usable.find((o) => {
+    if (o.effect.kind !== 'salvage') return false
+    const { fuel = 0, ordnance = 0, hull = 0, research = 0 } = o.effect
+    if (fuel > 0 && state.ship.fuel <= FUEL_MAX - fuel) return true
+    if (ordnance > 0 && state.ordnance < 8) return true
+    if (hull > 0 && state.ship.hull < 90) return true
+    return research > 0 && state.tech.active !== null
+  })
+  if (salvage) return { type: 'sceneOption', option: salvage.id }
+
   const recruit = usable.find((o) => o.effect.kind === 'recruit')
   if (recruit && state.recruits.sites[scene.at]) return { type: 'sceneOption', option: recruit.id }
 

@@ -95,7 +95,11 @@ export function EncounterOverlay() {
   }
 
   return (
-    <div className="scene-overlay" onClick={() => !atLastBeat && setBeat((b) => b + 1)}>
+    <div
+      className="scene-overlay"
+      data-scene={scene.templateId}
+      onClick={() => !atLastBeat && setBeat((b) => b + 1)}
+    >
       <div className="scene-veil" aria-hidden="true" />
 
       <div className="scene-header">
