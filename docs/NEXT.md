@@ -126,9 +126,14 @@ gateway arrival is a scene, not a screen-swap.
   instrument for all of it. ~~Short galaxy as the first-run mode~~ done
   19 Aug: 48 systems, same solvability contract, chosen on the title screen;
   sweeps read it at 100% completion, a third shorter, 90% bloodless.
-- **Audio**: scene stingers, a map bed, surge and jump cues.
-- **Onboarding & access**: first-clue nudge on the Nav Plot, colourblind-safe
-  chart markers, keyboard coverage for scenes and battle.
+- ~~**Audio**~~ Done 19 Aug: a synthesized cue layer (`src/ui/audio.ts`) —
+  scene stingers, evidence chimes, surge and contact alarms, both ends of
+  the jump — and the ship's hum running quiet under the chart as the map
+  bed. No asset files; same WebAudio voice as the battle sim.
+- **Onboarding & access**: ~~first-clue nudge~~, ~~colourblind-safe chart
+  markers~~ (failed jumps wear a cross), and ~~keyboard coverage for
+  scenes~~ and crises done 19 Aug. Remaining: keyboard coverage for the
+  battle screen.
 
 **Done when:** an uncoached player finishes a short-galaxy run and starts a
 second one.
