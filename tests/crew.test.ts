@@ -47,7 +47,7 @@ function missionAction(
 }
 
 describe('the roster', () => {
-  it('generates a captain and three officers, deterministically per seed', () => {
+  it('casts the three comic founders and seeds the medical chair', () => {
     const a = generateRoster('some-seed')
     const b = generateRoster('some-seed')
     expect(a).toEqual(b)
@@ -57,7 +57,22 @@ describe('the roster', () => {
       expect(officer.skill).toBe(3)
       expect(officer.origin).toBe('founding')
     }
-    expect(generateRoster('other-seed')).not.toEqual(a)
+
+    // The intro comic names these three, so every seed must seat them.
+    expect(a.slice(0, 3).map((o) => o.name)).toEqual([
+      'Cpt. Alexander Vale',
+      'Chief Gabriel Cross',
+      'Lt. Helen Morozova',
+    ])
+    const seeds = ['a', 'b', 'c', 'd', 'e', 'f', 'g', 'h']
+    for (const seed of seeds) {
+      expect(generateRoster(seed).slice(0, 3)).toEqual(a.slice(0, 3))
+    }
+
+    // The fourth chair is still the seed's to fill, and never with Morozova.
+    const medics = seeds.map((seed) => generateRoster(seed)[3]!.name)
+    expect(new Set(medics).size).toBeGreaterThan(1)
+    expect(medics).not.toContain('Dr. Helen Morozova')
   })
 
   it('starts the generic pools at 12 and 12', () => {
