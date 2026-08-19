@@ -163,7 +163,9 @@ button:disabled {
   inset: 0;
   background:
     linear-gradient(0deg, rgb(1 4 6 / .94), rgb(1 4 6 / .35) 34%, transparent 55%),
-    linear-gradient(90deg, rgb(1 5 7 / .6), transparent 42%);
+    /* The rift art is brightest along the ship's hull, which the title
+       crosses — the left wash carries far enough to keep the type off it. */
+    linear-gradient(90deg, rgb(1 5 7 / .84), rgb(1 5 7 / .42) 28%, transparent 54%);
 }
 .start-copy { position: absolute; bottom: 11%; left: 7%; z-index: 2; max-width: 560px; }
 .start-copy h1 {
