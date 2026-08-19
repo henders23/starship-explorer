@@ -83,11 +83,12 @@ export function hasIntelOn(state: GameState, index: GalaxyIndex, faction: string
   )
 }
 
-/** The ship's volley: the security officer's gunnery plus fire control. */
+/** The ship's volley: gunnery skill, fire control, and any gunner aboard. */
 export function playerDamage(state: GameState, roster: readonly Officer[]): number {
   const gunnery = roster.find((o) => o.role === 'security' && o.status === 'fit')?.skill ?? 0
   const refit = state.tech.researched.includes('fire-control') ? 4 : 0
-  return 8 + 2 * Math.max(0, gunnery - 2) + refit
+  const gunners = state.recruits.aboard.filter((s) => s.focus === 'gunnery').length
+  return 8 + 2 * Math.max(0, gunnery - 2) + refit + 3 * gunners
 }
 
 /** Odds shown on the buttons — and used by the dice. */

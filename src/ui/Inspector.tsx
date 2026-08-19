@@ -32,6 +32,7 @@ export function Inspector() {
   const system = index.system(selectedId)
   const isCandidate = candidateSet.has(system.id)
   const hasEvidence = sites.has(system.id)
+  const hasRecruit = gameState.recruits.sites[system.id] !== undefined
   const alreadyTried = jumps.some((j) => j.target === system.id)
   const { site } = sitePlan(gameState, system.id)
   const ship = gameState.ship
@@ -125,18 +126,24 @@ export function Inspector() {
           </button>
         )}
 
-      {here && hasEvidence && outcome === 'seeking' && (
+      {here && (hasEvidence || hasRecruit) && outcome === 'seeking' && (
         <button
           onClick={() => dispatch({ type: 'openScene' })}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
-          {site !== null ? `Respond — ${site.label.toLowerCase()}` : 'Respond to the contact'}
+          {hasEvidence
+            ? site !== null
+              ? `Respond — ${site.label.toLowerCase()}`
+              : 'Respond to the contact'
+            : 'Someone dockside is asking for the captain'}
         </button>
       )}
 
-      {!here && hasEvidence && (
+      {!here && (hasEvidence || hasRecruit) && (
         <div className="text-ink-faint text-[10px]">
-          Something waits here, but the ship must arrive before anyone answers it.
+          {hasEvidence
+            ? 'Something waits here, but the ship must arrive before anyone answers it.'
+            : 'Word of a specialist looking for a berth at this station.'}
         </div>
       )}
 

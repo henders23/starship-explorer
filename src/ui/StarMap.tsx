@@ -25,6 +25,7 @@ export function StarMap() {
   const start = useGame((s) => s.state.galaxy.start)
   const jumps = useGame((s) => s.state.jumps)
   const ship = useGame((s) => s.state.ship)
+  const recruitSites = useGame((s) => s.state.recruits.sites)
   const { candidateSet, sites, clues } = useNavPlot()
   const [hovered, setHovered] = useState<SystemId | null>(null)
   const [zoom, setZoom] = useState(1.35)
@@ -185,6 +186,19 @@ export function StarMap() {
                 />
               )}
 
+              {recruitSites[system.id] && (
+                <rect
+                  x={x - 3.4}
+                  y={y - 3.4}
+                  width={6.8}
+                  height={6.8}
+                  fill="none"
+                  stroke="var(--color-phosphor)"
+                  strokeWidth={0.8}
+                  transform={`rotate(45 ${x} ${y})`}
+                />
+              )}
+
               {isSelected && (
                 <circle cx={x} cy={y} r={7} fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
               )}
@@ -266,7 +280,11 @@ export function StarMap() {
         <button onClick={() => { setZoom(1.35); setPan({ x: -90, y: -35 }) }} aria-label="Reset map view">⌖</button>
       </div>
 
-      <Legend evidenceCount={sites.size} held={clues.length} />
+      <Legend
+        evidenceCount={sites.size}
+        held={clues.length}
+        recruits={Object.keys(recruitSites).length}
+      />
 
       <div className="map-ui map-scale absolute right-5 bottom-5">
         <span>50 LY</span><i />
@@ -278,7 +296,15 @@ export function StarMap() {
   )
 }
 
-function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }) {
+function Legend({
+  evidenceCount,
+  held,
+  recruits,
+}: {
+  evidenceCount: number
+  held: number
+  recruits: number
+}) {
   return (
     <div className="map-ui map-legend pointer-events-none absolute bottom-5 left-5 flex flex-col gap-1 text-[10px]">
       <div className="flex items-center gap-2">
@@ -290,6 +316,14 @@ function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }
       <LegendRow colour="var(--color-phosphor)" label="consistent with your plot" />
       <LegendRow colour="var(--color-ink-faint)" label="ruled out" />
       <LegendRow colour="var(--color-amber)" label={`unsearched evidence (${evidenceCount})`} ring />
+      {recruits > 0 && (
+        <div className="flex items-center gap-2">
+          <svg width={14} height={14}>
+            <rect x={4} y={4} width={6} height={6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} transform="rotate(45 7 7)" />
+          </svg>
+          <span className="text-ink-faint">specialist for hire ({recruits})</span>
+        </div>
+      )}
       <div className="text-ink-faint mt-1">{held} accounts in hand</div>
     </div>
   )

@@ -74,7 +74,13 @@ export function EncounterOverlay() {
 
       <div className="scene-dialogue panel-glass" key={beat}>
         {current.speaker === 'figure' && scene.figure ? (
-          <div className="scene-portrait is-figure">{scene.figure.name.slice(0, 1)}</div>
+          <div className="scene-portrait is-figure">
+            {scene.figure.portrait ? (
+              <img src={scene.figure.portrait} alt="" />
+            ) : (
+              scene.figure.name.slice(0, 1)
+            )}
+          </div>
         ) : officer ? (
           <div className="scene-portrait">
             {officer.portrait ? <img src={officer.portrait} alt="" /> : officer.name.slice(0, 1)}

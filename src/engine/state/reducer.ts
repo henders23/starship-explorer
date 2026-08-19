@@ -17,6 +17,8 @@ import {
   YIELD_TRIBUTE_FUEL,
 } from '../combat/combat.js'
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
+import { placeSpecialists } from '../crew/specialists.js'
+import { FOCUS_LABELS, SKILL_MAX, xpToNextSkill } from '../crew/types.js'
 import { castScene } from '../encounters/templates.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
 import {
@@ -82,6 +84,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     roster: generateRoster(seed),
     loadouts: defaultLoadouts(),
     pools: { ...STARTING_POOLS },
+    recruits: { sites: placeSpecialists(seed, puzzle.galaxy), aboard: [] },
     missionsRun: 0,
     promotions: 0,
     casualties: { generics: 0, officers: [] },
@@ -302,6 +305,41 @@ function collectClues(
 }
 
 /* ------------------------------------------------------------------------ *
+ * Experience
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Contributions become skill. Three per level held buys the next point,
+ * capped at five — growth is visible, slow, and earned by doing the job.
+ */
+function gainXp(
+  state: GameState,
+  roles: readonly OfficerRole[],
+  amount: number,
+  events: GameEvent[],
+): GameState {
+  if (roles.length === 0 || amount <= 0) return state
+  let log = state.log
+  const roster = state.roster.map((officer) => {
+    if (!roles.includes(officer.role) || officer.status === 'dead') return officer
+    if (officer.skill >= SKILL_MAX) return officer
+    let { skill, xp } = officer
+    xp += amount
+    if (xp >= xpToNextSkill(skill)) {
+      xp -= xpToNextSkill(skill)
+      skill += 1
+      events.push({ type: 'officerImproved', role: officer.role, name: officer.name, skill })
+      log = appendLog(log, {
+        kind: 'crew',
+        text: `${officer.name} has grown into the station — skill ${skill}. The ship is better for it.`,
+      })
+    }
+    return { ...officer, skill, xp }
+  })
+  return { ...state, roster, log }
+}
+
+/* ------------------------------------------------------------------------ *
  * Research
  * ------------------------------------------------------------------------ */
 
@@ -328,13 +366,16 @@ function startResearch(state: GameState, techId: TechId): Transition {
   if (!officer(state.roster, 'science')) return { state, events: [] }
 
   const node = TECH_BY_ID[techId]!
+  // Research specialists shorten every project; nothing goes below two days.
+  const researchers = state.recruits.aboard.filter((s) => s.focus === 'research').length
+  const days = Math.max(2, node.days - researchers)
   return {
     state: {
       ...state,
-      tech: { ...state.tech, active: { id: techId, daysLeft: node.days } },
+      tech: { ...state.tech, active: { id: techId, daysLeft: days } },
       log: appendLog(state.log, {
         kind: 'crew',
-        text: `The bench takes up ${node.name} — ${node.days} days of the science officer's time.`,
+        text: `The bench takes up ${node.name} — ${days} days of the science officer's time.`,
       }),
     },
     events: [{ type: 'techStarted', tech: techId }],
@@ -353,6 +394,10 @@ function endCombat(
 ): GameState {
   events.push({ type: 'combatResolved', at: state.combat!.at, result })
   let next: GameState = { ...state, combat: null }
+  // A fight fought and won is gunnery experience for the security chief.
+  if (result === 'destroyed-them' || result === 'driven-off' || result === 'yielded') {
+    next = gainXp(next, ['security'], 2, events)
+  }
   const scene = castScene(next, next.ship.at)
   if (scene) {
     next = { ...next, encounter: scene }
@@ -640,6 +685,26 @@ function sceneOption(state: GameState, optionId: string): Transition {
     return { state: closed, events }
   }
 
+  if (option.effect.kind === 'recruit') {
+    const specialist = state.recruits.sites[scene.at]
+    if (!specialist) return { state: closed, events }
+    const sites = { ...state.recruits.sites }
+    delete sites[scene.at]
+    let next: GameState = {
+      ...closed,
+      recruits: { sites, aboard: [...state.recruits.aboard, specialist] },
+      log: appendLog(closed.log, {
+        kind: 'crew',
+        text:
+          `${specialist.name} signs aboard as ship's ${FOCUS_LABELS[specialist.focus].toLowerCase()}. ` +
+          `A new face in the mess, and a better ship by morning.`,
+      }),
+    }
+    events.push({ type: 'specialistJoined', name: specialist.name, focus: specialist.focus })
+    next = advanceTime(next, 1, events)
+    return { state: next, events }
+  }
+
   // Collect: the walk-in path, on the terms this option named.
   const { days, fuel = 0 } = option.effect
   if (state.ship.at !== scene.at) return { state, events: [] }
@@ -710,6 +775,7 @@ function advanceTime(state: GameState, days: number, events: GameEvent[]): GameS
           text: `${science.name} signs off on ${TECH_BY_ID[completed]!.name}. ${TECH_BY_ID[completed]!.effect}.`,
         }),
       }
+      next = gainXp(next, ['science'], 2, events)
     }
   }
 
@@ -1101,7 +1167,11 @@ function runMission(
   const system = systemName(state, systemId)
   const events: GameEvent[] = [...preEvents, { type: 'missionResolved', at: systemId, outcome }]
 
+  // The people who went down and did the job get better at it.
+  const teamRoles: OfficerRole[] = team.captain ? ['captain', ...team.officers] : [...team.officers]
+
   if (outcome === 'clean') {
+    next = gainXp(next, teamRoles, 1, events)
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     const salvage = applyDerelictSalvage(next, site, events)
@@ -1143,6 +1213,7 @@ function runMission(
 
   if (outcome === 'messy') {
     // Hurt, but the job got done.
+    next = gainXp(next, teamRoles, 1, events)
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     next = applyDerelictSalvage(next, site, events)
@@ -1303,16 +1374,21 @@ function decode(state: GameState, clueId: ClueId): Transition {
   if (clue && requiredTier(clue.source.kind) > commsTier(state)) return { state, events: [] }
 
   const science = officer(state.roster, 'science')!
+  const linguist = state.recruits.aboard.find((s) => s.focus === 'comms')
   const events: GameEvent[] = [{ type: 'clueDecoded', clue: clueId }]
   let next: GameState = {
     ...state,
     undecoded: state.undecoded.filter((id) => id !== clueId),
     log: appendLog(state.log, {
       kind: 'crew',
-      text: `${science.name} works the artefact over for a day until it gives. Another account, legible at last.`,
+      text: linguist
+        ? `${linguist.name} reads the artefact over a mug of tea and hands ${science.name} the translation before the watch changes. Another account, legible at once.`
+        : `${science.name} works the artefact over for a day until it gives. Another account, legible at last.`,
     }),
   }
-  next = advanceTime(next, 1, events)
+  // A linguist aboard does it in passing; otherwise it costs the bench a day.
+  if (!linguist) next = advanceTime(next, 1, events)
+  next = gainXp(next, ['science'], 1, events)
   return { state: next, events }
 }
 

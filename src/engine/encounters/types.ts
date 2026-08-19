@@ -23,6 +23,8 @@ export type SceneOptionEffect =
   | { kind: 'collect'; days: number; fuel?: number }
   /** A defended site: open away-team planning. The mission does the rest. */
   | { kind: 'mission' }
+  /** Sign the specialist waiting here aboard. A day of orientation. */
+  | { kind: 'recruit' }
   /** Stand off. The scene can be reopened from the system inspector. */
   | { kind: 'dismiss' }
 
@@ -40,6 +42,8 @@ export interface SceneFigure {
   name: string
   /** What they are, e.g. "Trader" — shown where a station label would be. */
   label: string
+  /** A face, when the figure has one (recruits do). */
+  portrait?: string
 }
 
 export interface SceneInstance {

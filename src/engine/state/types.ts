@@ -1,5 +1,5 @@
 import type { CombatState } from '../combat/combat.js'
-import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
+import type { AwayTeam, CrewPools, Officer, OfficerRole, Specialist } from '../crew/types.js'
 import type { SceneInstance } from '../encounters/types.js'
 import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
@@ -68,6 +68,8 @@ export interface GameState {
   loadouts: Loadouts
   /** The generic pools: alive counts, nothing more. */
   pools: CrewPools
+  /** Specialists: waiting at stations, and signed aboard. */
+  recruits: { sites: Record<SystemId, Specialist>; aboard: Specialist[] }
   /** Missions attempted, successful or not. Drives injury recovery and RNG. */
   missionsRun: number
   /** How many promotions have happened, to seed replacement names. */
@@ -160,6 +162,8 @@ export type GameEvent =
     }
   | { type: 'shipDamaged'; amount: number; hull: number }
   | { type: 'shipDestroyed' }
+  | { type: 'specialistJoined'; name: string; focus: Specialist['focus'] }
+  | { type: 'officerImproved'; role: OfficerRole; name: string; skill: number }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }

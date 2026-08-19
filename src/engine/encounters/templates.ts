@@ -231,6 +231,60 @@ const listeningPost: SceneTemplate = {
   ],
 }
 
+/* ------------------------------------------------------------------------ *
+ * Recruitment — somebody at the station wants a berth.
+ * ------------------------------------------------------------------------ */
+
+const RECRUIT_PITCH: Record<string, { intro: string; pitch: string }> = {
+  gunnery: {
+    intro: 'is leaning on the dock rail watching your gun mounts with a professional eye',
+    pitch:
+      '“Those mounts are laid a half-degree lazy, Captain — I could see it from the dock. I have run fire control on three hulls and outlived all of them. Take me on and your volleys land harder. That is the whole speech.”',
+  },
+  research: {
+    intro: 'finds your science officer first, and the two of them are already arguing methodology',
+    pitch:
+      '“Your bench is doing months of work with one pair of hands, Captain. I have done rift-adjacent research since before it was survivable. Take me on and everything on that bench finishes sooner.”',
+  },
+  comms: {
+    intro: 'addresses your comms array in three languages before switching, politely, to yours',
+    pitch:
+      '“Every script in this sector, Captain — I read them the way you read a fuel gauge. Whatever your matrix chews on for a day, I do while the kettle boils. And I would very much like to be somewhere else.”',
+  },
+}
+
+/** Cast per site from state.recruits; not part of the static family tables. */
+function recruitScene(state: GameState, systemId: string, system: StarSystem): SceneInstance {
+  const specialist = state.recruits.sites[systemId]!
+  const flavour = RECRUIT_PITCH[specialist.focus]!
+  const figure: SceneFigure = {
+    name: specialist.name,
+    label: 'Looking for a berth',
+    portrait: specialist.portrait,
+  }
+  return {
+    at: systemId,
+    templateId: 'recruit',
+    figure,
+    beats: [
+      {
+        speaker: null,
+        text: `Dockside at ${system.name}, somebody ${flavour.intro}.`,
+      },
+      { speaker: 'figure', text: flavour.pitch },
+    ],
+    options: [
+      {
+        id: 'sign',
+        label: `Take ${specialist.name} on`,
+        detail: '1 day of orientation · their bonus is permanent',
+        effect: { kind: 'recruit' },
+      },
+      { id: 'decline', label: 'Wish them luck ashore', effect: { kind: 'dismiss' } },
+    ],
+  }
+}
+
 /* ------------------------------------------------------------------------ */
 
 const SOCIAL_FAMILIES: Partial<Record<ClueSourceKind, SceneTemplate>> = {
@@ -259,12 +313,15 @@ function cluesWaitingAt(state: GameState, systemId: string): Clue[] {
  * silence has to keep meaning something).
  */
 export function castScene(state: GameState, systemId: string): SceneInstance | null {
-  if (state.searched.includes(systemId)) return null
-  const clues = cluesWaitingAt(state, systemId)
-  if (clues.length === 0) return null
-
   const system = state.galaxy.systems.find((s) => s.id === systemId)
   if (!system) return null
+
+  const clues = state.searched.includes(systemId) ? [] : cluesWaitingAt(state, systemId)
+  if (clues.length === 0) {
+    // No evidence (left) here — but a station may still hold a recruit.
+    if (state.recruits.sites[systemId]) return recruitScene(state, systemId, system)
+    return null
+  }
 
   const site = dominantSite(clues.map((c) => c.source.kind))
   const template = site

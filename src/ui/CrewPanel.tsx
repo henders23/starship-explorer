@@ -1,5 +1,5 @@
 import { useMemo } from 'react'
-import type { Officer } from '../engine/crew/types.js'
+import { FOCUS_LABELS, type Officer } from '../engine/crew/types.js'
 import { useDispatch, useGame } from './store.js'
 
 /**
@@ -18,6 +18,7 @@ const STATION_LABELS: Record<Officer['role'], string> = {
 export function CrewPanel() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
+  const specialists = useGame((s) => s.state.recruits.aboard)
   const day = useGame((s) => s.state.day)
   const dispatch = useDispatch()
 
@@ -37,6 +38,21 @@ export function CrewPanel() {
     <div className="flex flex-col gap-[7px] px-[18px] py-3">
       {roster.map((o) => (
         <OfficerRow key={o.role} officer={o} day={day} />
+      ))}
+
+      {specialists.map((s) => (
+        <div key={s.name} className="flex items-center justify-between gap-2 text-[13px]">
+          <span className="text-ink-dim flex min-w-0 items-center gap-2.5">
+            {s.portrait && <img src={s.portrait} alt="" className="roster-portrait" />}
+            <span className="truncate">
+              <span className="text-ink-faint mr-1.5 text-[11px] tracking-[0.08em] uppercase">
+                {FOCUS_LABELS[s.focus]}
+              </span>
+              {s.name}
+            </span>
+          </span>
+          <span className="text-phosphor-dim w-[86px] shrink-0 text-right text-[12px]">aboard</span>
+        </div>
       ))}
 
       <div className="text-ink mt-1.5 flex justify-between text-[12px]">

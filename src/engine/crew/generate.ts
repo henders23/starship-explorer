@@ -21,6 +21,7 @@ function asOfficer(person: CrewPerson, role: OfficerRole, skill: number, origin:
     name: `${TITLES[role]} ${person.name}`,
     portrait: person.portrait,
     skill,
+    xp: 0,
     status: 'fit',
     origin,
   }
@@ -54,4 +55,14 @@ export function generateRoster(seed: string): Officer[] {
 export function promoteGeneric(seed: string, role: OfficerRole, promotionCount: number): Officer {
   const queue = createRng(`${seed}:promotions`).shuffle(RATINGS_POOL)
   return asOfficer(queue[promotionCount % queue.length]!, role, 2, 'promoted')
+}
+
+/**
+ * The faces waiting at the stations: drawn from the far end of the same
+ * shuffled ratings queue the promotions walk from the front, so a recruit
+ * is never the twin of someone who stepped up from the ranks.
+ */
+export function recruitPerson(seed: string, index: number): CrewPerson {
+  const queue = createRng(`${seed}:promotions`).shuffle(RATINGS_POOL)
+  return queue[queue.length - 1 - (index % queue.length)]!
 }
