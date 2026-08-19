@@ -6,6 +6,7 @@ import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
 import { surgeForecast } from '../engine/state/reducer.js'
+import { TruthReveal } from './TruthReveal.js'
 import { TECH_BY_ID } from '../engine/research/tech.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
@@ -40,17 +41,45 @@ export function App() {
     return () => window.removeEventListener('starship:navigate', navigate)
   }, [])
 
+  const restart = useGame((s) => s.restart)
+
   // The ship's ambience runs aboard ship — the briefing on the bridge and the
   // cutaway both count. Playback must begin inside the "Take command" click —
   // browsers refuse audio that was never sanctioned by a user gesture.
-  const begin = () => {
+  const startAmbience = () => {
     const ambient = ambientRef.current ?? new Audio('/assets/audio/ship-ambient.mp3')
     ambientRef.current = ambient
     ambient.loop = true
     ambient.volume = 0.15
     void ambient.play().catch(() => {})
+  }
+
+  const begin = (seed?: string) => {
+    startAmbience()
+    // A named seed replays a known galaxy; a blank one rolls a fresh sky.
+    restart(seed || `voyager-${Date.now().toString(36)}`)
     setPhase('briefing')
   }
+
+  const resume = () => {
+    startAmbience()
+    setPhase('game')
+  }
+
+  // Station hotkeys, active once aboard and only when no overlay is playing.
+  const encounterOpen = useGame((s) => s.state.encounter !== null || s.state.combat !== null)
+  useEffect(() => {
+    if (phase !== 'game') return
+    const onKey = (event: KeyboardEvent) => {
+      if (encounterOpen) return
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      const stations: Record<string, Screen> = { '1': 'ship', '2': 'galaxy', '3': 'loadout', '4': 'lab' }
+      const next = stations[event.key]
+      if (next) setScreen(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [phase, encounterOpen])
 
   useEffect(() => {
     const ambient = ambientRef.current
@@ -63,7 +92,7 @@ export function App() {
   if (phase === 'title') {
     return (
       <div className="crt app-shell h-full">
-        <StartScreen onBegin={begin} />
+        <StartScreen onBegin={begin} onResume={resume} />
       </div>
     )
   }
@@ -354,6 +383,7 @@ function Ending() {
               : '.'}
           </div>
         </div>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
@@ -382,6 +412,7 @@ function StrandedEnding() {
           The plot on the board may even be right — someone should check it, someday, whoever
           finds the log. The ship keeps its orbit. The orbit keeps its ship.
         </p>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
@@ -408,6 +439,7 @@ function DestroyedEnding() {
           be. The plot on the Nav board — the accounts, the trust so carefully placed and
           withheld — burns with everything else. Whatever the answer was, it stays out here.
         </p>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
@@ -434,6 +466,7 @@ function LostEnding() {
           reading it now. Whatever happens to the {' '}
           <em>Indefatigable</em> next, it happens without you.
         </p>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"

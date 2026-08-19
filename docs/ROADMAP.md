@@ -56,7 +56,7 @@ supplies state, and the full test suite passes.
 
 ---
 
-## R1 — The encounter engine ★
+## R1 — The encounter engine ★ — **done**
 
 *Goal: everything arrives through a scene. This is the milestone that matters.*
 
@@ -80,7 +80,7 @@ choice mattered, and a replayed action log replays the same conversations.
 
 ---
 
-## R2 — Research and translation
+## R2 — Research and translation — **done**
 
 *Goal: understanding is a track, and the science officer drives it.*
 
@@ -100,7 +100,7 @@ comms research completes, and the player knew it the whole time.
 
 ---
 
-## R3 — The three-part way home
+## R3 — The three-part way home — **done**
 
 *Goal: the win condition is place + engine + shield.*
 
@@ -119,7 +119,7 @@ losing a component source never silently strands a run.
 
 ---
 
-## R4 — A map worth staring at
+## R4 — A map worth staring at — **done**
 
 *Goal: the galaxy looks like the place the scenes happen.*
 
@@ -134,7 +134,7 @@ each story beat happened.
 
 ---
 
-## R5 — Ship-to-ship combat
+## R5 — Ship-to-ship combat — **done**
 
 *Goal: space has teeth; intelligence has value.*
 
@@ -152,7 +152,7 @@ never fought at all, and the player can say why each time.
 
 ---
 
-## R6 — Crew depth
+## R6 — Crew depth — **done**
 
 *Goal: the roster grows, and the people on it grow.*
 
@@ -167,13 +167,14 @@ who was lost.
 
 ---
 
-## R7 — Polish and the payoff
+## R7 — Polish and the payoff — **in progress**
 
-- Save/resume (autosave; the state was built serialisable from day one)
+- Save/resume (autosave; the state was built serialisable from day one) ✓
 - The post-run **truth reveal**: every account stamped true/false against how
-  the player filed it, plus run stats
-- Per-crew epilogues; seed sharing
-- Audio beyond the hub; keyboard-only play; colourblind-safe map
+  the player filed it, plus run stats ✓
+- Seed entry and sharing on the title screen ✓; station hotkeys (1–4) ✓
+- Per-crew epilogues (home ending has them; the loss endings do not yet)
+- Audio beyond the hub; colourblind-safe map
 - Onboarding: the first ten minutes teach the Nav Plot through scenes
 
 ---

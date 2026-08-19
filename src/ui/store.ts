@@ -20,15 +20,61 @@ interface Store {
 }
 
 const DEFAULT_SEED = 'voyager'
+const SAVE_KEY = 'starship-explorer-save-v1'
+
+/**
+ * Persistence is exactly what the engine promised it would be: the state is
+ * one serialisable object, so a save is a stringify and a resume is a parse.
+ * The shape check is deliberately shallow — any save from a different schema
+ * version simply fails it and the game starts fresh rather than crashing.
+ */
+function loadSave(): GameState | null {
+  try {
+    const raw = window.localStorage.getItem(SAVE_KEY)
+    if (!raw) return null
+    const parsed = JSON.parse(raw) as GameState
+    if (
+      typeof parsed?.seed !== 'string' ||
+      !parsed.galaxy?.systems ||
+      !parsed.tech ||
+      !parsed.recruits ||
+      !parsed.parts ||
+      typeof parsed.ship?.hull !== 'number'
+    ) {
+      return null
+    }
+    return parsed
+  } catch {
+    return null
+  }
+}
+
+function persist(state: GameState): void {
+  try {
+    window.localStorage.setItem(SAVE_KEY, JSON.stringify(state))
+  } catch {
+    // Storage full or unavailable: the game plays on, unsaved.
+  }
+}
+
+/** Whether a resumable voyage is waiting in storage. */
+export function hasSave(): boolean {
+  return loadSave() !== null
+}
 
 export const useGame = create<Store>((set, get) => ({
-  state: newGame(DEFAULT_SEED),
+  state: loadSave() ?? newGame(DEFAULT_SEED),
   lastEvents: [],
   dispatch: (action) => {
     const { state, events } = reduce(get().state, action)
+    persist(state)
     set({ state, lastEvents: events })
   },
-  restart: (seed) => set({ state: newGame(seed), lastEvents: [] }),
+  restart: (seed) => {
+    const state = newGame(seed)
+    persist(state)
+    set({ state, lastEvents: [] })
+  },
 }))
 
 /**
