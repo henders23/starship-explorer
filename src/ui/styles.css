@@ -296,6 +296,88 @@ button:disabled {
   to { opacity: 1; transform: translateX(-50%) translateY(0); }
 }
 
+/* Scene overlay — dialogue with portraits, then options */
+.scene-overlay { position: fixed; inset: 0; z-index: 35; cursor: pointer; }
+.scene-veil {
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(0deg, rgb(1 4 6 / .97) 0 22%, rgb(1 4 6 / .72) 55%, rgb(1 4 6 / .45)),
+    radial-gradient(circle at 50% 20%, rgb(11 35 48 / .5), transparent 60%);
+}
+.scene-header { position: absolute; top: 84px; left: 50%; z-index: 2; transform: translateX(-50%); }
+.scene-dialogue {
+  position: absolute;
+  bottom: 190px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  gap: 18px;
+  width: min(720px, calc(100% - 80px));
+  padding: 18px 22px;
+  transform: translateX(-50%);
+  animation: beat-in .28s ease-out both;
+}
+.scene-portrait {
+  display: grid;
+  place-items: center;
+  width: 72px;
+  height: 72px;
+  flex: none;
+  overflow: hidden;
+  border: 1px solid var(--color-amber-dim);
+  background: #0b1215;
+  color: var(--color-amber);
+  font-size: 22px;
+}
+.scene-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; }
+.scene-portrait.is-log { border-color: var(--color-rule); color: var(--color-ink-faint); }
+.scene-portrait.is-figure { border-color: var(--color-phosphor-dim); color: var(--color-phosphor); background: radial-gradient(circle, #10262c, #071014); }
+.scene-copy { min-width: 0; }
+.scene-speaker { display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px; }
+.scene-speaker strong { color: var(--color-amber); font-size: 12px; letter-spacing: .08em; text-transform: uppercase; }
+.scene-speaker span { color: var(--color-ink-faint); font-size: 9px; letter-spacing: .16em; text-transform: uppercase; }
+.scene-line { margin: 0; color: var(--color-ink); font-size: 13px; line-height: 1.75; }
+.scene-footer {
+  position: absolute;
+  bottom: 48px;
+  left: 50%;
+  z-index: 2;
+  display: flex;
+  justify-content: flex-end;
+  width: min(720px, calc(100% - 80px));
+  transform: translateX(-50%);
+  cursor: default;
+}
+.scene-advance {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 18px;
+  border: 1px solid var(--color-amber-dim);
+  background: rgb(3 8 10 / .8);
+  color: var(--color-amber);
+  font-size: 10px;
+  letter-spacing: .16em;
+  text-transform: uppercase;
+}
+.scene-advance:hover { background: rgb(173 112 30 / .18); border-color: var(--color-amber); }
+.scene-options { display: flex; flex-direction: column; gap: 8px; width: 100%; }
+.scene-option {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 11px 16px;
+  border: 1px solid var(--color-rule);
+  background: rgb(3 8 10 / .85);
+  text-align: left;
+}
+.scene-option:hover:not(:disabled) { border-color: var(--color-amber-dim); background: rgb(173 112 30 / .08); }
+.scene-option:disabled { opacity: .4; }
+.scene-option strong { color: var(--color-ink); font-size: 11px; font-weight: 500; letter-spacing: .06em; }
+.scene-option:hover:not(:disabled) strong { color: var(--color-amber); }
+.scene-option small { color: var(--color-ink-faint); font-size: 9px; }
+
 /* Station changes share one short arrival transition instead of a hard cut */
 .screen-stage { animation: screen-in .3s ease-out both; }
 @keyframes screen-in {

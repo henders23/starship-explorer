@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BriefingScreen } from './BriefingScreen.js'
+import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
@@ -86,6 +87,7 @@ export function App() {
         </div>
       </div>
       <CaptainsLog />
+      <EncounterOverlay />
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
       {outcome === 'stranded' && <StrandedEnding />}

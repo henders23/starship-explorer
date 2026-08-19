@@ -2,7 +2,6 @@ import { useMemo, useState } from 'react'
 import { sitePlan, travelCost } from '../engine/state/reducer.js'
 import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
-import { MissionPanel } from './MissionPanel.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
@@ -20,7 +19,6 @@ export function Inspector() {
   const gameState = useGame((s) => s.state)
   const { candidateSet, sites, trusted } = useNavPlot()
   const [confirming, setConfirming] = useState(false)
-  const [planning, setPlanning] = useState(false)
 
   if (!selectedId) {
     return <div className="text-ink-faint px-4 py-6 text-[11px]">Select a star on the chart.</div>
@@ -113,32 +111,19 @@ export function Inspector() {
         </button>
       )}
 
-      {here && hasEvidence && site === null && (
+      {here && hasEvidence && outcome === 'seeking' && (
         <button
-          onClick={() => dispatch({ type: 'search', system: system.id })}
+          onClick={() => dispatch({ type: 'openScene' })}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
-          Search this system
-        </button>
-      )}
-
-      {here && hasEvidence && site !== null && (
-        <button
-          onClick={() => setPlanning(true)}
-          className="border-alarm-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
-        >
-          Send an away team — {site.label.toLowerCase()}
+          {site !== null ? `Respond — ${site.label.toLowerCase()}` : 'Respond to the contact'}
         </button>
       )}
 
       {!here && hasEvidence && (
         <div className="text-ink-faint text-[10px]">
-          Evidence waits here, but the ship must arrive before anyone collects it.
+          Something waits here, but the ship must arrive before anyone answers it.
         </div>
-      )}
-
-      {planning && site !== null && (
-        <MissionPanel system={system.id} site={site} onClose={() => setPlanning(false)} />
       )}
 
       {!hasEvidence && searched.includes(system.id) && (

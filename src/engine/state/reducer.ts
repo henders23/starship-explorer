@@ -1,4 +1,5 @@
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
+import { castScene } from '../encounters/templates.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
 import {
   defaultLoadouts,
@@ -49,6 +50,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     undecoded: [],
     searched: [],
     selected: puzzle.galaxy.start,
+    encounter: null,
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX },
     day: 0,
     driveScarred: false,
@@ -92,6 +94,10 @@ export function reduce(state: GameState, action: Action): Transition {
       return runMission(state, action.system, action.team, action.approach)
     case 'equip':
       return equip(state, action.role, action.slot, action.item)
+    case 'openScene':
+      return openScene(state)
+    case 'sceneOption':
+      return sceneOption(state, action.option)
     case 'decode':
       return decode(state, action.clue)
     case 'promote':
@@ -147,12 +153,15 @@ function search(state: GameState, systemId: SystemId): Transition {
   const found = cluesAt(state, systemId)
   const searched = [...state.searched, systemId]
   const system = systemName(state, systemId)
+  // Searching resolves whatever scene was waiting on this system.
+  const encounter = state.encounter?.at === systemId ? null : state.encounter
 
   if (found.length === 0) {
     return {
       state: {
         ...state,
         searched,
+        encounter,
         log: appendLog(state.log, {
           kind: 'evidence',
           text: `${system}: swept and catalogued. Nothing here that bears on the way home.`,
@@ -163,7 +172,7 @@ function search(state: GameState, systemId: SystemId): Transition {
   }
 
   const preEvents: GameEvent[] = []
-  let timed = advanceTime({ ...state, searched }, 1, preEvents)
+  let timed = advanceTime({ ...state, searched, encounter }, 1, preEvents)
   if (timed.outcome !== 'seeking') return { state: timed, events: preEvents }
   const collected = collectClues(
     timed,
@@ -209,6 +218,73 @@ function collectClues(
     log: appendLog(state.log, { kind: 'evidence', text: logText }),
   }
   return { state: next, events }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Scenes
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Reopen the scene at the ship's position — the way back in after standing
+ * off, or the way in at the arrival system where no travel ever fired one.
+ */
+function openScene(state: GameState): Transition {
+  if (state.outcome !== 'seeking' || state.encounter !== null) return { state, events: [] }
+  const scene = castScene(state, state.ship.at)
+  if (!scene) return { state, events: [] }
+  return {
+    state: { ...state, encounter: scene },
+    events: [{ type: 'sceneOpened', at: state.ship.at }],
+  }
+}
+
+/**
+ * Answer the playing scene. Options carry their whole effect as data, so
+ * this is the single place dialogue touches the rules: dismiss and mission
+ * merely close the scene (the mission goes on to `runMission`); collect
+ * spends the option's days and fuel and takes the evidence.
+ */
+function sceneOption(state: GameState, optionId: string): Transition {
+  const scene = state.encounter
+  if (!scene || state.outcome !== 'seeking') return { state, events: [] }
+  const option = scene.options.find((o) => o.id === optionId)
+  if (!option) return { state, events: [] }
+  if (option.needs && !isFit(state.roster, option.needs)) return { state, events: [] }
+
+  const events: GameEvent[] = [{ type: 'sceneClosed', at: scene.at, option: optionId }]
+  const closed: GameState = { ...state, encounter: null }
+
+  if (option.effect.kind === 'dismiss' || option.effect.kind === 'mission') {
+    return { state: closed, events }
+  }
+
+  // Collect: the walk-in path, on the terms this option named.
+  const { days, fuel = 0 } = option.effect
+  if (state.ship.at !== scene.at) return { state, events: [] }
+  if (sitePlan(state, scene.at).site !== null) return { state, events: [] }
+  // A fuel-priced option must leave something in the tank.
+  if (fuel > 0 && state.ship.fuel <= fuel) return { state, events: [] }
+
+  const found = cluesAt(state, scene.at)
+  if (found.length === 0) return { state: closed, events }
+
+  let next: GameState = {
+    ...closed,
+    ship: { ...closed.ship, fuel: closed.ship.fuel - fuel },
+    searched: [...closed.searched, scene.at],
+  }
+  next = advanceTime(next, days, events)
+  if (next.outcome !== 'seeking') return { state: next, events }
+
+  const system = systemName(next, scene.at)
+  const collected = collectClues(
+    next,
+    found,
+    /* nothing on a walk-in needs field decoding */ true,
+    `${system}: ${found.length === 1 ? 'one account' : `${found.length} accounts`} of the anomaly ` +
+      `secured${fuel > 0 ? ` for ${fuel} fuel` : ''}. Filed to the plot, unassessed.`,
+  )
+  return { state: collected.state, events: [...events, ...collected.events] }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -330,6 +406,8 @@ function travel(state: GameState, to: SystemId): Transition {
     ...state,
     ship: { at: to, fuel: state.ship.fuel - cost },
     selected: to,
+    // Breaking orbit walks away from whatever was playing there.
+    encounter: null,
     log: appendLog(state.log, {
       kind: 'travel',
       text:
@@ -343,7 +421,19 @@ function travel(state: GameState, to: SystemId): Transition {
   const events: GameEvent[] = [{ type: 'traveled', from, to, fuelSpent: cost }]
   next = advanceTime(next, jumpsMade, events)
   if (next.outcome !== 'seeking') return { state: next, events }
-  return declareIfStranded(next, index, events)
+
+  const strandCheck = declareIfStranded(next, index, events)
+  if (strandCheck.state.outcome !== 'seeking') return strandCheck
+  next = strandCheck.state
+
+  // Arrival is where things happen: a system holding content opens its scene
+  // at once. Empty and exhausted systems stay quiet — silence keeps meaning.
+  const scene = castScene(next, to)
+  if (scene) {
+    next = { ...next, encounter: scene }
+    events.push({ type: 'sceneOpened', at: to })
+  }
+  return { state: next, events }
 }
 
 /** The scarred-drive premium, exposed so the UI prices trips honestly. */
@@ -565,7 +655,12 @@ function runMission(
   const missionsRun = state.missionsRun + 1
   const rng = createRng(`${state.seed}:mission:${missionsRun}:${systemId}`)
 
-  let next: GameState = { ...state, missionsRun }
+  let next: GameState = {
+    ...state,
+    missionsRun,
+    // Launching the shuttle resolves whatever scene was waiting here.
+    encounter: state.encounter?.at === systemId ? null : state.encounter,
+  }
   const preEvents: GameEvent[] = []
   next = advanceTime(next, 1, preEvents)
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }

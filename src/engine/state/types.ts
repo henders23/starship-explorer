@@ -1,4 +1,5 @@
 import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
+import type { SceneInstance } from '../encounters/types.js'
 import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
@@ -29,6 +30,8 @@ export interface GameState {
   searched: SystemId[]
   /** The system currently under inspection on the chart. */
   selected: SystemId | null
+  /** The scene playing right now, if any. Cast on arrival, plain data. */
+  encounter: SceneInstance | null
 
   /** Where the ship is and what is in the tank. Everything else orbits this. */
   ship: { at: SystemId; fuel: number }
@@ -87,6 +90,10 @@ export type Action =
   | { type: 'search'; system: SystemId }
   | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
   | { type: 'equip'; role: OfficerRole; slot: GearSlot; item: string }
+  /** Reopen the scene at the ship's position, if content remains. */
+  | { type: 'openScene' }
+  /** Answer the playing scene with one of its options. */
+  | { type: 'sceneOption'; option: string }
   | { type: 'decode'; clue: ClueId }
   | { type: 'promote'; role: Exclude<OfficerRole, 'captain'> }
   | { type: 'file'; clue: ClueId; state: ClueState }
@@ -112,6 +119,8 @@ export type GameEvent =
   | { type: 'missionResolved'; at: SystemId; outcome: 'clean' | 'messy' | 'disaster' }
   | { type: 'equipped'; role: OfficerRole; item: string }
   | { type: 'injurySpared'; role: OfficerRole; name: string }
+  | { type: 'sceneOpened'; at: SystemId }
+  | { type: 'sceneClosed'; at: SystemId; option: string }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }
