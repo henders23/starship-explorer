@@ -5,6 +5,7 @@ import { sitePlan, travelCost } from '../engine/state/reducer.js'
 import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { JumpCeremony } from './JumpCeremony.js'
+import { SystemView } from './SystemView.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
@@ -49,6 +50,8 @@ export function Inspector() {
         </div>
         <div className="text-ink-faint text-[10px]">{REGION_NAMES[system.region]}</div>
       </div>
+
+      <SystemView system={system} hasEvidence={hasEvidence} here={here} />
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[11px]">
         <Row label="Star">{STAR_NAMES[system.star]}</Row>

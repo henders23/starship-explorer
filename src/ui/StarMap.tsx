@@ -58,7 +58,21 @@ export function StarMap() {
     return routeTo(index, ship.at, selected)
   }, [index, ship.at, selected])
 
-  const sectorNames = ['ORPHEUS VEIL', 'CINDER MARCH', 'TALOS EXPANSE', 'RIFT MARGIN']
+  // Region labels drawn at the centroid of each region's actual systems —
+  // the chart names the places the engine knows, not invented sectors.
+  const regionLabels = useMemo(() => {
+    const groups = new Map<string, { x: number; y: number; n: number }>()
+    for (const system of index.systems) {
+      const p = project(system)
+      const group = groups.get(system.region) ?? { x: 0, y: 0, n: 0 }
+      groups.set(system.region, { x: group.x + p.x, y: group.y + p.y, n: group.n + 1 })
+    }
+    return [...groups.entries()].map(([region, { x, y, n }]) => ({
+      region: region as keyof typeof REGION_NAMES,
+      x: x / n,
+      y: y / n,
+    }))
+  }, [index, project])
 
   const onWheel = (event: React.WheelEvent) => {
     event.preventDefault()
@@ -97,10 +111,12 @@ export function StarMap() {
           <radialGradient id="region-haze"><stop offset="0" stopColor="#164e63" stopOpacity=".24" /><stop offset="1" stopColor="#02060a" stopOpacity="0" /></radialGradient>
         </defs>
 
-        {sectorNames.map((name, index) => (
-          <g key={name} opacity={0.38}>
-            <ellipse cx={130 + index * 185} cy={90 + (index % 2) * 170} rx={180} ry={125} fill="url(#region-haze)" />
-            <text x={76 + index * 185} y={48 + (index % 2) * 170} className="sector-label">{name}</text>
+        {regionLabels.map(({ region, x, y }) => (
+          <g key={region} opacity={0.38}>
+            <ellipse cx={x} cy={y} rx={150} ry={105} fill="url(#region-haze)" />
+            <text x={x} y={y} textAnchor="middle" className="sector-label">
+              {REGION_NAMES[region].toUpperCase()}
+            </text>
           </g>
         ))}
 

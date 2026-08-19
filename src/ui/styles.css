@@ -378,6 +378,31 @@ button:disabled {
 .scene-option:hover:not(:disabled) strong { color: var(--color-amber); }
 .scene-option small { color: var(--color-ink-faint); font-size: 9px; }
 
+/* System view — the selected system as a small orrery */
+.system-view {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid var(--color-rule);
+  background:
+    radial-gradient(circle at 12% 50%, rgb(24 48 62 / .5), transparent 55%),
+    #030a0e;
+}
+.system-view svg { display: block; width: 100%; height: auto; }
+.system-view-caption {
+  padding: 4px 8px;
+  border-top: 1px solid var(--color-rule);
+  color: var(--color-amber-dim);
+  font-size: 9px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+.rift-echo-ring { animation: echo-turn 26s linear infinite; transform-origin: 42px 64px; }
+.pulsar-beams { animation: pulsar-sweep 3.2s linear infinite; transform-origin: 42px 64px; }
+.beacon-blink { animation: beacon 2.2s steps(2, jump-none) infinite; }
+@keyframes echo-turn { to { transform: rotate(360deg); } }
+@keyframes pulsar-sweep { to { transform: rotate(360deg); } }
+@keyframes beacon { 50% { opacity: .1; } }
+
 /* The Long Jump ceremony */
 .jump-ceremony { position: fixed; inset: 0; z-index: 45; }
 .jump-veil {
@@ -514,6 +539,18 @@ button:disabled {
 .star-map { cursor: grab; background: radial-gradient(circle at 58% 44%, #0b2330, #03080d 44%, #010305 76%); }
 .star-map:active { cursor: grabbing; }
 .star-map::before { content: ''; position: absolute; inset: 0; background-image: radial-gradient(circle, rgb(189 230 255 / .62) 0 1px, transparent 1.4px); background-size: 43px 43px; opacity: .18; }
+.star-map::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle, rgb(255 244 214 / .5) 0 .7px, transparent 1px),
+    radial-gradient(circle, rgb(160 210 255 / .4) 0 .6px, transparent 1px);
+  background-size: 67px 71px, 29px 31px;
+  background-position: 12px 7px, 4px 19px;
+  opacity: .22;
+  pointer-events: none;
+}
 .nebula { position: absolute; width: 52%; height: 44%; border-radius: 50%; filter: blur(70px); opacity: .16; }
 .nebula-one { top: 13%; right: 8%; background: #0a8da1; transform: rotate(-12deg); }
 .nebula-two { bottom: 4%; left: 5%; background: #7f2c63; }
