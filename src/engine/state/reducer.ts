@@ -34,9 +34,9 @@ import {
 } from '../missions/sites.js'
 import {
   canScoop,
-  cheapestLaneOut,
   DERELICT_FUEL_SALVAGE,
   FUEL_MAX,
+  fuelDistances,
   LONG_JUMP_RESERVE,
   routeTo,
 } from '../travel/travel.js'
@@ -103,6 +103,24 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
 }
 
 export function reduce(state: GameState, action: Action): Transition {
+  const transition = reduceInner(state, action)
+  // Stranding can close through any fuel spend — a priced scene option, a
+  // surge mid-clock, a toll — not only through travel. Check on every real
+  // transition, but never mid-combat or mid-crisis: those moments resolve
+  // first (a battle's salvage can still save the tank).
+  const next = transition.state
+  if (
+    next !== state &&
+    next.outcome === 'seeking' &&
+    next.combat === null &&
+    next.crisis === null
+  ) {
+    return declareIfStranded(next, new GalaxyIndex(next.galaxy), transition.events)
+  }
+  return transition
+}
+
+function reduceInner(state: GameState, action: Action): Transition {
   // An interception waits for nobody: while one is playing, only combat
   // actions resolve. One guard here keeps that invariant everywhere.
   if (state.combat !== null) {
@@ -825,11 +843,13 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
   let text = `Rift Surge. The light outside goes briefly wrong and every instrument aboard files a complaint. `
 
   if (tier === 0) {
-    const loss = 8
+    // Tuned down from 8/15 after the R10 playtest sweeps: the early bleeds
+    // were the main author of day-25 strandings even under optimal play.
+    const loss = 6
     next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - loss) } }
     text += `Turbulence in the fuel manifolds vents ${loss} fuel before the seals catch.`
   } else if (tier === 1) {
-    const loss = 15
+    const loss = 10
     next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - loss) } }
     text += `A coolant loop lets go along the drive spine; purging it costs ${loss} fuel.`
   } else if (tier === 2) {
@@ -851,9 +871,15 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
       next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - 10) } }
       text += `A conduit lets go; the repairs cost 10 fuel.`
     }
-  } else {
+  } else if (!state.driveScarred) {
     next = { ...next, driveScarred: true }
     text += `The drive screams for four seconds and does not sound the same afterwards. It will burn hot until refitted.`
+  } else {
+    // A drive already scarred has nothing left to give the rift but fuel —
+    // without this, the late game ran at +30% forever with no way back.
+    const loss = 8
+    next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - loss) } }
+    text += `The scarred drive takes it badly; ${loss} fuel boils off through seams that no longer seal.`
   }
 
   return { ...next, log: appendLog(next.log, { kind: 'surge', text }) }
@@ -987,23 +1013,32 @@ function refit(state: GameState): Transition {
 }
 
 /**
- * The loss condition (ROADMAP M1): stranded is not "low on fuel", it is
- * "no move remains". No lane affordable, nothing to scoop here, the Long
- * Jump out of reach, and no derelict left at this system whose tanks a
- * mission could still drain. Detected on the transition that causes it, so
- * the ending lands the moment the trap closes rather than one click later.
+ * The loss condition (ROADMAP M1, tightened in R10): stranded is not "low
+ * on fuel", it is "no move that matters remains". The Long Jump out of
+ * reach, nothing to scoop here, no derelict here to drain — and, the part
+ * the playtests exposed, no *route the tank can pay for* that ends at a
+ * pump or an unswept wreck. A lane you can afford that leads to neither is
+ * not hope, and the ending should land when the trap closes rather than
+ * three quiet hops later.
  */
 export function isStranded(state: GameState, index: GalaxyIndex): boolean {
   if (state.outcome !== 'seeking') return false
   if (canScoop(index, state.ship.at)) return false
   if (state.ship.fuel >= LONG_JUMP_RESERVE) return false
-  if (state.ship.fuel >= cheapestLaneOut(index, state.ship.at)) return false
+  if (cluesAt(state, state.ship.at).some((c) => c.source.kind === 'derelict-log')) return false
 
-  // A derelict here could still be drained for fuel by an away mission.
-  const derelictHere = cluesAt(state, state.ship.at).some(
-    (c) => c.source.kind === 'derelict-log',
+  const wrecks = new Set(
+    state.mystery.clues
+      .filter((c) => c.source.kind === 'derelict-log' && !state.collected.includes(c.id))
+      .map((c) => c.source.at)
+      .filter((at) => !state.searched.includes(at)),
   )
-  return !derelictHere
+  for (const [id, base] of fuelDistances(index, state.ship.at)) {
+    if (id === state.ship.at || travelCost(state, base) > state.ship.fuel) continue
+    if (canScoop(index, id)) return false
+    if (wrecks.has(id)) return false
+  }
+  return true
 }
 
 function declareIfStranded(
@@ -1019,9 +1054,10 @@ function declareIfStranded(
       log: appendLog(state.log, {
         kind: 'ending',
         text:
-          `The tank will not carry us to any star on the chart, and there is nothing here to ` +
-          `scoop, drain or trade. The ship is sound. The crew are alive. Neither of those things ` +
-          `is going to change what this is. Entries in this log may become intermittent.`,
+          `The tank will not carry us to any star that could refill it — no giant to scoop, no ` +
+          `wreck to drain, and not enough left for the rift. The ship is sound. The crew are ` +
+          `alive. Neither of those things is going to change what this is. Entries in this log ` +
+          `may become intermittent.`,
       }),
     },
     events: [...events, { type: 'strandedDeclared' }],

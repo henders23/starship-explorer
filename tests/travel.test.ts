@@ -222,11 +222,45 @@ describe('stranding — the long silence', () => {
       isStranded({ ...state, ship: { at: grave, fuel: LONG_JUMP_RESERVE, hull: 100 } }, index),
     ).toBe(false)
 
-    // Enough for the cheapest lane out: still moving.
-    const lane = cheapestLaneOut(index, grave)
-    if (Number.isFinite(lane) && lane < LONG_JUMP_RESERVE) {
-      expect(isStranded({ ...state, ship: { at: grave, fuel: lane, hull: 100 } }, index)).toBe(false)
+    // Enough fuel to route to some gas giant: still moving. (The old rule —
+    // any affordable lane counts — was retired in R10: a lane that reaches
+    // no pump and no wreck is not hope, and the ending says so honestly.)
+    const giants = index.systems.filter((s) => s.features.includes('gas-giant')).map((s) => s.id)
+    const giantRoutes = giants
+      .map((id) => routeTo(index, grave, id))
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .sort((a, b) => a.cost - b.cost)
+    if (giantRoutes.length > 0 && giantRoutes[0]!.cost < LONG_JUMP_RESERVE) {
+      expect(
+        isStranded({ ...state, ship: { at: grave, fuel: giantRoutes[0]!.cost, hull: 100 } }, index),
+      ).toBe(false)
     }
+  })
+
+  it('declares the slow death: affordable lanes that reach no pump and no wreck', () => {
+    const { state, index } = fresh()
+    const grave = quietGrave(state, index)!
+    const lane = cheapestLaneOut(index, grave)
+    if (!Number.isFinite(lane)) return
+
+    // A fuel level that affords the cheapest lane out yet routes to no
+    // giant and no unswept derelict — under the old rule "alive", under the
+    // honest rule stranded.
+    const wrecks = new Set(
+      state.mystery.clues.filter((c) => c.source.kind === 'derelict-log').map((c) => c.source.at),
+    )
+    const usefulCosts = index.systems
+      .filter((s) => s.features.includes('gas-giant') || wrecks.has(s.id))
+      .map((s) => routeTo(index, grave, s.id))
+      .filter((r): r is NonNullable<typeof r> => r !== null)
+      .map((r) => r.cost)
+      .sort((a, b) => a - b)
+    const nearestUseful = usefulCosts[0] ?? Infinity
+    if (!(lane < nearestUseful)) return // Help is next door at this grave; fine.
+
+    const fuel = Math.min(nearestUseful - 1, LONG_JUMP_RESERVE - 1)
+    if (fuel < lane) return
+    expect(isStranded({ ...state, ship: { at: grave, fuel, hull: 100 } }, index)).toBe(true)
   })
 
   it('counts an uncollected derelict here as a way out', () => {

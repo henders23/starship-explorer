@@ -1,9 +1,9 @@
 {
   "seed": "golden-1",
-  "hash": "f99c276f38ca95dc",
+  "hash": "822dbee0bc4b53bb",
   "outcome": "home",
   "day": 78,
-  "actionCount": 68,
+  "actionCount": 67,
   "cluesCollected": 14,
   "jumps": 1,
   "casualties": {
@@ -236,14 +236,14 @@
     },
     {
       "type": "travel",
-      "to": "sys-086"
-    },
-    {
-      "type": "scoop"
+      "to": "sys-022"
     },
     {
       "type": "startResearch",
       "tech": "fire-control"
+    },
+    {
+      "type": "scoop"
     },
     {
       "type": "travel",
@@ -295,13 +295,6 @@
     },
     {
       "type": "travel",
-      "to": "sys-037"
-    },
-    {
-      "type": "scoop"
-    },
-    {
-      "type": "travel",
       "to": "sys-089"
     },
     {
@@ -312,6 +305,9 @@
       "type": "file",
       "clue": "clue-11",
       "state": "doubted"
+    },
+    {
+      "type": "scoop"
     },
     {
       "type": "travel",

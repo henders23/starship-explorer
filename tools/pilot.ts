@@ -23,7 +23,8 @@ import {
   vacancies,
 } from '../src/engine/state/reducer.js'
 import type { Action, GameState } from '../src/engine/state/types.js'
-import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../src/engine/travel/travel.js'
+import type { MysteryOptions } from '../src/engine/mystery/generate.js'
+import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, nearestScoopCost, routeTo } from '../src/engine/travel/travel.js'
 import { GalaxyIndex } from '../src/engine/worldgen/index-galaxy.js'
 import type { SystemId } from '../src/engine/worldgen/types.js'
 
@@ -42,11 +43,13 @@ export interface PilotRun {
   seed: string
   actions: Action[]
   final: GameState
+  /** The pilot ran out of ideas, legality, or the action cap mid-voyage. */
+  stalled: boolean
 }
 
-/** Play a full run from the seed. Returns null if the pilot cannot finish. */
-export function pilotRun(seed: string): PilotRun | null {
-  let state = newGame(seed)
+/** Play a run from the seed to whatever end it reaches. */
+export function pilotRun(seed: string, options?: Partial<MysteryOptions>): PilotRun {
+  let state = newGame(seed, options)
   const actions: Action[] = []
 
   const dispatch = (action: Action): boolean => {
@@ -60,12 +63,13 @@ export function pilotRun(seed: string): PilotRun | null {
   for (let step = 0; step < MAX_ACTIONS; step++) {
     if (state.outcome !== 'seeking') break
     const action = decide(state)
-    if (action === null) return null // Stuck with no legal idea: seed fails.
-    if (!dispatch(action)) return null // The pilot believed an illegal move.
+    // No legal idea, or a move the reducer refused: the pilot is stuck.
+    if (action === null || !dispatch(action)) {
+      return { seed, actions, final: state, stalled: true }
+    }
   }
 
-  if (state.outcome !== 'home') return null
-  return { seed, actions, final: state }
+  return { seed, actions, final: state, stalled: state.outcome === 'seeking' }
 }
 
 /** One legal action, from the current state alone. Deterministic. */
@@ -132,6 +136,10 @@ function decide(state: GameState): Action | null {
     return { type: 'refit' }
   }
 
+  // Opportunistic seamanship: riding over a gas giant with a half-empty
+  // tank, fill it. Two days now beats a dry tank three systems out.
+  if (canScoop(index, here) && state.ship.fuel <= 45) return { type: 'scoop' }
+
   const remaining = [...evidenceSites(state)].sort()
   if (remaining.length === 0) {
     // Everything is gathered. Finish research, top up, and go home.
@@ -145,7 +153,10 @@ function decide(state: GameState): Action | null {
     return passTimeAction(state, index)
   }
 
-  // Fly to the nearest remaining evidence, keeping fuel above the floor.
+  // Fly to the nearest evidence — but never onto a leg that lands beyond
+  // rescue: after arriving, the tank must still reach that system's nearest
+  // pump with a surge's worth of slack (the rift can steal ten mid-leg).
+  // Legs that only *arrive* are how ships strand.
   const routes = remaining
     .map((id) => ({ id, route: routeTo(index, here, id) }))
     .filter((r) => r.route !== null)
@@ -153,16 +164,63 @@ function decide(state: GameState): Action | null {
     .sort((a, b) => a.cost - b.cost || (a.id < b.id ? -1 : 1))
   if (routes.length === 0) return null
 
+  const SURGE_SLACK = 10
+  const safeLeg = (id: SystemId, cost: number): boolean => {
+    const after = state.ship.fuel - cost
+    if (after < 2) return false
+    if (canScoop(index, id)) return true
+    return after >= effectiveCost(state, nearestGiantCost(index, id)) + SURGE_SLACK
+  }
+  const safe = routes.filter((r) => safeLeg(r.id, r.cost))
+  if (safe.length > 0) return { type: 'travel', to: safe[0]!.id }
+
+  // No safe direct leg: stage the journey — hop to a pump that brings the
+  // nearest target closer, scoop there, and look again. Long routes are
+  // bought in instalments, the way anyone sane crosses a desert.
   const target = routes[0]!
-  const fuelAfter = state.ship.fuel - target.cost
-  // Top up before a leg that would land under the reserve, when we can.
-  if (fuelAfter < LONG_JUMP_RESERVE && canScoop(index, here) && state.ship.fuel < FUEL_MAX) {
-    return { type: 'scoop' }
+  const targetBase = routeTo(index, here, target.id)!.cost
+  const stage = index.systems
+    .filter((s) => s.id !== here && canScoop(index, s.id))
+    .map((s) => ({
+      id: s.id,
+      cost: effectiveCost(state, routeTo(index, here, s.id)?.cost ?? Infinity),
+      onward: routeTo(index, s.id, target.id)?.cost ?? Infinity,
+    }))
+    .filter((g) => g.cost <= state.ship.fuel - 2 && g.onward < targetBase - 2)
+    .sort((a, b) => a.onward - b.onward || a.cost - b.cost || (a.id < b.id ? -1 : 1))
+  if (stage.length > 0) return { type: 'travel', to: stage[0]!.id }
+
+  // Still nothing: top the tank up and reconsider next turn.
+  if (state.ship.fuel < FUEL_MAX - 4) {
+    const refuel = refuelAction(state, index)
+    if (refuel) return refuel
   }
-  if (target.cost <= state.ship.fuel && fuelAfter >= 4) {
-    return { type: 'travel', to: target.id }
+
+  // The remaining evidence is beyond any staged route. If the way home is
+  // already open, the completionist tour ends here: go home.
+  if (jumpReady(state) && state.ship.fuel >= LONG_JUMP_RESERVE) {
+    return { type: 'plotTheJump', target: state.mystery.gateway }
   }
+
+  // A full tank, no stage, no way home yet: the desperate leg, eyes open.
+  const affordable = routes.filter((r) => state.ship.fuel - r.cost >= 4)
+  if (affordable.length > 0) return { type: 'travel', to: affordable[0]!.id }
   return refuelAction(state, index)
+}
+
+/** Cached per galaxy: the sweep asks for these thousands of times. */
+const giantDistCache = new WeakMap<object, Map<SystemId, number>>()
+function nearestGiantCost(index: GalaxyIndex, from: SystemId): number {
+  let cache = giantDistCache.get(index.galaxy)
+  if (!cache) {
+    cache = new Map()
+    giantDistCache.set(index.galaxy, cache)
+  }
+  const known = cache.get(from)
+  if (known !== undefined) return known
+  const best = nearestScoopCost(index, from)
+  cache.set(from, best)
+  return best
 }
 
 function decideCombat(state: GameState, index: GalaxyIndex): Action {
@@ -198,11 +256,15 @@ function decideScene(state: GameState): Action {
   const recruit = usable.find((o) => o.effect.kind === 'recruit')
   if (recruit && state.recruits.sites[scene.at]) return { type: 'sceneOption', option: recruit.id }
 
-  const collect = usable.find(
+  // Collect on the cheapest terms the tank prefers: below 45 fuel, days are
+  // cheaper than fuel; above, the priced fast lane is fine.
+  const collects = usable.filter(
     (o) =>
       o.effect.kind === 'collect' &&
       (o.effect.fuel === undefined || state.ship.fuel > o.effect.fuel + 8),
   )
+  const free = collects.find((o) => o.effect.kind === 'collect' && !o.effect.fuel)
+  const collect = state.ship.fuel < 45 ? (free ?? collects[0]) : collects[0]
   if (collect && state.ship.at === scene.at) return { type: 'sceneOption', option: collect.id }
 
   // Close it by whatever remains; missions and searches reopen the site path.
@@ -225,23 +287,40 @@ function missionAction(state: GameState, system: SystemId): Action {
   return { type: 'runMission', system, team, approach: approaches[0]!.id }
 }
 
-/** Get fuel: scoop here, or fly to the nearest gas giant and scoop there. */
+/**
+ * Get fuel: scoop here, fly to the nearest reachable gas giant — or, when
+ * no giant is in range, board the nearest reachable derelict: its tanks are
+ * the engine's designed escape valve for exactly this trap.
+ */
 function refuelAction(state: GameState, index: GalaxyIndex): Action | null {
   const here = state.ship.at
   if (canScoop(index, here) && state.ship.fuel < FUEL_MAX) return { type: 'scoop' }
 
-  const scoopable = index.systems
-    .filter((s) => s.id !== here && canScoop(index, s.id))
-    .map((s) => ({ id: s.id, route: routeTo(index, here, s.id) }))
-    .filter((r) => r.route !== null)
-    .map((r) => ({ id: r.id, cost: effectiveCost(state, r.route!.cost) }))
-    .filter((r) => r.cost <= state.ship.fuel)
-    .sort((a, b) => a.cost - b.cost || (a.id < b.id ? -1 : 1))
-  if (scoopable.length > 0) return { type: 'travel', to: scoopable[0]!.id }
+  const reach = (ids: string[]): string | null => {
+    const routed = ids
+      .filter((id) => id !== here)
+      .map((id) => ({ id, route: routeTo(index, here, id) }))
+      .filter((r) => r.route !== null)
+      .map((r) => ({ id: r.id, cost: effectiveCost(state, r.route!.cost) }))
+      .filter((r) => r.cost <= state.ship.fuel)
+      .sort((a, b) => a.cost - b.cost || (a.id < b.id ? -1 : 1))
+    return routed[0]?.id ?? null
+  }
+
+  const giant = reach(index.systems.filter((s) => canScoop(index, s.id)).map((s) => s.id))
+  if (giant) return { type: 'travel', to: giant }
+
+  const derelicts = state.mystery.clues
+    .filter((c) => c.source.kind === 'derelict-log' && !state.collected.includes(c.id))
+    .map((c) => c.source.at)
+    .filter((id) => !state.searched.includes(id))
+  const wreck = reach(derelicts)
+  if (wreck === here && sitePlan(state, here).site !== null) return missionAction(state, here)
+  if (wreck) return { type: 'travel', to: wreck }
   return null
 }
 
-/** Spend days waiting on the bench without burning the run down. */
+/** Spend days waiting on the bench without spending the run. */
 function passTimeAction(state: GameState, index: GalaxyIndex): Action | null {
   const here = state.ship.at
   if (canScoop(index, here) && state.ship.fuel < FUEL_MAX) return { type: 'scoop' }
@@ -252,11 +331,16 @@ function passTimeAction(state: GameState, index: GalaxyIndex): Action | null {
   ) {
     return { type: 'refit' }
   }
-  // A round trip down the cheapest lane: days pass, little fuel burns.
+  // Ride toward a gas giant: the trip passes the days and the scoop pays
+  // the fuel back with interest.
+  const refuel = refuelAction(state, index)
+  if (refuel) return refuel
+  // Full tank, nothing to fix: burn lanes to burn days. Fuel spent here
+  // comes back at the next giant; days are what the bench needs.
   const neighbours = index
     .neighbours(here)
     .map((id) => ({ id, cost: effectiveCost(state, routeTo(index, here, id)?.cost ?? Infinity) }))
-    .filter((n) => n.cost <= state.ship.fuel - LONG_JUMP_RESERVE)
+    .filter((n) => n.cost <= state.ship.fuel - 10)
     .sort((a, b) => a.cost - b.cost || (a.id < b.id ? -1 : 1))
   if (neighbours.length > 0) return { type: 'travel', to: neighbours[0]!.id }
   return null

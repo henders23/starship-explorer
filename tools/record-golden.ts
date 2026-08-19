@@ -35,8 +35,8 @@ const wanted = scanCount > 0 ? 3 : seeds.length
 for (const seed of seeds) {
   if (recorded >= wanted) break
   const run = pilotRun(seed)
-  if (run === null) {
-    console.log(`  ${seed}: the pilot could not finish this seed — skipped`)
+  if (run.stalled || run.final.outcome !== 'home') {
+    console.log(`  ${seed}: the pilot did not bring this seed home (${run.final.outcome}) — skipped`)
     continue
   }
 

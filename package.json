@@ -13,6 +13,7 @@
     "typecheck": "tsc --noEmit",
     "mystery": "tsx tools/mystery-cli.ts",
     "golden:record": "tsx tools/record-golden.ts",
+    "playtest": "tsx tools/playtest.ts",
     "test:e2e": "playwright test"
   },
   "dependencies": {

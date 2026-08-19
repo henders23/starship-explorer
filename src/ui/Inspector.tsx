@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react'
 import { PARTS_NEEDED } from '../engine/research/parts.js'
 import { jumpReady, TECH_BY_ID } from '../engine/research/tech.js'
 import { sitePlan, travelCost } from '../engine/state/reducer.js'
-import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
+import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, nearestScoopCost, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { JumpCeremony } from './JumpCeremony.js'
 import { SystemView } from './SystemView.js'
@@ -101,6 +101,16 @@ export function Inspector() {
         </button>
       )}
 
+      {/* The safety readout (R10): what the leg arrives with, and what
+          rescue costs from there. The playtests taught the pilot this
+          arithmetic; the player gets it printed instead of learned. */}
+      {!here && outcome === 'seeking' && route && travelCost(gameState, route.cost) <= ship.fuel && (
+        <ArrivalSafety
+          arrival={ship.fuel - travelCost(gameState, route.cost)}
+          destination={system.id}
+        />
+      )}
+
       {here && canScoop(index, system.id) && ship.fuel < FUEL_MAX && outcome === 'seeking' && (
         <button
           onClick={() => dispatch({ type: 'scoop' })}
@@ -174,6 +184,39 @@ export function Inspector() {
           onClose={() => setCeremony(false)}
         />
       )}
+    </div>
+  )
+}
+
+/**
+ * What a committed leg leaves in the tank, priced against the rescue beyond
+ * it. A Rift Surge can steal ten fuel mid-flight, so the safe line is the
+ * nearest scoop plus that slack — the same margin a careful captain flies.
+ */
+function ArrivalSafety({ arrival, destination }: { arrival: number; destination: string }) {
+  const index = useGalaxyIndex()
+  const gameState = useGame((s) => s.state)
+  const rescue = useMemo(() => nearestScoopCost(index, destination), [index, destination])
+  if (!Number.isFinite(rescue)) return null
+
+  const scoopsThere = rescue === 0
+  const rescueCost = travelCost(gameState, rescue)
+  const tone = scoopsThere || arrival >= rescueCost + 10
+    ? 'text-ink-faint'
+    : arrival >= rescueCost
+      ? 'text-amber-dim'
+      : 'text-alarm-dim'
+
+  return (
+    <div className={`text-[10px] leading-relaxed ${tone}`}>
+      {scoopsThere
+        ? `Arrives with ${arrival} in the tank — at a gas giant. The scoop refills it there.`
+        : `Arrives with ${arrival} in the tank · nearest scoop from there costs ${rescueCost}` +
+          (arrival < rescueCost
+            ? ' — beyond rescue. This leg only arrives.'
+            : arrival < rescueCost + 10
+              ? ' — one bad surge from stranding.'
+              : '.')}
     </div>
   )
 }

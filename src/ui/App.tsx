@@ -467,9 +467,10 @@ function StrandedEnding() {
         <div className="label mb-2">The long silence</div>
         <h2 className="text-ink-dim mb-3 text-[18px]">The tank is dry at {name}.</h2>
         <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
-          No lane the ship can afford, nothing here to scoop, and not enough left for the rift.
-          The plot on the board may even be right — someone should check it, someday, whoever
-          finds the log. The ship keeps its orbit. The orbit keeps its ship.
+          Nothing the tank can reach holds fuel — no giant to scoop, no wreck to drain — and
+          not enough remains for the rift. The plot on the board may even be right — someone
+          should check it, someday, whoever finds the log. The ship keeps its orbit. The orbit
+          keeps its ship.
         </p>
         <TheCost />
         <VoyageEpilogue />

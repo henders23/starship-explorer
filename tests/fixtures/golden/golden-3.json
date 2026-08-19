@@ -1,9 +1,9 @@
 {
   "seed": "golden-3",
-  "hash": "65152420622a222f",
+  "hash": "e2ef8fe5d1e1aab8",
   "outcome": "home",
   "day": 75,
-  "actionCount": 79,
+  "actionCount": 78,
   "cluesCollected": 15,
   "jumps": 1,
   "casualties": {
@@ -398,27 +398,23 @@
     },
     {
       "type": "travel",
+      "to": "sys-073"
+    },
+    {
+      "type": "scoop"
+    },
+    {
+      "type": "travel",
       "to": "sys-018"
     },
     {
       "type": "sceneOption",
-      "option": "haggle"
+      "option": "pay"
     },
     {
       "type": "file",
       "clue": "clue-03",
       "state": "trusted"
-    },
-    {
-      "type": "travel",
-      "to": "sys-073"
-    },
-    {
-      "type": "combatContact",
-      "choice": "evade"
-    },
-    {
-      "type": "scoop"
     },
     {
       "type": "plotTheJump",

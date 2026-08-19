@@ -72,9 +72,55 @@ export function routeTo(index: GalaxyIndex, from: SystemId, to: SystemId): Route
   return { path, cost: dist.get(to)! }
 }
 
+/**
+ * Fuel cost from one system to everywhere reachable: the same Dijkstra as
+ * routeTo, expanded fully. The stranding check reads this to ask not "can
+ * the ship move?" but "can it reach anything worth moving to?".
+ */
+export function fuelDistances(index: GalaxyIndex, from: SystemId): Map<SystemId, number> {
+  const dist = new Map<SystemId, number>([[from, 0]])
+  const done = new Set<SystemId>()
+
+  while (true) {
+    let current: SystemId | null = null
+    let best = Infinity
+    for (const [id, d] of dist) {
+      if (done.has(id)) continue
+      if (d < best || (d === best && current !== null && id < current)) {
+        best = d
+        current = id
+      }
+    }
+    if (current === null) return dist
+    done.add(current)
+
+    for (const neighbour of index.neighbours(current)) {
+      if (done.has(neighbour)) continue
+      const candidate = best + laneCost(index, current, neighbour)
+      if (candidate < (dist.get(neighbour) ?? Infinity)) {
+        dist.set(neighbour, candidate)
+      }
+    }
+  }
+}
+
 /** Gas giants are the pumps of this galaxy: free fuel, if you can get there. */
 export function canScoop(index: GalaxyIndex, at: SystemId): boolean {
   return index.system(at).features.includes('gas-giant')
+}
+
+/**
+ * Base fuel from a system to its nearest gas giant; 0 when it is one. The
+ * navigation UI prices legs with this so a player sees the trap the way the
+ * playtest pilot learned to: a leg is only as safe as the rescue beyond it.
+ */
+export function nearestScoopCost(index: GalaxyIndex, from: SystemId): number {
+  if (canScoop(index, from)) return 0
+  let best = Infinity
+  for (const [id, cost] of fuelDistances(index, from)) {
+    if (canScoop(index, id)) best = Math.min(best, cost)
+  }
+  return best
 }
 
 /** The cheapest single lane out of a system; Infinity at a dead end. */
