@@ -134,7 +134,7 @@ each story beat happened.
 
 ---
 
-## R5 — Ship-to-ship combat — **done**
+## R5 — Ship-to-ship combat — **done** *(rebuilt FTL-style in R5.5 — see DESIGN §9)*
 
 *Goal: space has teeth; intelligence has value.*
 

@@ -38,6 +38,8 @@ export interface GameState {
 
   /** Where the ship is, what is in the tank, and what the hull can take. */
   ship: { at: SystemId; fuel: number; hull: number }
+  /** Missiles in the magazine. Spent in battle, restocked at the yard. */
+  ordnance: number
   /** The interception being fought, if any. Most actions wait for it. */
   combat: CombatState | null
   /** Contacts met so far; seeds each fight's dice. */
@@ -122,8 +124,16 @@ export type Action =
   | { type: 'combatContact'; choice: 'hail' | 'evade' | 'engage' }
   /** Answer a toll demand. */
   | { type: 'combatToll'; pay: boolean }
-  /** One battle round: where the power goes, and what the ship does. */
-  | { type: 'combatRound'; power: 'guns' | 'shields'; intent: 'fire' | 'flee' }
+  /**
+   * The battle simulation reporting how the engagement ended. The sim runs
+   * in the UI; its outcome enters the action log here, so replays carry it.
+   */
+  | {
+      type: 'combatResolve'
+      result: 'victory' | 'driven-off' | 'yielded' | 'fled' | 'defeat'
+      hullLeft: number
+      missilesLeft: number
+    }
   | { type: 'decode'; clue: ClueId }
   | { type: 'promote'; role: Exclude<OfficerRole, 'captain'> }
   | { type: 'file'; clue: ClueId; state: ClueState }

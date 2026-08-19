@@ -306,19 +306,35 @@ landing is the people it costs.
 
 ## 9. Ship-to-ship combat
 
-Space has teeth, but every fight is avoidable and legible.
+FTL-style: real-time with pause, rooms, power and weapon variety — and still
+avoidable and legible.
 
 - **Contact opens with a posture scene:** hail, evade, or engage — with the
-  odds and the stakes stated.
-- **Resolution is turn-based and simple:** range, power to shields or guns,
-  fire or break off. Crew gunnery skill and weapons research feed the numbers.
+  odds and the stakes stated. Tolls can be paid; intelligence ends fights
+  before they start.
+- **Battle is a room-based simulation.** The Indefatigable's compartments
+  (engines, shields, two weapon rooms, launch bay, sensors, helm) hold power
+  from a fixed reactor budget; the enemy's compartments are clickable
+  targets. Weapons charge in real time and hold or auto-fire: the pulse
+  laser is dependable, missiles ignore shields but spend a persistent
+  magazine, the ion disruptor strips shields and disables rooms, the focus
+  beam carves bare hull but never a raised shield. The launch bay flies
+  drones; sensors, powered, reveal the enemy's weapon charge; breaking off
+  charges the drive while they keep shooting.
+- **Enemy variety is a catalog.** Ship classes cut from the fleet art, per
+  faction archetype and in two tiers — the rift's escalation brings out the
+  heavier hulls. Raiders swarm and break; patrols sit behind layered
+  shields; polity hulls carry ion and beams.
 - **Destroying the enemy is enough.** No boarding, no capture logistics.
-- **Surrender happens to the informed:** when the player holds intelligence on
-  a faction or crew (from scenes, from research), some enemies yield — and a
-  surrendered ship gives up accounts, components or fuel without a shot.
-  Intelligence, as everywhere in this game, is the premium currency.
-- Hull damage persists and is repaired in yards; a destroyed ship is an
-  ending.
+- **Surrender happens to the informed:** intelligence on a faction takes a
+  hurt patrol's colours mid-battle. Raiders never yield.
+- Hull damage and spent missiles persist; yards repair and restock; a hulled
+  ship is an ending.
+- **Architecture:** the battle simulation runs in the UI; the engine stays
+  deterministic. Contacts, ship classes, posture dialogue and rewards are
+  engine rules, and the battle's outcome enters the action log as a
+  `combatResolve` action — a replayed log carries the result the way it
+  carries every other player decision.
 
 There is **no separate infantry combat system**. Ground violence resolves
 inside scenes with the mission odds machinery.

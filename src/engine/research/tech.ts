@@ -19,6 +19,8 @@ export type TechId =
   | 'rift-telemetry'
   | 'trauma-protocols'
   | 'fire-control'
+  | 'ion-disruptor'
+  | 'focus-beam'
   | 'rift-drive'
   | 'rift-shield'
 
@@ -79,8 +81,26 @@ export const TECH_TREE: TechNode[] = [
     days: 5,
     requires: [],
     pitch:
-      '“The mounts shoot straighter than the fire control lets them. Five days re-laying the solutions with the security chief, and every volley lands harder.”',
-    effect: '+4 damage per volley in ship combat',
+      '“The mounts shoot straighter than the fire control lets them. Five days re-laying the solutions with the security chief, and every weapon cycles faster.”',
+    effect: '+20% weapon charge rate in ship combat',
+  },
+  {
+    id: 'ion-disruptor',
+    name: 'Ion Disruptor',
+    days: 5,
+    requires: [],
+    pitch:
+      '“Half these patrol hulls are shield and swagger. An ion projector strips the shield and leaves the swagger — no hull damage, no bodies, just a ship that suddenly cannot do anything about you.”',
+    effect: 'Adds the ion disruptor: strips shields and disables systems',
+  },
+  {
+    id: 'focus-beam',
+    name: 'Focus Beam',
+    days: 6,
+    requires: ['fire-control'],
+    pitch:
+      '“With the fire control re-laid I can hold a coherent beam on one compartment long enough to cut into it. It will not touch a raised shield — but against bare hull it is surgery.”',
+    effect: 'Adds the focus beam: heavy precise damage, blocked by shields',
   },
   {
     id: 'rift-drive',

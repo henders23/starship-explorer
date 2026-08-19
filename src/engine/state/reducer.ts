@@ -4,16 +4,12 @@ import {
   contactChance,
   EVADE_CHANCE,
   EVADE_CLEAN_DRIVE_BONUS,
-  FLEE_CHANCE,
-  FLEE_SHIELDS_BONUS,
   HAIL_TOLL_CHANCE,
   hasIntelOn,
   HULL_MAX,
-  playerDamage,
-  RAIDER_BREAK_FRACTION,
+  ORDNANCE_MAX,
   TOLL_FUEL,
   WRECK_SALVAGE_FUEL,
-  YIELD_HULL_FRACTION,
   YIELD_TRIBUTE_FUEL,
 } from '../combat/combat.js'
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
@@ -74,6 +70,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     selected: puzzle.galaxy.start,
     encounter: null,
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX, hull: HULL_MAX },
+    ordnance: ORDNANCE_MAX,
     combat: null,
     combats: 0,
     day: 0,
@@ -112,8 +109,8 @@ export function reduce(state: GameState, action: Action): Transition {
         return combatContact(state, action.choice)
       case 'combatToll':
         return combatToll(state, action.pay)
-      case 'combatRound':
-        return combatRound(state, action.power, action.intent)
+      case 'combatResolve':
+        return combatResolve(state, action.result, action.hullLeft, action.missilesLeft)
       default:
         return { state, events: [] }
     }
@@ -154,7 +151,7 @@ export function reduce(state: GameState, action: Action): Transition {
     // guard above owns that path; here they are no-ops.
     case 'combatContact':
     case 'combatToll':
-    case 'combatRound':
+    case 'combatResolve':
       return { state, events: [] }
   }
 }
@@ -406,32 +403,6 @@ function endCombat(
   return next
 }
 
-/** The enemy's volley; halved when the reactor is on the shields. */
-function enemyVolley(state: GameState, events: GameEvent[], shielded: boolean): GameState {
-  const combat = state.combat!
-  const damage = shielded ? Math.ceil(combat.enemy.guns / 2) : combat.enemy.guns
-  const hull = Math.max(0, state.ship.hull - damage)
-  events.push({ type: 'shipDamaged', amount: damage, hull })
-  let next: GameState = { ...state, ship: { ...state.ship, hull } }
-
-  if (hull <= 0) {
-    events.push({ type: 'shipDestroyed' })
-    next = {
-      ...next,
-      combat: null,
-      outcome: 'destroyed',
-      log: appendLog(next.log, {
-        kind: 'ending',
-        text:
-          `${combat.enemy.name} finds the reactor housing, and the Indefatigable comes apart ` +
-          `over ${systemName(next, combat.at)}. The plot on the Nav board goes with her. ` +
-          `Nobody is coming to read it.`,
-      }),
-    }
-  }
-  return next
-}
-
 function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): Transition {
   const combat = state.combat
   if (!combat || combat.phase !== 'contact' || state.outcome !== 'seeking') return { state, events: [] }
@@ -442,7 +413,7 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
 
   if (choice === 'hail') {
     if (hasIntelOn(state, index, combat.enemy.faction)) {
-      let next: GameState = {
+      const next: GameState = {
         ...state,
         log: appendLog(state.log, {
           kind: 'travel',
@@ -466,17 +437,18 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
         events,
       }
     }
-    // The hail is answered with a firing solution.
-    let next: GameState = {
-      ...state,
-      combat: { ...combat, phase: 'battle' },
-      log: appendLog(state.log, {
-        kind: 'travel',
-        text: `The only answer is a target lock. ${combat.enemy.name} opens fire.`,
-      }),
+    // The hail is answered with a firing solution: to battle stations.
+    return {
+      state: {
+        ...state,
+        combat: { ...combat, phase: 'battle' },
+        log: appendLog(state.log, {
+          kind: 'travel',
+          text: `The only answer is a target lock. ${combat.enemy.name} runs out its guns.`,
+        }),
+      },
+      events,
     }
-    next = enemyVolley(next, events, false)
-    return { state: next, events }
   }
 
   if (choice === 'evade') {
@@ -491,19 +463,20 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
       }
       return { state: endCombat(next, 'slipped', events), events }
     }
-    let next: GameState = {
-      ...state,
-      combat: { ...combat, phase: 'battle' },
-      log: appendLog(state.log, {
-        kind: 'travel',
-        text: `The burn is not enough — they cut the corner and hold the lock. ${combat.enemy.name} opens fire.`,
-      }),
+    return {
+      state: {
+        ...state,
+        combat: { ...combat, phase: 'battle' },
+        log: appendLog(state.log, {
+          kind: 'travel',
+          text: `The burn is not enough — they cut the corner and hold the lock. Battle stations.`,
+        }),
+      },
+      events,
     }
-    next = enemyVolley(next, events, false)
-    return { state: next, events }
   }
 
-  // Engage: battle on your terms — the first volley is yours.
+  // Engage: battle on your terms.
   return {
     state: {
       ...state,
@@ -535,61 +508,68 @@ function combatToll(state: GameState, pay: boolean): Transition {
     return { state: endCombat(next, 'toll-paid', events), events }
   }
 
-  let next: GameState = {
-    ...state,
-    combat: { ...combat, phase: 'battle' },
-    log: appendLog(state.log, {
-      kind: 'travel',
-      text: `You decline to be taxed. ${combat.enemy.name} opens fire.`,
-    }),
+  return {
+    state: {
+      ...state,
+      combat: { ...combat, phase: 'battle' },
+      log: appendLog(state.log, {
+        kind: 'travel',
+        text: `You decline to be taxed. ${combat.enemy.name} runs out its guns.`,
+      }),
+    },
+    events,
   }
-  next = enemyVolley(next, events, false)
-  return { state: next, events }
 }
 
-function combatRound(
+/**
+ * The battle simulation reports back. Bounds are enforced here — the sim is
+ * presentation, and the engine remains the authority on what an outcome may
+ * cost or pay.
+ */
+function combatResolve(
   state: GameState,
-  power: 'guns' | 'shields',
-  intent: 'fire' | 'flee',
+  result: 'victory' | 'driven-off' | 'yielded' | 'fled' | 'defeat',
+  hullLeft: number,
+  missilesLeft: number,
 ): Transition {
   const combat = state.combat
   if (!combat || combat.phase !== 'battle' || state.outcome !== 'seeking') return { state, events: [] }
 
   const index = new GalaxyIndex(state.galaxy)
   const events: GameEvent[] = []
-  const rng = combatRng(state, `round:${combat.round}:${power}:${intent}`)
-  const shielded = power === 'shields'
+  const hull = Math.max(0, Math.min(HULL_MAX, Math.round(hullLeft)))
+  const ordnance = Math.max(0, Math.min(state.ordnance, Math.round(missilesLeft)))
 
-  if (intent === 'flee') {
-    if (rng.chance(FLEE_CHANCE + (shielded ? FLEE_SHIELDS_BONUS : 0))) {
-      const next: GameState = {
+  if (result === 'defeat') {
+    events.push({ type: 'shipDestroyed' })
+    return {
+      state: {
         ...state,
+        ship: { ...state.ship, hull: 0 },
+        ordnance,
+        combat: null,
+        outcome: 'destroyed',
         log: appendLog(state.log, {
-          kind: 'travel',
-          text: `The drive answers when it matters. The Indefatigable breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
+          kind: 'ending',
+          text:
+            `${combat.enemy.name} finds the reactor housing, and the Indefatigable comes apart ` +
+            `over ${systemName(state, combat.at)}. The plot on the Nav board goes with her. ` +
+            `Nobody is coming to read it.`,
         }),
-      }
-      return { state: endCombat(next, 'fled', events), events }
+      },
+      events,
     }
-    let next = enemyVolley(state, events, shielded)
-    if (next.outcome !== 'seeking') return { state: next, events }
-    next = {
-      ...next,
-      combat: { ...next.combat!, round: combat.round + 1 },
-      log: appendLog(next.log, {
-        kind: 'travel',
-        text: `The break fails — they anticipate the vector and hold on. The exchange costs us.`,
-      }),
-    }
-    return { state: next, events }
   }
 
-  // Fire. Power to the shields trades weight of shot for protection.
-  const volley = Math.round(playerDamage(state, state.roster) * (shielded ? 0.6 : 1))
-  const enemyHull = Math.max(0, combat.enemy.hull - volley)
-  let next: GameState = { ...state, combat: { ...combat, enemy: { ...combat.enemy, hull: enemyHull } } }
+  // A yield needs a faction on the other side and intelligence on this one.
+  const yieldLegal =
+    result === 'yielded' && combat.enemy.faction !== null && hasIntelOn(state, index, combat.enemy.faction)
+  const settled: typeof result = result === 'yielded' && !yieldLegal ? 'victory' : result
 
-  if (enemyHull <= 0) {
+  let next: GameState = { ...state, ship: { ...state.ship, hull }, ordnance }
+  events.push({ type: 'shipDamaged', amount: state.ship.hull - hull, hull })
+
+  if (settled === 'victory') {
     const salvaged = Math.min(FUEL_MAX - next.ship.fuel, WRECK_SALVAGE_FUEL)
     next = {
       ...next,
@@ -605,12 +585,7 @@ function combatRound(
     return { state: endCombat(next, 'destroyed-them', events), events }
   }
 
-  // The well-informed take surrenders; raiders just break and run.
-  if (
-    combat.enemy.faction !== null &&
-    enemyHull <= combat.enemy.hullMax * YIELD_HULL_FRACTION &&
-    hasIntelOn(state, index, combat.enemy.faction)
-  ) {
+  if (settled === 'yielded') {
     const tribute = Math.min(FUEL_MAX - next.ship.fuel, YIELD_TRIBUTE_FUEL)
     next = {
       ...next,
@@ -626,11 +601,7 @@ function combatRound(
     return { state: endCombat(next, 'yielded', events), events }
   }
 
-  if (
-    combat.enemy.faction === null &&
-    enemyHull <= combat.enemy.hullMax * RAIDER_BREAK_FRACTION &&
-    rng.chance(0.5)
-  ) {
+  if (settled === 'driven-off') {
     next = {
       ...next,
       log: appendLog(next.log, {
@@ -641,10 +612,15 @@ function combatRound(
     return { state: endCombat(next, 'driven-off', events), events }
   }
 
-  next = enemyVolley(next, events, shielded)
-  if (next.outcome !== 'seeking') return { state: next, events }
-  next = { ...next, combat: { ...next.combat!, round: combat.round + 1 } }
-  return { state: next, events }
+  // Fled.
+  next = {
+    ...next,
+    log: appendLog(next.log, {
+      kind: 'travel',
+      text: `The drive answers when it matters. The Indefatigable breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
+    }),
+  }
+  return { state: endCombat(next, 'fled', events), events }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -904,7 +880,7 @@ function travel(state: GameState, to: SystemId): Transition {
     next = {
       ...next,
       combats: next.combats + 1,
-      combat: { at: to, enemy, phase: 'contact', round: 0, toll: TOLL_FUEL },
+      combat: { at: to, enemy, phase: 'contact', toll: TOLL_FUEL },
       log: appendLog(next.log, {
         kind: 'travel',
         text: `${systemName(next, to)}: an intercept course on the boards — ${enemy.name}. They have seen us.`,
@@ -952,7 +928,8 @@ function scoop(state: GameState): Transition {
 
 function refit(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
-  if (!state.driveScarred && state.ship.hull >= HULL_MAX) return { state, events: [] }
+  if (!state.driveScarred && state.ship.hull >= HULL_MAX && state.ordnance >= ORDNANCE_MAX)
+    return { state, events: [] }
   const index = new GalaxyIndex(state.galaxy)
   if (index.system(state.ship.at).faction === null) return { state, events: [] }
 
@@ -962,6 +939,8 @@ function refit(state: GameState): Transition {
     ...state,
     driveScarred: false,
     ship: { ...state.ship, hull: HULL_MAX },
+    // The yard restocks the magazine while the cradle has her.
+    ordnance: ORDNANCE_MAX,
     log: appendLog(state.log, {
       kind: 'travel',
       text:
