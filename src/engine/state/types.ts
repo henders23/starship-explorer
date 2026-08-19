@@ -1,6 +1,7 @@
 import type { CombatState } from '../combat/combat.js'
 import type { AwayTeam, CrewPools, Officer, OfficerRole, Specialist } from '../crew/types.js'
 import type { SceneInstance } from '../encounters/types.js'
+import type { MissionCrisis } from '../missions/crisis.js'
 import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
 import type { ComponentKind } from '../research/parts.js'
@@ -42,6 +43,8 @@ export interface GameState {
   ordnance: number
   /** The interception being fought, if any. Most actions wait for it. */
   combat: CombatState | null
+  /** A mission standing at its mid-ground decision. Everything waits. */
+  crisis: MissionCrisis | null
   /** Contacts met so far; seeds each fight's dice. */
   combats: number
   /** Days since arrival. Travel, missions and repairs all spend it. */
@@ -113,6 +116,8 @@ export type Action =
   | { type: 'consult' }
   | { type: 'search'; system: SystemId }
   | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
+  /** Answer the mission's mid-ground complication. */
+  | { type: 'crisisCall'; choice: string }
   | { type: 'equip'; role: OfficerRole; slot: GearSlot; item: string }
   /** Put the bench on a research project (replacing any active one). */
   | { type: 'startResearch'; tech: TechId }
@@ -157,6 +162,7 @@ export type GameEvent =
   | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId; undecoded: ClueId[] }
   | { type: 'nothingFound'; at: SystemId }
   | { type: 'missionResolved'; at: SystemId; outcome: 'clean' | 'messy' | 'disaster' }
+  | { type: 'crisisStruck'; at: SystemId }
   | { type: 'equipped'; role: OfficerRole; item: string }
   | { type: 'injurySpared'; role: OfficerRole; name: string }
   | { type: 'sceneOpened'; at: SystemId }

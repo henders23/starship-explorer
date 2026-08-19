@@ -6,6 +6,7 @@ import { evidenceSites, heldClues, newGame, reduce, usableClues } from '../engin
 import type { Action, GameEvent, GameState } from '../engine/state/types.js'
 import { GalaxyIndex } from '../engine/worldgen/index-galaxy.js'
 import type { SystemId } from '../engine/worldgen/types.js'
+import { hasSave as checkSave, loadSave, persist } from './save.js'
 
 /**
  * A thin store over the engine reducer. It holds state and forwards actions;
@@ -20,60 +21,29 @@ interface Store {
 }
 
 const DEFAULT_SEED = 'voyager'
-const SAVE_KEY = 'starship-explorer-save-v1'
 
 /**
  * Persistence is exactly what the engine promised it would be: the state is
  * one serialisable object, so a save is a stringify and a resume is a parse.
- * The shape check is deliberately shallow — any save from a different schema
- * version simply fails it and the game starts fresh rather than crashing.
+ * Versioning, migration and the archive-not-delete policy live in save.ts.
  */
-function loadSave(): GameState | null {
-  try {
-    const raw = window.localStorage.getItem(SAVE_KEY)
-    if (!raw) return null
-    const parsed = JSON.parse(raw) as GameState
-    if (
-      typeof parsed?.seed !== 'string' ||
-      !parsed.galaxy?.systems ||
-      !parsed.tech ||
-      !parsed.recruits ||
-      !parsed.parts ||
-      typeof parsed.ship?.hull !== 'number' ||
-      typeof parsed.ordnance !== 'number'
-    ) {
-      return null
-    }
-    return parsed
-  } catch {
-    return null
-  }
-}
-
-function persist(state: GameState): void {
-  try {
-    window.localStorage.setItem(SAVE_KEY, JSON.stringify(state))
-  } catch {
-    // Storage full or unavailable: the game plays on, unsaved.
-  }
-}
 
 /** Whether a resumable voyage is waiting in storage. */
 export function hasSave(): boolean {
-  return loadSave() !== null
+  return checkSave(window.localStorage)
 }
 
 export const useGame = create<Store>((set, get) => ({
-  state: loadSave() ?? newGame(DEFAULT_SEED),
+  state: loadSave(window.localStorage) ?? newGame(DEFAULT_SEED),
   lastEvents: [],
   dispatch: (action) => {
     const { state, events } = reduce(get().state, action)
-    persist(state)
+    persist(state, window.localStorage)
     set({ state, lastEvents: events })
   },
   restart: (seed) => {
     const state = newGame(seed)
-    persist(state)
+    persist(state, window.localStorage)
     set({ state, lastEvents: [] })
   },
 }))

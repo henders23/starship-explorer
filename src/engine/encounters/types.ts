@@ -27,6 +27,8 @@ export type SceneOptionEffect =
   | { kind: 'recruit' }
   /** Stand off. The scene can be reopened from the system inspector. */
   | { kind: 'dismiss' }
+  /** The gateway threshold only: commit the transit and end the voyage. */
+  | { kind: 'transit' }
 
 export interface SceneOption {
   id: string

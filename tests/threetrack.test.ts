@@ -65,6 +65,11 @@ describe('component recovery', () => {
           : sitePlan(current, system).site!.type === 'ruins' ? 'dig'
           : sitePlan(current, system).site!.type === 'holdout' ? 'rush' : 'rip',
       })
+      // A mission can stand at its mid-ground decision; press on regardless.
+      if (current.crisis) {
+        const press = current.crisis.choices.find((c) => !c.needs)!
+        current = run(current, { type: 'crisisCall', choice: press.id })
+      }
       if (current.outcome !== 'seeking') break
     }
     return current
@@ -115,7 +120,11 @@ describe('the gate', () => {
       tech: { researched: ['rift-drive', 'rift-shield'], active: null },
     }
     expect(jumpReady(ready)).toBe(true)
-    const home = run(ready, { type: 'plotTheJump', target: state.mystery.gateway })
+    // The correct jump arrives at the threshold; the transit ends the run.
+    const arrived = run(ready, { type: 'plotTheJump', target: state.mystery.gateway })
+    expect(arrived.outcome).toBe('seeking')
+    expect(arrived.encounter?.templateId).toBe('gateway')
+    const home = run(arrived, { type: 'sceneOption', option: 'commit' })
     expect(home.outcome).toBe('home')
   })
 

@@ -1,0 +1,432 @@
+{
+  "seed": "golden-3",
+  "hash": "65152420622a222f",
+  "outcome": "home",
+  "day": 75,
+  "actionCount": 79,
+  "cluesCollected": 15,
+  "jumps": 1,
+  "casualties": {
+    "generics": 0,
+    "officers": []
+  },
+  "actions": [
+    {
+      "type": "startResearch",
+      "tech": "comms-1"
+    },
+    {
+      "type": "travel",
+      "to": "sys-066"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-066",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "treat"
+    },
+    {
+      "type": "file",
+      "clue": "clue-02",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-025"
+    },
+    {
+      "type": "sceneOption",
+      "option": "formal"
+    },
+    {
+      "type": "startResearch",
+      "tech": "comms-2"
+    },
+    {
+      "type": "file",
+      "clue": "clue-13",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-012"
+    },
+    {
+      "type": "sceneOption",
+      "option": "recall"
+    },
+    {
+      "type": "file",
+      "clue": "clue-12",
+      "state": "doubted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-060"
+    },
+    {
+      "type": "sceneOption",
+      "option": "aboard"
+    },
+    {
+      "type": "startResearch",
+      "tech": "trauma-protocols"
+    },
+    {
+      "type": "file",
+      "clue": "clue-09",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-077"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-077",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "survey"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "read"
+    },
+    {
+      "type": "file",
+      "clue": "clue-05",
+      "state": "trusted"
+    },
+    {
+      "type": "scoop"
+    },
+    {
+      "type": "startResearch",
+      "tech": "rift-telemetry"
+    },
+    {
+      "type": "travel",
+      "to": "sys-075"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "combatResolve",
+      "result": "fled",
+      "hullLeft": 85,
+      "missilesLeft": 8
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "startResearch",
+      "tech": "fire-control"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-075",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "survey"
+    },
+    {
+      "type": "file",
+      "clue": "clue-11",
+      "state": "doubted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-009"
+    },
+    {
+      "type": "sceneOption",
+      "option": "aboard"
+    },
+    {
+      "type": "file",
+      "clue": "clue-07",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-029"
+    },
+    {
+      "type": "combatContact",
+      "choice": "hail"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-029",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "repower"
+    },
+    {
+      "type": "file",
+      "clue": "clue-10",
+      "state": "doubted"
+    },
+    {
+      "type": "scoop"
+    },
+    {
+      "type": "travel",
+      "to": "sys-087"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-087",
+      "team": {
+        "captain": false,
+        "officers": [
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "cutting"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "cut"
+    },
+    {
+      "type": "travel",
+      "to": "sys-054"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "combatResolve",
+      "result": "fled",
+      "hullLeft": 70,
+      "missilesLeft": 6
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "decode",
+      "clue": "clue-00"
+    },
+    {
+      "type": "startResearch",
+      "tech": "rift-drive"
+    },
+    {
+      "type": "file",
+      "clue": "clue-00",
+      "state": "trusted"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-054",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "survey"
+    },
+    {
+      "type": "file",
+      "clue": "clue-14",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-049"
+    },
+    {
+      "type": "sceneOption",
+      "option": "recall"
+    },
+    {
+      "type": "file",
+      "clue": "clue-04",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-032"
+    },
+    {
+      "type": "sceneOption",
+      "option": "recall"
+    },
+    {
+      "type": "file",
+      "clue": "clue-01",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-004"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-004",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "repower"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "cut"
+    },
+    {
+      "type": "file",
+      "clue": "clue-08",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-084"
+    },
+    {
+      "type": "sceneOption",
+      "option": "plan"
+    },
+    {
+      "type": "runMission",
+      "system": "sys-084",
+      "team": {
+        "captain": false,
+        "officers": [
+          "science",
+          "security",
+          "medical"
+        ],
+        "escorts": 4,
+        "hands": 0
+      },
+      "approach": "survey"
+    },
+    {
+      "type": "startResearch",
+      "tech": "rift-shield"
+    },
+    {
+      "type": "file",
+      "clue": "clue-06",
+      "state": "trusted"
+    },
+    {
+      "type": "refit"
+    },
+    {
+      "type": "refit"
+    },
+    {
+      "type": "travel",
+      "to": "sys-018"
+    },
+    {
+      "type": "sceneOption",
+      "option": "haggle"
+    },
+    {
+      "type": "file",
+      "clue": "clue-03",
+      "state": "trusted"
+    },
+    {
+      "type": "travel",
+      "to": "sys-073"
+    },
+    {
+      "type": "combatContact",
+      "choice": "evade"
+    },
+    {
+      "type": "scoop"
+    },
+    {
+      "type": "plotTheJump",
+      "target": "sys-034"
+    },
+    {
+      "type": "sceneOption",
+      "option": "commit"
+    }
+  ]
+}

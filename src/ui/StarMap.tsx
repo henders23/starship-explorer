@@ -166,6 +166,7 @@ export function StarMap() {
           return (
             <g
               key={system.id}
+              data-system={system.id}
               onMouseEnter={() => setHovered(system.id)}
               onMouseLeave={() => setHovered(null)}
               onClick={() => dispatch({ type: 'select', system: system.id })}
