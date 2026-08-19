@@ -138,6 +138,45 @@ gateway arrival is a scene, not a screen-swap.
 **Done when:** an uncoached player finishes a short-galaxy run and starts a
 second one.
 
+### R11 — Density: the voyage between the stars
+
+*Goal: the chart stops being a fuel spreadsheet.*
+
+The R10 sweep found the hole: **60% of a run was travel and 71% of days
+held nothing**, because `travel()` spent a day per lane but rolled danger
+once, at the destination, against its region — so long hauls through
+hostile space were safer per lane than short hops.
+
+- ~~**Danger per jump**~~ Done 19 Aug: journeys fly lane by lane, each
+  rolling against the region entered; anything that happens stops the ship
+  there, destination still selected. A surge that empties the tank mid-course
+  now strands the ship between stars. Escalation *scales* a region's danger
+  rather than adding to it, so the Shallows stay a safe corner to retreat to.
+- ~~**Transit events**~~ Done 19 Aug (`src/engine/encounters/transit.ts`):
+  cometary ice, a lifeboat past help, someone else's battlefield, a rift echo
+  the bench wants, a moon to patch the hull behind. A day offered, refusable;
+  gains clamped by the engine.
+
+**Measured:** contacts 4.1 → 8.6 per run, battles 1.2 → 2.6, hull scares
+0% → 8%, uneventful travel orders down to 4%, 60% of all actions now
+produce something notable. Difficulty now has a real gradient: short mode
+5.4 contacts / 1.0 battles / 100% home; full sector 8.6 / 2.6 / 93%.
+
+**What it cost:** median run length rose 95 → 101 days. The density is
+right; the *length* is the next thing to tighten (fewer, denser jumps, and
+the ~15 days a run currently spends idling in refit cradles).
+
+### R12 — The rival
+
+*Goal: someone else is hunting the door.*
+
+The solvability proof guarantees redundant true clues (1.6–1.9×), so a
+rival that only ever takes **spare** evidence can never make a puzzle
+unwinnable. You would see their wake — a site stripped, a trader who
+already sold — and they would give the *Doorway Home* finale the
+antagonist its spec is waiting for: pressure without a turn limit, so the
+"no clock but fuel" pillar survives intact.
+
 ## 4. Risks and open questions
 
 | Risk | Why it matters | Mitigation |
