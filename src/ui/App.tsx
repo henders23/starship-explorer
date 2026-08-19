@@ -5,6 +5,7 @@ import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
+import { epilogueLines } from '../engine/state/epilogue.js'
 import { surgeForecast } from '../engine/state/reducer.js'
 import { TruthReveal } from './TruthReveal.js'
 import { TECH_BY_ID } from '../engine/research/tech.js'
@@ -333,6 +334,59 @@ function CaptainsLog() {
   )
 }
 
+/**
+ * The lines this run earned (R9): the engine's epilogue rulebook, shown on
+ * every ending — the home run and the losses alike remember the voyage.
+ */
+function VoyageEpilogue() {
+  const state = useGame((s) => s.state)
+  const lines = epilogueLines(state)
+  if (lines.length === 0) return null
+
+  return (
+    <div className="border-rule mb-4 flex max-h-44 flex-col gap-1.5 overflow-y-auto border-t pt-3 text-[12px] leading-relaxed">
+      {lines.map((line) => (
+        <p key={line} className="text-ink-dim">
+          {line}
+        </p>
+      ))}
+    </div>
+  )
+}
+
+/**
+ * The loss endings name what was lost with the same care the home ending
+ * names survivors (R9). The dead get their lines; the living get counted.
+ */
+function TheCost() {
+  const casualties = useGame((s) => s.state.casualties)
+  const pools = useGame((s) => s.state.pools)
+  const roster = useGame((s) => s.state.roster)
+  const outcome = useGame((s) => s.state.outcome)
+  if (casualties.officers.length === 0 && casualties.generics === 0) return null
+
+  const standing = roster.filter((o) => o.status !== 'dead').length
+
+  return (
+    <div className="text-ink-dim mb-4 flex flex-col gap-1 text-[12px] leading-relaxed">
+      {casualties.officers.map((name) => (
+        <div key={name}>
+          <span className="text-alarm-dim">{name}</span> did not live to see how it ends. The
+          log has their name spelled right, where whoever finds it will read it.
+        </div>
+      ))}
+      {casualties.generics > 0 && (
+        <div className="text-ink-faint">
+          {casualties.generics} of the ship's company died doing what the ship asked of them.
+          The muster roll keeps every name{outcome === 'destroyed'
+            ? '; now it keeps them all.'
+            : `; ${standing + pools.security + pools.crew} souls remain to remember them.`}
+        </div>
+      )}
+    </div>
+  )
+}
+
 function Ending() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
@@ -383,6 +437,7 @@ function Ending() {
               : '.'}
           </div>
         </div>
+        <VoyageEpilogue />
         <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
@@ -412,6 +467,8 @@ function StrandedEnding() {
           The plot on the board may even be right — someone should check it, someday, whoever
           finds the log. The ship keeps its orbit. The orbit keeps its ship.
         </p>
+        <TheCost />
+        <VoyageEpilogue />
         <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
@@ -439,6 +496,8 @@ function DestroyedEnding() {
           be. The plot on the Nav board — the accounts, the trust so carefully placed and
           withheld — burns with everything else. Whatever the answer was, it stays out here.
         </p>
+        <TheCost />
+        <VoyageEpilogue />
         <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
@@ -466,6 +525,8 @@ function LostEnding() {
           reading it now. Whatever happens to the {' '}
           <em>Indefatigable</em> next, it happens without you.
         </p>
+        <TheCost />
+        <VoyageEpilogue />
         <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
