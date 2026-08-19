@@ -18,6 +18,7 @@ export type TechId =
   | 'comms-2'
   | 'rift-telemetry'
   | 'trauma-protocols'
+  | 'fire-control'
   | 'rift-drive'
   | 'rift-shield'
 
@@ -71,6 +72,15 @@ export const TECH_TREE: TechNode[] = [
     pitch:
       '“The doctor and I have been comparing notes on rift-space wound care. Five days of lab time turns those notes into protocol.”',
     effect: 'Medbay stays run 4 days with the doctor, 8 without',
+  },
+  {
+    id: 'fire-control',
+    name: 'Fire Control Refit',
+    days: 5,
+    requires: [],
+    pitch:
+      '“The mounts shoot straighter than the fire control lets them. Five days re-laying the solutions with the security chief, and every volley lands harder.”',
+    effect: '+4 damage per volley in ship combat',
   },
   {
     id: 'rift-drive',

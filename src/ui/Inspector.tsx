@@ -109,14 +109,21 @@ export function Inspector() {
         </button>
       )}
 
-      {here && gameState.driveScarred && system.faction !== null && outcome === 'seeking' && (
-        <button
-          onClick={() => dispatch({ type: 'refit' })}
-          className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
-        >
-          Refit the scarred drive (4 days)
-        </button>
-      )}
+      {here &&
+        (gameState.driveScarred || gameState.ship.hull < 100) &&
+        system.faction !== null &&
+        outcome === 'seeking' && (
+          <button
+            onClick={() => dispatch({ type: 'refit' })}
+            className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
+          >
+            {gameState.driveScarred && gameState.ship.hull < 100
+              ? 'Refit the drive and the hull (4 days)'
+              : gameState.driveScarred
+                ? 'Refit the scarred drive (4 days)'
+                : 'Repair the hull (4 days)'}
+          </button>
+        )}
 
       {here && hasEvidence && outcome === 'seeking' && (
         <button

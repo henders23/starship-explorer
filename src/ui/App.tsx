@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { BriefingScreen } from './BriefingScreen.js'
+import { CombatOverlay } from './CombatOverlay.js'
 import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
@@ -90,9 +91,11 @@ export function App() {
       </div>
       <CaptainsLog />
       <EncounterOverlay />
+      <CombatOverlay />
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
       {outcome === 'stranded' && <StrandedEnding />}
+      {outcome === 'destroyed' && <DestroyedEnding />}
     </div>
   )
 }
@@ -248,6 +251,7 @@ function ResearchChip() {
 
 function FuelGauge() {
   const fuel = useGame((s) => s.state.ship.fuel)
+  const hull = useGame((s) => s.state.ship.hull)
   const day = useGame((s) => s.state.day)
   const scarred = useGame((s) => s.state.driveScarred)
   const max = 80
@@ -270,6 +274,14 @@ function FuelGauge() {
           {fuel}/{max}
         </span>
       </span>
+      {hull < 100 && (
+        <span
+          className={hull <= 35 ? 'text-alarm' : 'text-amber-dim'}
+          title="Battle damage. A faction yard refit plates it over."
+        >
+          hull {hull}%
+        </span>
+      )}
       {scarred && (
         <span className="text-alarm-dim" title="A scarred drive burns 30% more per lane until refitted in faction space">
           drive scarred
@@ -375,6 +387,32 @@ function StrandedEnding() {
           className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
+        </button>
+      </div>
+    </div>
+  )
+}
+
+/** Lost with all hands. The shortest entry in any registry. */
+function DestroyedEnding() {
+  const restart = useGame((s) => s.restart)
+  const seed = useGame((s) => s.state.seed)
+
+  return (
+    <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
+      <div className="panel border-alarm-dim max-w-lg px-6 py-5">
+        <div className="label mb-2">No further entries</div>
+        <h2 className="text-alarm mb-3 text-[18px]">Lost with all hands.</h2>
+        <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
+          The <em>Indefatigable</em> comes apart a very long way from anywhere she was built to
+          be. The plot on the Nav board — the accounts, the trust so carefully placed and
+          withheld — burns with everything else. Whatever the answer was, it stays out here.
+        </p>
+        <button
+          onClick={() => restart(`${seed}-again`)}
+          className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
+        >
+          Another ship, another galaxy
         </button>
       </div>
     </div>

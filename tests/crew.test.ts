@@ -19,7 +19,7 @@ const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).
  */
 const at = (from: GameState, system: string): GameState => ({
   ...from,
-  ship: { at: system, fuel: 999 },
+  ship: { at: system, fuel: 999, hull: 100 },
 })
 
 /** First system holding evidence behind the given hazard filter. */

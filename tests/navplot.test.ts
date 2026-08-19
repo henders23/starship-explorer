@@ -37,7 +37,7 @@ const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).
 /** Test-only relocation with a full tank; travel proper has its own suite. */
 const at = (from: GameState, system: string): GameState => ({
   ...from,
-  ship: { at: system, fuel: 999 },
+  ship: { at: system, fuel: 999, hull: 100 },
 })
 
 /**

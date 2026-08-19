@@ -1,3 +1,21 @@
+import {
+  buildContact,
+  combatRng,
+  contactChance,
+  EVADE_CHANCE,
+  EVADE_CLEAN_DRIVE_BONUS,
+  FLEE_CHANCE,
+  FLEE_SHIELDS_BONUS,
+  HAIL_TOLL_CHANCE,
+  hasIntelOn,
+  HULL_MAX,
+  playerDamage,
+  RAIDER_BREAK_FRACTION,
+  TOLL_FUEL,
+  WRECK_SALVAGE_FUEL,
+  YIELD_HULL_FRACTION,
+  YIELD_TRIBUTE_FUEL,
+} from '../combat/combat.js'
 import { generateRoster, promoteGeneric } from '../crew/generate.js'
 import { castScene } from '../encounters/templates.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
@@ -53,7 +71,9 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     searched: [],
     selected: puzzle.galaxy.start,
     encounter: null,
-    ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX },
+    ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX, hull: HULL_MAX },
+    combat: null,
+    combats: 0,
     day: 0,
     driveScarred: false,
     surges: 0,
@@ -81,6 +101,21 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
 }
 
 export function reduce(state: GameState, action: Action): Transition {
+  // An interception waits for nobody: while one is playing, only combat
+  // actions resolve. One guard here keeps that invariant everywhere.
+  if (state.combat !== null) {
+    switch (action.type) {
+      case 'combatContact':
+        return combatContact(state, action.choice)
+      case 'combatToll':
+        return combatToll(state, action.pay)
+      case 'combatRound':
+        return combatRound(state, action.power, action.intent)
+      default:
+        return { state, events: [] }
+    }
+  }
+
   switch (action.type) {
     case 'select':
       return { state: { ...state, selected: action.system }, events: [] }
@@ -112,6 +147,12 @@ export function reduce(state: GameState, action: Action): Transition {
       return file(state, action.clue, action.state)
     case 'plotTheJump':
       return plotTheJump(state, action.target)
+    // Combat actions only mean something while a contact is playing, and the
+    // guard above owns that path; here they are no-ops.
+    case 'combatContact':
+    case 'combatToll':
+    case 'combatRound':
+      return { state, events: [] }
   }
 }
 
@@ -298,6 +339,267 @@ function startResearch(state: GameState, techId: TechId): Transition {
     },
     events: [{ type: 'techStarted', tech: techId }],
   }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Ship-to-ship combat
+ * ------------------------------------------------------------------------ */
+
+/** Close the fight and let the interrupted arrival play its scene. */
+function endCombat(
+  state: GameState,
+  result: 'stood-down' | 'slipped' | 'toll-paid' | 'fled' | 'yielded' | 'driven-off' | 'destroyed-them',
+  events: GameEvent[],
+): GameState {
+  events.push({ type: 'combatResolved', at: state.combat!.at, result })
+  let next: GameState = { ...state, combat: null }
+  const scene = castScene(next, next.ship.at)
+  if (scene) {
+    next = { ...next, encounter: scene }
+    events.push({ type: 'sceneOpened', at: next.ship.at })
+  }
+  return next
+}
+
+/** The enemy's volley; halved when the reactor is on the shields. */
+function enemyVolley(state: GameState, events: GameEvent[], shielded: boolean): GameState {
+  const combat = state.combat!
+  const damage = shielded ? Math.ceil(combat.enemy.guns / 2) : combat.enemy.guns
+  const hull = Math.max(0, state.ship.hull - damage)
+  events.push({ type: 'shipDamaged', amount: damage, hull })
+  let next: GameState = { ...state, ship: { ...state.ship, hull } }
+
+  if (hull <= 0) {
+    events.push({ type: 'shipDestroyed' })
+    next = {
+      ...next,
+      combat: null,
+      outcome: 'destroyed',
+      log: appendLog(next.log, {
+        kind: 'ending',
+        text:
+          `${combat.enemy.name} finds the reactor housing, and the Indefatigable comes apart ` +
+          `over ${systemName(next, combat.at)}. The plot on the Nav board goes with her. ` +
+          `Nobody is coming to read it.`,
+      }),
+    }
+  }
+  return next
+}
+
+function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): Transition {
+  const combat = state.combat
+  if (!combat || combat.phase !== 'contact' || state.outcome !== 'seeking') return { state, events: [] }
+
+  const index = new GalaxyIndex(state.galaxy)
+  const events: GameEvent[] = []
+  const rng = combatRng(state, `contact:${choice}`)
+
+  if (choice === 'hail') {
+    if (hasIntelOn(state, index, combat.enemy.faction)) {
+      let next: GameState = {
+        ...state,
+        log: appendLog(state.log, {
+          kind: 'travel',
+          text:
+            `You read them their own patrol schedule back over the wideband. A long pause, and ` +
+            `${combat.enemy.name} alters course away. Knowing things is a weapon that never needs reloading.`,
+        }),
+      }
+      return { state: endCombat(next, 'stood-down', events), events }
+    }
+    if (rng.chance(HAIL_TOLL_CHANCE)) {
+      return {
+        state: {
+          ...state,
+          combat: { ...combat, phase: 'toll' },
+          log: appendLog(state.log, {
+            kind: 'travel',
+            text: `They answer the hail with a number: ${combat.toll} fuel, and the lane is yours.`,
+          }),
+        },
+        events,
+      }
+    }
+    // The hail is answered with a firing solution.
+    let next: GameState = {
+      ...state,
+      combat: { ...combat, phase: 'battle' },
+      log: appendLog(state.log, {
+        kind: 'travel',
+        text: `The only answer is a target lock. ${combat.enemy.name} opens fire.`,
+      }),
+    }
+    next = enemyVolley(next, events, false)
+    return { state: next, events }
+  }
+
+  if (choice === 'evade') {
+    const chance = EVADE_CHANCE + (state.driveScarred ? 0 : EVADE_CLEAN_DRIVE_BONUS)
+    if (rng.chance(chance)) {
+      const next: GameState = {
+        ...state,
+        log: appendLog(state.log, {
+          kind: 'travel',
+          text: `Hard burn through the shadow of the outer worlds, and the intercept solution falls apart. They lose us.`,
+        }),
+      }
+      return { state: endCombat(next, 'slipped', events), events }
+    }
+    let next: GameState = {
+      ...state,
+      combat: { ...combat, phase: 'battle' },
+      log: appendLog(state.log, {
+        kind: 'travel',
+        text: `The burn is not enough — they cut the corner and hold the lock. ${combat.enemy.name} opens fire.`,
+      }),
+    }
+    next = enemyVolley(next, events, false)
+    return { state: next, events }
+  }
+
+  // Engage: battle on your terms — the first volley is yours.
+  return {
+    state: {
+      ...state,
+      combat: { ...combat, phase: 'battle' },
+      log: appendLog(state.log, {
+        kind: 'travel',
+        text: `Guns run out, power to the mounts. The bridge goes quiet the way it does before weather.`,
+      }),
+    },
+    events,
+  }
+}
+
+function combatToll(state: GameState, pay: boolean): Transition {
+  const combat = state.combat
+  if (!combat || combat.phase !== 'toll' || state.outcome !== 'seeking') return { state, events: [] }
+  const events: GameEvent[] = []
+
+  if (pay) {
+    if (state.ship.fuel <= combat.toll) return { state, events: [] }
+    const next: GameState = {
+      ...state,
+      ship: { ...state.ship, fuel: state.ship.fuel - combat.toll },
+      log: appendLog(state.log, {
+        kind: 'travel',
+        text: `${combat.toll} fuel crosses the gap in a drop pod, and ${combat.enemy.name} lets the lane open. Cheaper than the alternative.`,
+      }),
+    }
+    return { state: endCombat(next, 'toll-paid', events), events }
+  }
+
+  let next: GameState = {
+    ...state,
+    combat: { ...combat, phase: 'battle' },
+    log: appendLog(state.log, {
+      kind: 'travel',
+      text: `You decline to be taxed. ${combat.enemy.name} opens fire.`,
+    }),
+  }
+  next = enemyVolley(next, events, false)
+  return { state: next, events }
+}
+
+function combatRound(
+  state: GameState,
+  power: 'guns' | 'shields',
+  intent: 'fire' | 'flee',
+): Transition {
+  const combat = state.combat
+  if (!combat || combat.phase !== 'battle' || state.outcome !== 'seeking') return { state, events: [] }
+
+  const index = new GalaxyIndex(state.galaxy)
+  const events: GameEvent[] = []
+  const rng = combatRng(state, `round:${combat.round}:${power}:${intent}`)
+  const shielded = power === 'shields'
+
+  if (intent === 'flee') {
+    if (rng.chance(FLEE_CHANCE + (shielded ? FLEE_SHIELDS_BONUS : 0))) {
+      const next: GameState = {
+        ...state,
+        log: appendLog(state.log, {
+          kind: 'travel',
+          text: `The drive answers when it matters. The Indefatigable breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
+        }),
+      }
+      return { state: endCombat(next, 'fled', events), events }
+    }
+    let next = enemyVolley(state, events, shielded)
+    if (next.outcome !== 'seeking') return { state: next, events }
+    next = {
+      ...next,
+      combat: { ...next.combat!, round: combat.round + 1 },
+      log: appendLog(next.log, {
+        kind: 'travel',
+        text: `The break fails — they anticipate the vector and hold on. The exchange costs us.`,
+      }),
+    }
+    return { state: next, events }
+  }
+
+  // Fire. Power to the shields trades weight of shot for protection.
+  const volley = Math.round(playerDamage(state, state.roster) * (shielded ? 0.6 : 1))
+  const enemyHull = Math.max(0, combat.enemy.hull - volley)
+  let next: GameState = { ...state, combat: { ...combat, enemy: { ...combat.enemy, hull: enemyHull } } }
+
+  if (enemyHull <= 0) {
+    const salvaged = Math.min(FUEL_MAX - next.ship.fuel, WRECK_SALVAGE_FUEL)
+    next = {
+      ...next,
+      ship: { ...next.ship, fuel: next.ship.fuel + salvaged },
+      log: appendLog(next.log, {
+        kind: 'travel',
+        text:
+          `${combat.enemy.name} comes apart under the last volley. The wreck gives up ` +
+          `${salvaged} fuel, and nothing else it knew.`,
+      }),
+    }
+    events.push({ type: 'fuelSalvaged', amount: salvaged })
+    return { state: endCombat(next, 'destroyed-them', events), events }
+  }
+
+  // The well-informed take surrenders; raiders just break and run.
+  if (
+    combat.enemy.faction !== null &&
+    enemyHull <= combat.enemy.hullMax * YIELD_HULL_FRACTION &&
+    hasIntelOn(state, index, combat.enemy.faction)
+  ) {
+    const tribute = Math.min(FUEL_MAX - next.ship.fuel, YIELD_TRIBUTE_FUEL)
+    next = {
+      ...next,
+      ship: { ...next.ship, fuel: next.ship.fuel + tribute },
+      log: appendLog(next.log, {
+        kind: 'travel',
+        text:
+          `Hulled and listing, they strike their colours — to a captain who knows exactly whose ` +
+          `patrol they missed and why. ${tribute} fuel in tribute buys their withdrawal.`,
+      }),
+    }
+    events.push({ type: 'fuelSalvaged', amount: tribute })
+    return { state: endCombat(next, 'yielded', events), events }
+  }
+
+  if (
+    combat.enemy.faction === null &&
+    enemyHull <= combat.enemy.hullMax * RAIDER_BREAK_FRACTION &&
+    rng.chance(0.5)
+  ) {
+    next = {
+      ...next,
+      log: appendLog(next.log, {
+        kind: 'travel',
+        text: `Raiders fight for profit, and this stopped being profitable. They break and burn for the dark.`,
+      }),
+    }
+    return { state: endCombat(next, 'driven-off', events), events }
+  }
+
+  next = enemyVolley(next, events, shielded)
+  if (next.outcome !== 'seeking') return { state: next, events }
+  next = { ...next, combat: { ...next.combat!, round: combat.round + 1 } }
+  return { state: next, events }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -505,7 +807,7 @@ function travel(state: GameState, to: SystemId): Transition {
   const jumpsMade = route.path.length - 1
   let next: GameState = {
     ...state,
-    ship: { at: to, fuel: state.ship.fuel - cost },
+    ship: { ...state.ship, at: to, fuel: state.ship.fuel - cost },
     selected: to,
     // Breaking orbit walks away from whatever was playing there.
     encounter: null,
@@ -526,6 +828,25 @@ function travel(state: GameState, to: SystemId): Transition {
   const strandCheck = declareIfStranded(next, index, events)
   if (strandCheck.state.outcome !== 'seeking') return strandCheck
   next = strandCheck.state
+
+  // The dangerous regions intercept, once the early grace days are spent.
+  // A contact pre-empts the arrival scene; whatever waited here plays after.
+  const roll = createRng(`${state.seed}:contact:${next.day}:${to}`)
+  const chance = contactChance(next, index.system(to).region)
+  if (chance > 0 && roll.chance(chance)) {
+    const enemy = buildContact(roll, next, to, index)
+    next = {
+      ...next,
+      combats: next.combats + 1,
+      combat: { at: to, enemy, phase: 'contact', round: 0, toll: TOLL_FUEL },
+      log: appendLog(next.log, {
+        kind: 'travel',
+        text: `${systemName(next, to)}: an intercept course on the boards — ${enemy.name}. They have seen us.`,
+      }),
+    }
+    events.push({ type: 'contactMade', at: to, enemy: enemy.name })
+    return { state: next, events }
+  }
 
   // Arrival is where things happen: a system holding content opens its scene
   // at once. Empty and exhausted systems stay quiet — silence keeps meaning.
@@ -565,19 +886,25 @@ function scoop(state: GameState): Transition {
 
 function refit(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
-  if (!state.driveScarred) return { state, events: [] }
+  if (!state.driveScarred && state.ship.hull >= HULL_MAX) return { state, events: [] }
   const index = new GalaxyIndex(state.galaxy)
   if (index.system(state.ship.at).faction === null) return { state, events: [] }
 
+  const battered = state.ship.hull < HULL_MAX
   const events: GameEvent[] = [{ type: 'refitted' }]
   let next: GameState = {
     ...state,
     driveScarred: false,
+    ship: { ...state.ship, hull: HULL_MAX },
     log: appendLog(state.log, {
       kind: 'travel',
       text:
-        `Four days in a rented cradle while yard crews who ask no questions grind the scarring ` +
-        `out of the drive housings. It sounds like itself again.`,
+        `Four days in a rented cradle while yard crews who ask no questions ` +
+        (state.driveScarred && battered
+          ? `grind the scarring out of the drive housings and plate over the battle damage. She sounds like herself again.`
+          : battered
+            ? `cut out the burned plating and weld in new. The hull reads whole again.`
+            : `grind the scarring out of the drive housings. It sounds like itself again.`),
     }),
   }
   next = advanceTime(next, 4, events)
@@ -1071,7 +1398,7 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
   let next: GameState = {
     ...state,
     jumps,
-    ship: { at: displacedTo, fuel: Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25) },
+    ship: { ...state.ship, at: displacedTo, fuel: Math.min(state.ship.fuel - LONG_JUMP_RESERVE, 25) },
     selected: displacedTo,
     // The rift takes more than fuel: the drive is scarred until a refit.
     driveScarred: true,

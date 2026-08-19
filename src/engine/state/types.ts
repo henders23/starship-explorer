@@ -1,3 +1,4 @@
+import type { CombatState } from '../combat/combat.js'
 import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
 import type { SceneInstance } from '../encounters/types.js'
 import type { GearSlot, Loadouts } from '../missions/gear.js'
@@ -35,8 +36,12 @@ export interface GameState {
   /** The scene playing right now, if any. Cast on arrival, plain data. */
   encounter: SceneInstance | null
 
-  /** Where the ship is and what is in the tank. Everything else orbits this. */
-  ship: { at: SystemId; fuel: number }
+  /** Where the ship is, what is in the tank, and what the hull can take. */
+  ship: { at: SystemId; fuel: number; hull: number }
+  /** The interception being fought, if any. Most actions wait for it. */
+  combat: CombatState | null
+  /** Contacts met so far; seeds each fight's dice. */
+  combats: number
   /** Days since arrival. Travel, missions and repairs all spend it. */
   day: number
   /** A scarred drive burns 30% more per lane until refitted. */
@@ -71,7 +76,7 @@ export interface GameState {
   casualties: { generics: number; officers: string[] }
 
   jumps: JumpAttempt[]
-  outcome: 'seeking' | 'home' | 'lost' | 'stranded'
+  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'destroyed'
   log: LogEntry[]
 }
 
@@ -111,6 +116,12 @@ export type Action =
   | { type: 'openScene' }
   /** Answer the playing scene with one of its options. */
   | { type: 'sceneOption'; option: string }
+  /** The posture on contact. */
+  | { type: 'combatContact'; choice: 'hail' | 'evade' | 'engage' }
+  /** Answer a toll demand. */
+  | { type: 'combatToll'; pay: boolean }
+  /** One battle round: where the power goes, and what the ship does. */
+  | { type: 'combatRound'; power: 'guns' | 'shields'; intent: 'fire' | 'flee' }
   | { type: 'decode'; clue: ClueId }
   | { type: 'promote'; role: Exclude<OfficerRole, 'captain'> }
   | { type: 'file'; clue: ClueId; state: ClueState }
@@ -141,6 +152,14 @@ export type GameEvent =
   | { type: 'techStarted'; tech: TechId }
   | { type: 'techCompleted'; tech: TechId }
   | { type: 'componentRecovered'; component: ComponentKind; at: SystemId }
+  | { type: 'contactMade'; at: SystemId; enemy: string }
+  | {
+      type: 'combatResolved'
+      at: SystemId
+      result: 'stood-down' | 'slipped' | 'toll-paid' | 'fled' | 'yielded' | 'driven-off' | 'destroyed-them'
+    }
+  | { type: 'shipDamaged'; amount: number; hull: number }
+  | { type: 'shipDestroyed' }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }

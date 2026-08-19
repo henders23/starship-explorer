@@ -11,7 +11,7 @@ const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).
 /** Teleport helper, as in the other suites: these tests are not about fuel. */
 const at = (from: GameState, system: string): GameState => ({
   ...from,
-  ship: { at: system, fuel: 999 },
+  ship: { at: system, fuel: 999, hull: 100 },
 })
 
 function socialSystem(state: GameState): string {

@@ -26,7 +26,7 @@ describe('the day clock', () => {
     expect(after.day).toBe(state.day + 1)
 
     const giant = index.systems.find((s) => s.features.includes('gas-giant'))!
-    const atGiant: GameState = { ...state, ship: { at: giant.id, fuel: 10 } }
+    const atGiant: GameState = { ...state, ship: { at: giant.id, fuel: 10, hull: 100 } }
     expect(run(atGiant, { type: 'scoop' }).day).toBe(atGiant.day + 2)
   })
 })
@@ -66,7 +66,7 @@ describe('the medbay', () => {
     }
     const site = wounded.mystery.clues.find((c) => c.source.kind === 'ruins-tablet')
     if (!site) return
-    const placed: GameState = { ...wounded, ship: { at: site.source.at, fuel: 999 } }
+    const placed: GameState = { ...wounded, ship: { at: site.source.at, fuel: 999, hull: 100 } }
     const refused = reduce(placed, {
       type: 'runMission',
       system: site.source.at,
@@ -124,7 +124,7 @@ describe('the scarred drive and the yard', () => {
     const scarred: GameState = {
       ...state,
       driveScarred: true,
-      ship: { at: factionSystem.id, fuel: 60 },
+      ship: { at: factionSystem.id, fuel: 60, hull: 100 },
     }
 
     const neighbour = index.neighbours(factionSystem.id)[0]!
@@ -139,7 +139,7 @@ describe('the scarred drive and the yard', () => {
 
     // Refits happen in faction yards only.
     const nowhere = index.systems.find((s) => s.faction === null)!
-    const adrift: GameState = { ...scarred, ship: { at: nowhere.id, fuel: 60 } }
+    const adrift: GameState = { ...scarred, ship: { at: nowhere.id, fuel: 60, hull: 100 } }
     expect(reduce(adrift, { type: 'refit' }).state).toBe(adrift)
   })
 })
