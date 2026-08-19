@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
 import type { Officer } from '../engine/crew/types.js'
-import { moraleBand } from '../engine/state/reducer.js'
 import { useDispatch, useGame } from './store.js'
 
 /**
@@ -9,13 +8,6 @@ import { useDispatch, useGame } from './store.js'
  * The generics are shown as counts on purpose — they become people, with
  * names, only at the moment one is promoted into a dead officer's chair.
  */
-const BAND_LABELS = {
-  steady: ['steady', 'text-phosphor'],
-  uneasy: ['uneasy', 'text-amber-dim'],
-  fractious: ['fractious', 'text-amber'],
-  mutinous: ['MUTINOUS', 'text-alarm'],
-} as const
-
 const STATION_LABELS: Record<Officer['role'], string> = {
   captain: 'Command',
   security: 'Security',
@@ -26,10 +18,8 @@ const STATION_LABELS: Record<Officer['role'], string> = {
 export function CrewPanel() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
-  const morale = useGame((s) => s.state.morale)
   const day = useGame((s) => s.state.day)
   const dispatch = useDispatch()
-  const [bandLabel, bandTone] = BAND_LABELS[moraleBand(morale)]
 
   // Derived with useMemo, not inside the Zustand selector: a selector that
   // builds a fresh array every call never yields a stable snapshot, and React
@@ -52,9 +42,6 @@ export function CrewPanel() {
       <div className="text-ink mt-1.5 flex justify-between text-[12px]">
         <span>Security staff ×{pools.security}</span>
         <span>Crew ×{pools.crew}</span>
-        <span>
-          morale <span className={bandTone}>{bandLabel}</span>
-        </span>
       </div>
 
       <button

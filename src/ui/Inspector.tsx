@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { canResupply, sitePlan, SUPPLIES_MAX, travelCost } from '../engine/state/reducer.js'
+import { sitePlan, travelCost } from '../engine/state/reducer.js'
 import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { MissionPanel } from './MissionPanel.js'
@@ -101,15 +101,6 @@ export function Inspector() {
           className="border-phosphor-dim text-phosphor hover:bg-phosphor-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Scoop the gas giant — refill the tank (2 days)
-        </button>
-      )}
-
-      {here && canResupply(index, system.id) && gameState.supplies < SUPPLIES_MAX && outcome === 'seeking' && (
-        <button
-          onClick={() => dispatch({ type: 'resupply' })}
-          className="border-phosphor-dim text-phosphor hover:bg-phosphor-dim/15 border px-3 py-1.5 text-[11px]"
-        >
-          Take on stores (2 days)
         </button>
       )}
 

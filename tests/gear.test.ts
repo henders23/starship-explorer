@@ -53,8 +53,8 @@ describe('the locker', () => {
       expect(bonus).toBeGreaterThanOrEqual(GEAR_BONUS_MIN)
       expect(bonus).toBeLessThanOrEqual(GEAR_BONUS_MAX)
 
-      const bare = approachOdds(approach, FULL_TEAM, roster, 100)
-      const kitted = approachOdds(approach, FULL_TEAM, roster, 100, loadouts)
+      const bare = approachOdds(approach, FULL_TEAM, roster)
+      const kitted = approachOdds(approach, FULL_TEAM, roster, loadouts)
       expect(kitted.clean + kitted.messy + kitted.disaster).toBe(100)
       // The kitted odds differ from the bare odds by exactly the gear bonus,
       // unless the 95-clean cap absorbed part of it.

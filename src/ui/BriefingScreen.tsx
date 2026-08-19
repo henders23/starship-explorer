@@ -74,7 +74,7 @@ const BEATS: Beat[] = [
   {
     speaker: 'medical',
     text: () =>
-      'And watch the hold. Stores drain a point a day. A fed crew that believes you have a plan will follow you anywhere. A hungry one, drifting — they’ll do their own arithmetic.',
+      'And the rift itself is not done with us. Engineering says it surges — the light goes wrong and something aboard breaks, or someone does. When it happens, my medbay fills. Plan for that too.',
   },
   {
     speaker: 'science',

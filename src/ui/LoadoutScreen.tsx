@@ -35,7 +35,6 @@ const STYLE_LABELS: Record<ApproachStyle, string> = {
 export function LoadoutScreen() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
-  const morale = useGame((s) => s.state.morale)
   const loadouts = useGame((s) => s.state.loadouts)
   const dispatch = useDispatch()
   const [selectedRole, setSelectedRole] = useState(roster[0]?.role ?? 'captain')
@@ -82,7 +81,7 @@ export function LoadoutScreen() {
         </div>
         <div className="mission-readiness">
           <span>Team readiness</span>
-          <strong>{Math.round(((ready * 18 + morale) / (roster.length * 18 + 100)) * 100)}%</strong>
+          <strong>{Math.round((ready / roster.length) * 100)}%</strong>
           <small>{ready}/{roster.length} officers fit · {pools.security} security available</small>
         </div>
       </header>

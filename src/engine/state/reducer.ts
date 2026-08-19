@@ -51,9 +51,6 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     selected: puzzle.galaxy.start,
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX },
     day: 0,
-    morale: 70,
-    mutinyArmed: false,
-    supplies: 100,
     driveScarred: false,
     surges: 0,
     roster: generateRoster(seed),
@@ -85,8 +82,6 @@ export function reduce(state: GameState, action: Action): Transition {
       return travel(state, action.to)
     case 'scoop':
       return scoop(state)
-    case 'resupply':
-      return resupply(state)
     case 'refit':
       return refit(state)
     case 'consult':
@@ -206,80 +201,19 @@ function collectClues(
       undecoded: undecodedNow,
     },
   ]
-  let next: GameState = {
+  const next: GameState = {
     ...state,
     collected: [...state.collected, ...found.map((c) => c.id)],
     clueStates,
     undecoded,
     log: appendLog(state.log, { kind: 'evidence', text: logText }),
   }
-  next = shiftMorale(next, 2, events)
   return { state: next, events }
 }
 
 /* ------------------------------------------------------------------------ *
- * Time, morale, and the Rift
+ * Time and the Rift
  * ------------------------------------------------------------------------ */
-
-export const SUPPLIES_MAX = 100
-export const MORALE_BANDS = { steady: 65, uneasy: 40, fractious: 25 } as const
-
-export type MoraleBand = 'steady' | 'uneasy' | 'fractious' | 'mutinous'
-
-export function moraleBand(morale: number): MoraleBand {
-  if (morale >= MORALE_BANDS.steady) return 'steady'
-  if (morale >= MORALE_BANDS.uneasy) return 'uneasy'
-  if (morale >= MORALE_BANDS.fractious) return 'fractious'
-  return 'mutinous'
-}
-
-/**
- * Morale moves once per cause, and the mutiny rule is two-stage and legible:
- * hitting Mutinous puts the captain on notice, and the *next* loss while down
- * there takes the ship. Climbing back above the line stands the crew down.
- */
-function shiftMorale(state: GameState, delta: number, events: GameEvent[]): GameState {
-  if (delta === 0 || state.outcome !== 'seeking') return state
-  const morale = Math.max(0, Math.min(100, state.morale + delta))
-  if (morale === state.morale) return state
-  events.push({ type: 'moraleShifted', delta, morale })
-
-  let next: GameState = { ...state, morale }
-
-  if (moraleBand(morale) !== 'mutinous') {
-    if (state.mutinyArmed) next = { ...next, mutinyArmed: false }
-    return next
-  }
-
-  if (!state.mutinyArmed) {
-    return {
-      ...next,
-      mutinyArmed: true,
-      log: appendLog(next.log, {
-        kind: 'crew',
-        text:
-          `The wardroom goes quiet when you enter, and stays quiet after you leave. ` +
-          `The ship is one more bad day from not being yours.`,
-      }),
-    }
-  }
-
-  if (delta < 0) {
-    events.push({ type: 'mutinyDeclared' })
-    return {
-      ...next,
-      outcome: 'mutiny',
-      log: appendLog(next.log, {
-        kind: 'ending',
-        text:
-          `It is done politely, which is somehow worse. Three of them at the cabin door, sidearms ` +
-          `holstered, and the ship already answering to someone else's voice. Nobody is going home ` +
-          `today, but it will no longer be you who decides when.`,
-      }),
-    }
-  }
-  return next
-}
 
 /** The Rift's schedule: fixed by the seed, escalating, never stored. */
 export function surgeDay(seed: string, ordinal: number): number {
@@ -291,23 +225,14 @@ export function surgeDay(seed: string, ordinal: number): number {
 }
 
 /**
- * The clock. Days drain supplies (or morale, once the stores are gone), heal
- * the medbay, and carry the ship across the Rift's surge schedule. Everything
- * that spends time funnels through here, so no consequence can be dodged by
- * doing something else first.
+ * The clock. Days heal the medbay and carry the ship across the Rift's surge
+ * schedule. Everything that spends time funnels through here, so no
+ * consequence can be dodged by doing something else first.
  */
 function advanceTime(state: GameState, days: number, events: GameEvent[]): GameState {
   if (days <= 0 || state.outcome !== 'seeking') return state
   const day = state.day + days
   let next: GameState = { ...state, day }
-
-  // Stores, then hunger.
-  const shortfall = days - next.supplies
-  next = { ...next, supplies: Math.max(0, next.supplies - days) }
-  if (shortfall > 0) {
-    next = shiftMorale(next, -2 * shortfall, events)
-    if (next.outcome !== 'seeking') return next
-  }
 
   // The medbay discharges by the calendar, not by the mission counter.
   const recovered = next.roster.filter(
@@ -354,8 +279,8 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
     text += `Turbulence in the fuel manifolds vents ${loss} fuel before the seals catch.`
   } else if (tier === 1) {
     const loss = 15
-    next = { ...next, supplies: Math.max(0, next.supplies - loss) }
-    text += `A stasis locker fails in the hold; ${loss} supplies spoil before anyone smells it.`
+    next = { ...next, ship: { ...next.ship, fuel: Math.max(0, next.ship.fuel - loss) } }
+    text += `A coolant loop lets go along the drive spine; purging it costs ${loss} fuel.`
   } else if (tier === 2) {
     const fitOfficers = next.roster.filter((o) => o.role !== 'captain' && o.status === 'fit')
     if (fitOfficers.length > 0) {
@@ -380,8 +305,7 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
     text += `The drive screams for four seconds and does not sound the same afterwards. It will burn hot until refitted.`
   }
 
-  next = { ...next, log: appendLog(next.log, { kind: 'surge', text }) }
-  return shiftMorale(next, tier >= 3 ? -8 : -4, events)
+  return { ...next, log: appendLog(next.log, { kind: 'surge', text }) }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -444,34 +368,6 @@ function scoop(state: GameState): Transition {
         `wide. The tank reads full for the first time in a while.`,
     }),
   }
-  next = advanceTime(next, 2, events)
-  return { state: next, events }
-}
-
-/** Where the ship can take on stores: anywhere inhabited or administered. */
-export function canResupply(index: GalaxyIndex, at: SystemId): boolean {
-  const system = index.system(at)
-  return system.features.includes('habitable-world') || system.faction !== null
-}
-
-function resupply(state: GameState): Transition {
-  if (state.outcome !== 'seeking') return { state, events: [] }
-  const index = new GalaxyIndex(state.galaxy)
-  if (!canResupply(index, state.ship.at)) return { state, events: [] }
-  if (state.supplies >= SUPPLIES_MAX) return { state, events: [] }
-
-  const events: GameEvent[] = [{ type: 'resupplied' }]
-  let next: GameState = {
-    ...state,
-    supplies: SUPPLIES_MAX,
-    log: appendLog(state.log, {
-      kind: 'travel',
-      text:
-        `Two days alongside, taking on stores. The hold smells of coffee and packing foam, ` +
-        `and the mood below decks lifts with it.`,
-    }),
-  }
-  next = shiftMorale(next, 3, events)
   next = advanceTime(next, 2, events)
   return { state: next, events }
 }
@@ -546,8 +442,8 @@ function declareIfStranded(
 /**
  * Consult the Bridge (DESIGN §7.2): each fit officer gives a working opinion.
  * It is a real instrument, not flavour — science points at the nearest
- * uncollected thread, medical reads the medbay and the stores, security
- * counts what is left to spend. A mutinous crew gives the captain nothing.
+ * uncollected thread, medical reads the medbay docket, security counts what
+ * is left to spend.
  */
 function consult(state: GameState): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
@@ -555,47 +451,43 @@ function consult(state: GameState): Transition {
   const lines: string[] = []
   const index = new GalaxyIndex(state.galaxy)
 
-  if (moraleBand(state.morale) === 'mutinous') {
-    lines.push(`Nobody meets your eye. "Nothing to add, captain," says the bridge, eventually, as one.`)
-  } else {
-    const science = state.roster.find((o) => o.role === 'science')
-    if (science?.status === 'fit') {
-      const remaining = [...evidenceSites(state)]
-        .map((id) => ({ id, jumps: index.jumps(state.ship.at, id) }))
-        .filter((s) => Number.isFinite(s.jumps))
-        .sort((a, b) => a.jumps - b.jumps)
-      lines.push(
-        remaining.length === 0
-          ? `${science.name}: "Every thread we know of has been pulled, captain. It comes down to the plot now."`
-          : `${science.name}: "Nearest unexamined thread is ${systemName(state, remaining[0]!.id)}, ` +
-            `${remaining[0]!.jumps} ${remaining[0]!.jumps === 1 ? 'jump' : 'jumps'} out. ` +
-            `${remaining.length - 1} more beyond it."`,
-      )
-    }
+  const science = state.roster.find((o) => o.role === 'science')
+  if (science?.status === 'fit') {
+    const remaining = [...evidenceSites(state)]
+      .map((id) => ({ id, jumps: index.jumps(state.ship.at, id) }))
+      .filter((s) => Number.isFinite(s.jumps))
+      .sort((a, b) => a.jumps - b.jumps)
+    lines.push(
+      remaining.length === 0
+        ? `${science.name}: "Every thread we know of has been pulled, captain. It comes down to the plot now."`
+        : `${science.name}: "Nearest unexamined thread is ${systemName(state, remaining[0]!.id)}, ` +
+          `${remaining[0]!.jumps} ${remaining[0]!.jumps === 1 ? 'jump' : 'jumps'} out. ` +
+          `${remaining.length - 1} more beyond it."`,
+    )
+  }
 
-    const medical = state.roster.find((o) => o.role === 'medical')
-    if (medical?.status === 'fit') {
-      const medbay = state.roster.filter((o) => o.status === 'injured')
-      lines.push(
-        `${medical.name}: "${
-          medbay.length === 0
-            ? 'Medbay is empty'
-            : medbay.map((o) => `${o.name} needs ${Math.max(0, (o.healedAfter ?? 0) - state.day)} more days`).join('; ')
-        }. Stores at ${state.supplies} of ${SUPPLIES_MAX}${state.supplies === 0 ? ' — people are hungry, captain' : ''}."`,
-      )
-    }
+  const medical = state.roster.find((o) => o.role === 'medical')
+  if (medical?.status === 'fit') {
+    const medbay = state.roster.filter((o) => o.status === 'injured')
+    lines.push(
+      `${medical.name}: "${
+        medbay.length === 0
+          ? 'Medbay is empty, and I would like to keep it that way'
+          : medbay.map((o) => `${o.name} needs ${Math.max(0, (o.healedAfter ?? 0) - state.day)} more days`).join('; ')
+      }."`,
+    )
+  }
 
-    const security = state.roster.find((o) => o.role === 'security')
-    if (security?.status === 'fit') {
-      lines.push(
-        `${security.name}: "${state.pools.security} security staff and ${state.pools.crew} crew still ` +
-        `on the boards. ${moraleBand(state.morale) === 'fractious' ? 'Fewer of them are volunteering than you think.' : 'They will go where you send them.'}"`,
-      )
-    }
+  const security = state.roster.find((o) => o.role === 'security')
+  if (security?.status === 'fit') {
+    lines.push(
+      `${security.name}: "${state.pools.security} security staff and ${state.pools.crew} crew still ` +
+      `on the boards. They will go where you send them."`,
+    )
+  }
 
-    if (lines.length === 0) {
-      lines.push(`The bridge stations are empty or their officers are in the medbay. The ship keeps its own counsel.`)
-    }
+  if (lines.length === 0) {
+    lines.push(`The bridge stations are empty or their officers are in the medbay. The ship keeps its own counsel.`)
   }
 
   return {
@@ -638,16 +530,10 @@ function isFit(roster: readonly Officer[], role: OfficerRole): boolean {
   return officer(roster, role)?.status === 'fit'
 }
 
-/** How many generics will volunteer: a fractious crew sends fewer. */
-export function volunteerCap(state: GameState): number {
-  return moraleBand(state.morale) === 'fractious' || moraleBand(state.morale) === 'mutinous' ? 2 : 4
-}
-
-/** Validates a team against the roster, pools, and the mood below decks. */
+/** Validates a team against the roster and the pools. */
 function legalTeam(state: GameState, team: AwayTeam): AwayTeam | null {
-  const cap = volunteerCap(state)
-  if (team.escorts < 0 || team.escorts > Math.min(MAX_ESCORTS, cap, state.pools.security)) return null
-  if (team.hands < 0 || team.hands > Math.min(MAX_HANDS, cap, state.pools.crew)) return null
+  if (team.escorts < 0 || team.escorts > Math.min(MAX_ESCORTS, state.pools.security)) return null
+  if (team.hands < 0 || team.hands > Math.min(MAX_HANDS, state.pools.crew)) return null
   if (new Set(team.officers).size !== team.officers.length) return null
   for (const role of team.officers) {
     if (!isFit(state.roster, role)) return null
@@ -684,7 +570,7 @@ function runMission(
   next = advanceTime(next, 1, preEvents)
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
-  const odds = approachOdds(approach, team, next.roster, next.morale, next.loadouts)
+  const odds = approachOdds(approach, team, next.roster, next.loadouts)
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
@@ -693,7 +579,6 @@ function runMission(
   const events: GameEvent[] = [...preEvents, { type: 'missionResolved', at: systemId, outcome }]
 
   if (outcome === 'clean') {
-    next = shiftMorale(next, 2, events)
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     const salvage = applyDerelictSalvage(next, site, events)
@@ -735,8 +620,6 @@ function runMission(
 
   if (outcome === 'messy') {
     // Hurt, but the job got done.
-    next = shiftMorale(next, moraleCostOfHarm(state, next, -2), events)
-    if (next.outcome !== 'seeking') return { state: next, events }
     const found = cluesAt(next, systemId)
     next = { ...next, searched: [...next.searched, systemId] }
     next = applyDerelictSalvage(next, site, events)
@@ -753,8 +636,6 @@ function runMission(
   // Disaster: the team pulls out with nothing. The site remains — the
   // evidence must stay collectable or the puzzle can silently become
   // unwinnable, which the solvability contract exists to prevent.
-  next = shiftMorale(next, moraleCostOfHarm(state, next, -6), events)
-  if (next.outcome !== 'seeking') return { state: next, events }
   return {
     state: {
       ...next,
@@ -777,21 +658,6 @@ function applyDerelictSalvage(state: GameState, site: Site, events: GameEvent[])
     ...state,
     ship: { ...state.ship, fuel: Math.min(FUEL_MAX, state.ship.fuel + DERELICT_FUEL_SALVAGE) },
   }
-}
-
-/**
- * One aggregated morale hit per mission: the base cost of how it went plus
- * what it cost in people. Aggregated so a bad landing is one blow, not four —
- * the two-stage mutiny rule counts blows, and a single mission should not
- * arm the fuse and light it in the same breath.
- */
-function moraleCostOfHarm(before: GameState, after: GameState, base: number): number {
-  const generics = after.casualties.generics - before.casualties.generics
-  const deadOfficers = after.casualties.officers.length - before.casualties.officers.length
-  const injuries = after.roster.filter(
-    (o) => o.status === 'injured' && before.roster.find((p) => p.role === o.role)?.status === 'fit',
-  ).length
-  return base - 2 * generics - 4 * injuries - 8 * deadOfficers
 }
 
 interface Harm {
@@ -943,8 +809,6 @@ function promote(state: GameState, role: Exclude<OfficerRole, 'captain'>): Trans
         `Yesterday they were a number on a duty roster. Today the ship needs them to be more.`,
     }),
   }
-  // Someone stepping up steadies the ship: a small, real morale lift.
-  next = shiftMorale(next, 3, events)
   return { state: next, events }
 }
 
@@ -1017,8 +881,6 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
         `Attempt ${jumps.length}. We are still out here.`,
     }),
   }
-  next = shiftMorale(next, -15, events)
-  if (next.outcome !== 'seeking') return { state: next, events }
   next = advanceTime(next, 3, events)
   if (next.outcome !== 'seeking') return { state: next, events }
   return declareIfStranded(next, index, events)

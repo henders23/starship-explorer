@@ -13,15 +13,17 @@ When you think you know where home is, you commit everything to one jump.
 
 ## Status
 
-**Milestones 1–3 complete** — the deduction is playable and winnable, and it
-costs fuel, days and people. Every jump burns fuel and a day; supplies drain
-and hungry crews sour; wounded officers sit in the medbay by the calendar;
-the Rift surges on its own escalating schedule; and a crew pushed past
-Mutinous takes the ship. Defended evidence takes an away team whose
-composition sets your options and your odds; artefacts come back unreadable
-without your science officer; the bridge, consulted, gives real answers.
-Four ways for a run to end: home, the captain dead on the ground, the long
-silence, or the mutiny. No ship combat yet.
+**Foundation complete, R-series underway** — the deduction is playable and
+winnable, and it costs fuel, days and people. Every jump burns fuel and a
+day; wounded officers sit in the medbay by the calendar; the Rift surges on
+its own escalating schedule. Defended evidence takes an away team whose
+composition and issued equipment set your options and your odds; artefacts
+come back unreadable without your science officer; the bridge, consulted,
+gives real answers. Three ways for a run to end: home, the captain dead on
+the ground, or the long silence. The project is now building toward the
+dialogue-first, three-track design in [docs/DESIGN.md](docs/DESIGN.md):
+scenes deliver everything, and the way home takes the place, the engine,
+and the shield.
 
 ```bash
 npm install

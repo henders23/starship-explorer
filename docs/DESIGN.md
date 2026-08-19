@@ -1,51 +1,64 @@
 # Starship Explorer — Game Design Document
 
-> You are the captain of a ship that is very far from home, with a crew that is
-> frightened, a hold that is emptying, and no chart that means anything. Somewhere
-> out there is the way back. Somebody knows where it is. Go and find out who.
+> You are the captain of a ship that is very far from home, with a crew you
+> live alongside, a drive that cannot make the jump, and no chart that means
+> anything. Somewhere out there is the way back — and the knowledge, the
+> engine and the shielding it takes to survive it. Go and find them.
 
-**Genre:** narrative space adventure / light 4X-less exploration RPG
+**Genre:** narrative space adventure / dialogue-driven exploration RPG
 **Inspiration:** *Starship Traveller* (Fighting Fantasy #4), with the branching
-paragraph book replaced by an open, seeded galaxy.
+paragraph book replaced by an open, seeded galaxy — and the paragraphs replaced
+by scenes between people.
 **Platform:** Web app — TypeScript + React (Vite), headless rules engine
 **Map:** procedurally generated per seed, populated from a hand-authored content pool
-**Win condition:** deduce the location of the way home from partial, sometimes false, evidence
+**Win condition:** three tracks, all required — deduce *where* home is, build the
+*engine* that can reach it, and build the *shield* that survives the rift.
 
 ---
 
 ## 1. The pitch
 
-The *Indefatigable* enters a jump anomaly and comes out somewhere the star charts
-do not describe. Familiar space is reachable — the anomaly has a far end — but
-nobody aboard knows which of nine hundred stars it hides behind.
+The *Indefatigable* enters a jump anomaly and comes out somewhere the star
+charts do not describe. Familiar space is reachable — the anomaly has a far
+end — but nobody aboard knows which of ninety stars it hides behind, and the
+drive that was dragged through it could not make the return transit even if
+they did.
 
-The galaxy is open. You fly where you like. But every jump costs fuel you cannot
-easily replace, and the only thing that actually wins the game is **information**:
-scraps of astrogation lore held by traders, buried in ruins, locked in the nav
-computers of ships you defeat, or sitting in the memory of a crewman who has not
-yet thought to mention it. Each scrap narrows the field of candidate systems.
-Some scraps are wrong.
+You live on the ship. The game happens in conversation: arrive at a new world
+and *something happens* — an officer notices a signal, an alien hails the ship,
+a landing party finds something half-buried — and the scene plays out between
+faces you know, with choices that matter. Out of those scenes comes everything
+the voyage runs on:
 
-When you think you know, you commit. You burn most of what you have left on one
-jump. If you are right, you go home — and the game grades how much of your ship,
-crew and honour you brought with you. If you are wrong, you are deeper in the
-dark than before, with less of everything.
+- **Accounts** of the anomaly, which narrow down where home is. Some are lies.
+- **Technology** — salvage, wreckage, and alien science that becomes the rift
+  engine and rift shielding the return jump demands.
+- **Understanding** — research that unlocks the rest: you cannot use what an
+  alien tells you until you can understand the alien.
 
-**The fantasy:** being a competent captain of a wounded ship, making hard trades
-between your people, your hull and your knowledge.
+When all three are in hand — the place, the engine, the shield — you commit
+everything to one jump. The game grades how much of your ship and your people
+you brought home.
+
+**The fantasy:** being a competent captain of a wounded ship, living among a
+crew of individuals, and assembling the way home piece by piece from
+conversations, ruins and wrecks.
 
 ---
 
 ## 2. Design pillars
 
-1. **Information is the treasure.** Fuel, guns and crew are means; clues are the
+1. **Everything arrives through a scene.** Clues, technology, recruits,
+   fights, research prompts — the delivery mechanism is dialogue between
+   characters with portraits and choices, never a bare button. The ship is a
+   place; the crew are the interface.
+2. **Information is the treasure.** Fuel and guns are means; knowledge is the
    end. Every system in the game should be able to answer "…and how does this
    help me get home?"
-2. **The crew are people, not stats.** They have names, wants, opinions and
-   permanent deaths. They are also your hint system — a good captain listens to
-   the bridge.
-3. **Violence is one option and rarely the best one.** Every fight can be talked
-   around, fled, or won without killing. Prisoners talk. Corpses don't.
+3. **The crew are people, not stats.** Names, faces, voices, permanent deaths —
+   and growth: crew gain experience, and new faces can be recruited at
+   stations. Losing your xenolinguist is a strategic wound; finding a better
+   one is a strategic win.
 4. **Deduction the player performs, not the character.** The game never says
    "you have found 7/10 clues". It gives you evidence and a plotting table, and
    *you* work out where home is. Being wrong must be genuinely possible.
@@ -57,233 +70,185 @@ between your people, your hull and your knowledge.
 ## 3. The core loop
 
 ```
-        ┌──────────────────────────────────────────────────────┐
-        │                                                      │
-        ▼                                                      │
-  ┌───────────┐   burn fuel   ┌───────────┐   resolve    ┌─────┴──────┐
-  │ STAR MAP  │──────────────▶│  SYSTEM   │─────────────▶│  ENCOUNTER │
-  │ choose a  │               │  arrive,  │              │ talk/fight │
-  │ destination│              │  scan     │              │ /land/loot │
-  └───────────┘               └───────────┘              └─────┬──────┘
-        ▲                                                      │
-        │                              spend crew, hull, parts │
-        │                              gain fuel, gear, CLUES  │
-        │                                                      ▼
-        │                                            ┌──────────────────┐
-        └────────────────────────────────────────────│    NAV PLOT      │
-                        new candidate set            │ file clues,      │
-                                                     │ eliminate stars, │
-                                                     │ decide who lied  │
-                                                     └────────┬─────────┘
-                                                              │ commit
-                                                              ▼
-                                                        THE LONG JUMP
-                                                       (win or disaster)
+        ┌────────────────────────────────────────────────────────┐
+        │                                                        │
+        ▼                                                        │
+  ┌───────────┐  burn fuel  ┌────────────┐   a scene fires  ┌────┴─────┐
+  │ STAR MAP  │────────────▶│   ARRIVE   │─────────────────▶│ ENCOUNTER │
+  │ choose a  │             │ somewhere  │  someone notices │ dialogue, │
+  │ system    │             │    new     │  something…      │ choices,  │
+  └───────────┘             └────────────┘                  │ missions  │
+        ▲                                                   └────┬──────┘
+        │                     spend crew, days, fuel             │
+        │                     gain accounts, tech, recruits      │
+        │                                                        ▼
+        │                ┌──────────────────┐         ┌──────────────────┐
+        └────────────────│    NAV PLOT      │◀───────▶│  RESEARCH BENCH  │
+          new candidates │ file accounts,   │ unlocks │ translate, study,│
+                         │ eliminate stars, │ reading │ build the engine │
+                         │ decide who lied  │         │ and the shield   │
+                         └────────┬─────────┘         └────────┬─────────┘
+                                  │  location known            │ engine + shield built
+                                  └──────────────┬─────────────┘
+                                                 ▼
+                                          THE LONG JUMP
+                                         (win or disaster)
 ```
 
-**Session shape:** a run is 4–8 hours, 40–80 jumps. The player should file their
-first clue within 10 minutes and have a shortlist of ~5 candidate systems by the
-midpoint.
+**Session shape:** a run is 4–8 hours, 40–80 jumps. The player should play
+their first scene within two minutes, file their first account within ten, and
+have all three tracks visibly moving by the first hour.
 
 ---
 
-## 4. The mystery: clues, constraints and deduction
+## 4. The three tracks
 
-This is the spine of the game and should be built first.
+Getting home requires all three. They are pursued through the same activity —
+flying somewhere and playing the scene that fires there — so the player is
+never grinding one bar; any landing can advance any track.
 
-### 4.1 Model
+### 4.1 Navigational — *where is it?*
 
-At worldgen the generator picks one **Gateway system** from the map. Every clue
-is a **constraint** — a predicate over star systems. The player's candidate set
-is every system on the map satisfying all constraints they currently *trust*.
+The deduction. Accounts of the anomaly are constraints over star systems; the
+candidate set is every system consistent with what the player trusts; some
+accounts are lies, catchable only through contradiction and corroboration.
+This is the spine of the game and is specified in §5.
 
-```ts
-type Constraint =
-  | { kind: 'direction';  of: SystemId; dir: 'coreward'|'rimward'|'spinward'|'trailing' }
-  | { kind: 'proximity';  of: SystemId; op: 'within'|'beyond'; jumps: number }
-  | { kind: 'starType';   is: StarType; negated: boolean }    // binary, neutron, red giant…
-  | { kind: 'contains';   feature: SystemFeature; negated: boolean } // gas giant, ring world, belt, derelict beacon
-  | { kind: 'adjacency';  faction: FactionId; negated: boolean }     // borders territory of…
-  | { kind: 'region';     is: RegionId; negated: boolean }    // "somewhere beyond the Xenoline"
-  | { kind: 'isolation';  op: 'atMost'|'atLeast'; lanes: number }
-  | { kind: 'anomaly' }                                       // the same rift echo that took us
+### 4.2 Technological — *what can reach it?*
 
-interface Clue {
-  id: ClueId
-  constraint: Constraint
-  prose: string                 // authored, source-flavoured phrasing
-  source: ClueSource            // who told you, and how they knew
-  truth: 'true' | 'false'       // hidden from the player
-  confidence: number            // 0..1 shown to the player, from source reputation
-  corroborates: ClueId[]        // resolved at runtime when two clues agree
-  state: 'unfiled' | 'trusted' | 'doubted'   // player's own call
-}
-```
+The return transit needs two things no yard sells:
 
-### 4.2 Generation contract
+- **The rift engine.** Built from recovered components — an intact drive core
+  from a wreck, alien machining, exotic fuel handling. Components are scene
+  payloads: they are found in derelicts, traded for, dug out of ruins.
+- **The rift shielding.** The anomaly tears unprotected hulls apart.
+  Shield-frame components are found the same way, disproportionately in the
+  hazardous places.
 
-The generator must **prove the puzzle before shipping it**. After placing the
-Gateway and drafting clues it runs the filter itself and asserts:
+Components are discovered through scenes and *assembled* through research
+projects (§6). The Long Jump is refused until both are built — and the plot
+screen says exactly what is still missing.
 
-- **Solvable:** the set of all *true* clues resolves to exactly one system — the Gateway.
-- **Non-trivial:** no subset of ≤ 3 true clues resolves to fewer than 4 candidates.
-- **Not a slog:** ~8 true clues should get the player to a shortlist of ≤ 3.
-- **Falsifiable:** 2–4 false clues exist. Each false clue is *consistent with a decoy
-  system*, so a player who trusts it lands somewhere plausible rather than nowhere.
-  The decoy must satisfy ≥50% of the honest evidence, or the deception never gets
-  off the ground.
-- **Catchable:** every false clue must be exposable by combining it with **at most
-  two** honest clues. A lie the player can never catch is a trap, not a puzzle —
-  and this clause is what makes gathering *redundant* evidence the counter-play.
-- **Reachable:** every clue's source is reachable from the start, and a greedy
-  nearest-source gathering tour collects enough evidence to solve within the fuel
-  budget (≤60 jumps). Redundancy: ≥1.6× the minimum required clues exist.
+### 4.3 Understanding — *can we even read what we have?*
 
-If any assertion fails the generator rerolls. Worldgen is cheap; broken runs are not.
+A research track that gates the other two:
 
-The proof must be a pure function of the puzzle it is proving. The "not a slog"
-clause samples random clue orderings, and if that sampling drew on caller-supplied
-randomness the generator could accept a puzzle an independent re-prover then
-rejects — so the sampling stream is derived from the puzzle's own content.
+- **Translation.** Alien accounts and inscriptions arrive unreadable. Comms
+  research raises the ship's translation tier; each tier makes another band of
+  sources legible. An untranslated account is held but dark — the player can
+  see what they are missing.
+- **Analysis.** Some components cannot be identified, and some accounts cannot
+  be fully assessed, below a given science tier.
 
-**Status: implemented and passing.** See [MYSTERY.md](./MYSTERY.md) for the
-prototype, its measured behaviour across 10,000 seeds, and how to inspect a
-generated puzzle.
+Research costs days and needs the right people (§7): the science officer's
+skill sets the pace, and specialist recruits accelerate it. The science
+officer *proposes* research through scenes — a portrait, a pitch, options —
+rather than the player reading a menu.
 
-### 4.3 Where clues come from
+**Solvability rule:** understanding is gated by *time and crew*, never by
+findable materials — so no seed can strand the player unable to read the only
+evidence that remains. The generator's contract (§5.2) is extended so that
+every run can find the place, the engine parts, and the shield parts.
 
-| Source | How it's earned | Reliability |
+---
+
+## 5. The mystery: accounts, constraints and deduction
+
+Unchanged in substance from the first design, and already implemented with a
+proven generator. Summarised here; see [MYSTERY.md](./MYSTERY.md) for the
+measured behaviour.
+
+### 5.1 Model
+
+At worldgen the generator picks one **Gateway system**. Every account is a
+**constraint** — a predicate over star systems (direction, proximity, star
+type, features, region, isolation, faction adjacency, anomaly). The player's
+candidate set is every system satisfying all constraints they currently
+*trust*. Accounts carry authored prose, a source, a shown-but-noisy confidence,
+and a hidden truth flag.
+
+### 5.2 Generation contract
+
+The generator proves the puzzle before shipping it: solvable (true accounts
+resolve to exactly the Gateway), non-trivial, not a slog, falsifiable (2–4
+lies, each consistent with a decoy), catchable (every lie exposable with at
+most two honest accounts), and reachable within the fuel budget.
+
+**Extended for the three tracks:** engine and shield components must be placed
+and reachable, and enough accounts must be legible at achievable translation
+tiers that the deduction can proceed while research catches up. Verified by
+the 10k-seed property test.
+
+### 5.3 Where accounts and components come from
+
+| Source | Scene shape | Yields |
 |---|---|---|
-| Crew memory | A specialist recalls something when you visit a relevant place, or after a morale/trust threshold | High, but vague |
-| Alien trader | Bought with credits, cargo, or a favour | Medium — they lie for profit |
-| Derelict log | Away mission into a hulk; salvage + hazard | High if your comms officer can decode it |
-| Ruins / tablets | Planetary exploration + xenolinguist | High; useless without a translator |
-| Prisoner | Ship combat won *without* destroying the enemy, then interrogation | Medium — depends on how you treat them |
-| Faction archive | Reputation gate, not a fight | Very high, expensive in politics |
-| Listening post | Found by scanning; may be trapped | Medium |
-| Another castaway | Rare; a whole cluster of clues and a moral problem | High |
+| Alien trader | Negotiation; options improve with comms tier | Accounts (they lie for profit), components for barter |
+| Derelict hulk | Away mission through the wreck | Log-core accounts, engine components, fuel salvage |
+| Ruins | Away mission; translation-gated | Inscription accounts, shield components |
+| Holdouts / castaways | Talk or force; how you go in decides how it ends | Accounts, occasionally a recruit |
+| Listening post | Away mission; may be rigged | Signal accounts, comms components |
+| Faction station | Docking scenes | Recruits, refit, components for trade |
+| Crew memory | An officer speaks up on arrival somewhere relevant | Accounts, free but vague |
 
-**Skill gating that matters:** a raw clue arrives as an artefact — an alien
-inscription, a corrupted log, a star chart in an unknown projection. Your
-**Science / Comms / Xeno** specialists convert artefacts into constraints. A weak
-specialist produces a *degraded* constraint ("within 4 jumps" instead of
-"within 2") or, on a bad roll, a **silently false** one. Losing your xenolinguist
-on an away mission is a real strategic wound.
+### 5.4 The Nav Plot (the deduction UI)
 
-### 4.4 The Nav Plot (the deduction UI)
+The game's signature screen, unchanged: evidence board with Trust/Doubt
+filing, live candidate list and map overlay, contradiction detection (the only
+way to catch liars), corroboration, and the commit button. **Never show a
+progress bar** — the candidate count is the progress bar, and it can go up
+when you doubt something. The plot screen also shows the technological track's
+state plainly: what is built, what is missing, where the trail points.
 
-A dedicated screen, and the game's most important piece of interface:
+### 5.5 Committing: the Long Jump
 
-- **Evidence board** — every clue as a card: its prose, its source, its confidence,
-  and a `Trust / Doubt` toggle.
-- **Candidate list & map overlay** — remaining systems given trusted clues, live-updating
-  as you toggle. Systems you haven't visited are shown by their *catalogued* properties
-  only, so scanning has deductive value even in empty space.
-- **Contradiction detector** — when two trusted clues cannot both be true, the pair
-  is flagged red. This is the only way to catch liars, and it's why you seek
-  redundant evidence instead of just enough evidence.
-- **Corroboration** — two independent sources implying the same constraint promotes
-  both to `corroborated`, visibly. Corroborated clues are never false.
-- **Plot the Jump** — commit button, gated behind a confirmation showing the cost.
+Charging the jump costs a large fixed fuel reserve, and requires the rift
+engine and shielding built.
 
-**Never show a progress bar.** The candidate count *is* the progress bar, and it
-can go up when you doubt something.
-
-### 4.5 Committing: the Long Jump
-
-Charging the Gateway jump costs a large fixed fuel reserve plus drive integrity.
-
-- **Correct →** ending, graded (see §11).
-- **Wrong →** the ship is flung to a random far corner of the map, takes heavy
-  drive/hull damage, morale collapses, and some fuel is lost. It is survivable
-  perhaps twice. It is never a game over by itself — the game over is running out
-  of the means to keep looking.
+- **Correct →** ending, graded (§10).
+- **Wrong →** the ship is flung to a far corner of the map with almost nothing
+  in the tank and a scarred drive. Survivable perhaps twice. Never a game over
+  by itself — the game over is running out of the means to keep looking.
 
 ---
 
-## 5. Galaxy and travel
+## 6. Encounters: the scene engine
 
-### 5.1 Map
+The delivery mechanism for the whole game.
 
-- 70–110 systems in a 2D field, presented as a star chart. Generated from seed.
-- **Jump lanes** connect systems within drive range; the graph is sparse and
-  irregular (some hubs, some dead ends, a few chokepoints).
-- **Regions** give the map texture and set encounter tables:
-  - *The Shallows* — where you arrive. Sparse, quiet, low-threat tutorial ground.
-  - *Trade Reach* — dense, factioned, markets and politics. Clue-rich, dangerous socially.
-  - *The Cinder Belt* — dead stars, salvage, radiation, derelicts.
-  - *Xenoline* — alien polity space; access gated on diplomacy.
-  - *The Rift Margin* — anomalous, hazardous, and where the best Gateway evidence lives.
-- **Fog of war:** unvisited systems show only catalogue data (star type, rough
-  position). Contents revealed by arriving and scanning, or by rumour.
+### 6.1 Shape
 
-### 5.2 Travel economy
+A **scene** is: a trigger, a cast, a sequence of beats, and a set of options.
 
-**Fuel is the master clock.** Jump cost scales with distance; long jumps are
-disproportionately expensive, so route planning matters.
+- **Triggers:** arriving at a system with content; docking at a station;
+  returning from a mission; a research threshold; a rift surge; an officer
+  with something to say.
+- **Cast:** drawn from the roster (portraits the player knows) plus scene
+  figures — a trader, a castaway, a voice on the wideband.
+- **Beats:** authored prose with casting slots (names, places, the payload),
+  presented as dialogue with portraits — the briefing scene's presentation,
+  generalised.
+- **Options:** 2–4, each a real decision: an approach with visible odds, a
+  cost in days or fuel, a requirement (a fit officer, a skill, a translation
+  tier, a piece of gear), or a refusal. Options dispatch engine actions;
+  scenes never contain rules of their own.
 
-Fuel comes from: scooping gas giants (slow, safe, needs a working scoop),
-refining at stars (risky), trade (expensive), and salvage (uncertain).
+### 6.2 Authoring model
 
-There is **no hard turn limit**. Pressure instead comes from:
-- consumables draining (fuel, food, medicine, parts),
-- a **Drift** counter — the rift keeps pushing; every N jumps, a Rift Surge event
-  fires, escalating in severity, and can shift lanes or close routes,
-- an escalating pursuing threat once the wrong people learn you're carrying
-  Gateway evidence.
+Scene *templates* are authored; the seed *casts* them. A template knows its
+shape ("derelict, first contact, something is still drawing power") and its
+slots; worldgen binds it to a system, a payload (account, component, recruit),
+and a cast. Content grows by adding templates, never by touching engine code.
+This is the same authored-prose-over-procedural-placement bet the mystery
+already makes, and it is the project's main content cost — the template pool
+grows every milestone.
 
-This gives urgency without a countdown clock the player can see and resent.
+### 6.3 Missions are scenes
 
----
-
-## 6. The ship
-
-The *Indefatigable* is a state object, a resource pool, and a character.
-
-### 6.1 Subsystems
-
-Each has integrity 0–100 and a power draw. Damage is persistent; repair costs
-Spare Parts and time.
-
-| System | Function | When it's broken |
-|---|---|---|
-| Reactor | Total power budget | Everything is worse at once |
-| Jump Drive | Max jump range, charge time | Shorter hops, longer waits |
-| Manoeuvre | Evasion, range control in combat | Can't escape, can't close |
-| Shields | Damage soak | Fights become lethal |
-| Weapons | Beam & torpedo banks | Only diplomacy and running |
-| Sensors | Scan depth, detection, target locks | Blind — clue-bearing sites go unnoticed |
-| Comms | Hailing, decryption, translation | Clue artefacts stay unreadable |
-| Life Support | Crew health & morale ceiling | A slow, awful clock |
-| Medbay | Injury recovery, revive-from-critical | Wounds become deaths |
-| Shuttle Bay | Away missions, salvage capacity | No landings |
-
-### 6.2 Power allocation
-
-A budget the player splits between Shields / Weapons / Drive / Sensors / Life
-Support. Adjustable on the star map (strategic) and each round in combat
-(tactical). Reactor damage shrinks the budget, which is how the ship *feels*
-wounded rather than just showing a smaller number.
-
-### 6.3 Cargo & resources
-
-`Fuel · Spare Parts · Food · Medicine · Ordnance · Credits · Trade Goods · Artefacts`
-
-Hold space is finite — carrying trade goods means not carrying fuel. Artefacts
-are clue-bearing and some are also cursed, hot, or wanted by a faction.
-
-### 6.4 Away-team equipment
-
-Loadout chosen per mission, drawn from a limited locker:
-
-- **Sidearms** — stun / lethal setting, a real choice with real consequences
-- **Armour** — weight vs protection
-- **Medkits**, **Environment suits** (hostile atmospheres), **Scanners**
-- **Translator matrix** — required to convert many artefacts into clues
-- **Breaching charges**, **Beacon** (emergency recall — costs the shuttle)
-
-Alien tech can be salvaged and installed on ship or team, with a risk of side
-effects. Late-game upgrades should be *strange*, not just bigger numbers.
+An away mission is a scene whose options are the approaches, with the odds
+printed on them, and whose team is chosen in the scene. Harm follows the
+established ladder (escorts, then hands, then officers, then — only leading in
+person — the captain). Injuries persist; the medbay runs on the calendar.
 
 ---
 
@@ -291,255 +256,135 @@ effects. Late-game upgrades should be *strange*, not just bigger numbers.
 
 ### 7.1 Model
 
-12–20 named crew. Start with ~14; they only ever get scarcer without recruiting.
+The founding roster: the captain (the player) and department officers —
+security, science, medical — with names, portraits and skills, above small
+pools of unnamed security staff and crew hands. A generic gains a name and a
+face on promotion into a dead officer's chair.
 
-```ts
-interface CrewMember {
-  id, name, species, portraitSeed
-  role: 'Command'|'Pilot'|'Science'|'Engineering'|'Security'|'Medical'|'Comms'
-  skills: { pilot, science, engineering, combat, medicine, xeno }  // 0-5
-  traits: Trait[]          // 'Steady', 'Reckless', 'Xenophobe', 'Devout', 'Deserter'…
-  health: number           // wounds persist; 0 = dead, permanently
-  morale: number           // personal, feeds ship morale
-  loyalty: number          // to you specifically
-  thread?: PersonalThread  // their own story, see 7.3
-  knowledge: ClueId[]      // what they know but haven't said yet
-}
-```
+**Growth beyond the founding four:**
 
-### 7.2 Crew as the hint system
+- **Recruitment.** Stations and scenes offer specialists — a gunner, a
+  linguist, a rift-physicist, an engineer. Recruits join the roster as named
+  people with portraits and their own skills.
+- **Experience.** Officers and specialists gain skill through use: missions
+  led, research completed, battles fought. Skill feeds every system that
+  reads it — mission odds, research pace, combat effectiveness, negotiation
+  options.
 
-This is the *Starship Traveller* bridge-officer feel, and it replaces a quest log.
+### 7.2 Crew as the interface
 
-- On arriving somewhere relevant, an officer speaks up unprompted:
-  *"Captain — that pulsar signature. I served on a survey cutter that logged
-  something like it. If the old charts hold, the anomaly you're looking for
-  would lie coreward of here."* → a clue is offered.
-- The player can **Consult the Bridge** at any time: each officer offers an
-  opinion coloured by their skills, traits and morale. A high-Science officer
-  gives good analysis; a Reckless one advises a fight; a low-loyalty one may
-  advise you badly on purpose.
-- Crew **volunteer clues at loyalty thresholds** — people don't share everything
-  with a captain they don't trust. This makes morale a *puzzle-solving* resource,
-  not just a fail-state meter.
+Officers speak when there is something to say: arrival scenes, research
+proposals, warnings. **Consult the Bridge** remains: each fit officer gives a
+working opinion from real state — the nearest unexamined thread, the medbay
+docket, what the boards show. The bridge is the quest log.
 
-### 7.3 Personal threads
+### 7.3 Injury and death
 
-Each crew member has a small arc that fires on triggers: a brother's ship in the
-salvage lists, a religious objection to what you just did, a defector's contact
-in Xenoline space. Resolving a thread grants loyalty, a skill bump, or a clue.
-Ignoring one can end in resignation, sabotage, or a mutiny vote.
-
-### 7.4 Morale and mutiny
-
-Ship morale = weighted crew morale, modified by supplies, casualties, and
-decisions (abandoning survivors, killing prisoners, ordering suicidal missions).
-
-Thresholds: `Confident → Uneasy → Fractious → Mutinous`. At Fractious, orders can
-be refused. At Mutinous, a mutiny event fires with the crew split by loyalty —
-resolvable by force, by concession, or by a very good speech from a captain who
-has earned it.
-
-### 7.5 Away teams
-
-3–5 crew chosen per mission. **Death is permanent and uncompensated.** The tension
-is that your best clue-decoders are also the people you most need on the ground,
-and the ground is where people die.
+Away missions and ship combat hurt people. Injured crew sit in the medbay by
+the calendar (faster with a fit medical officer); dead crew are dead, named in
+the epilogue. There is no morale meter and no mutiny — the cost of a bad
+landing is the people it costs.
 
 ---
 
-## 8. Planets and exploration
+## 8. Galaxy, travel and the map
 
-**Orbit → Scan → Choose a site → Resolve.**
-
-Generated planets carry traits: `atmosphere · biosphere · gravity · tech level ·
-natives · hazard · anomaly`. Traits determine which authored site templates are
-eligible, so content is hand-written but placement is procedural.
-
-Site archetypes: *Ruins · Crashed ship · Native settlement · Research outpost ·
-Mining claim · Anomaly source · Nothing at all* (empty sites matter — they make
-scanning meaningful and make risk real).
-
-Site resolution mixes:
-- **Skill checks** against the away team's best relevant skill, with visible odds
-- **Authored choice nodes** — the gamebook DNA, 2–4 meaningful options
-- **Hazards** — injury, contamination, equipment loss
-- **Infantry combat** where it's earned, not by default
-
-Rewards: fuel, parts, artefacts, recruits, and above all **clues**.
+- 70–110 systems, jump lanes, regions, seeded generation — as built.
+- **Fuel is the master clock.** Scooping at gas giants and draining swept
+  derelicts refills it; lanes burn it; a scarred drive burns 30% more.
+- **The Rift Surge schedule** is the soft pressure clock: seeded, escalating,
+  and forecastable by a good science officer. Surges vent fuel, injure crew,
+  and scar the drive.
+- **Stranded** remains a loss: no affordable lane, nothing to scoop, the
+  reserve out of reach.
+- **Presentation:** the chart is the strategic view; each system opens into a
+  **system view** with its planets rendered — the place scenes visibly happen.
+  The map should be worth staring at: it is where the player lives between
+  scenes.
 
 ---
 
 ## 9. Ship-to-ship combat
 
-Turn-based, tactical, fully legible. Every fight should be winnable *and*
-avoidable.
+Space has teeth, but every fight is avoidable and legible.
 
-**Encounter opens with a posture choice:** `Hail · Scan · Evade · Engage · Ambush`.
-Talking first is usually correct and the game should reward it.
+- **Contact opens with a posture scene:** hail, evade, or engage — with the
+  odds and the stakes stated.
+- **Resolution is turn-based and simple:** range, power to shields or guns,
+  fire or break off. Crew gunnery skill and weapons research feed the numbers.
+- **Destroying the enemy is enough.** No boarding, no capture logistics.
+- **Surrender happens to the informed:** when the player holds intelligence on
+  a faction or crew (from scenes, from research), some enemies yield — and a
+  surrendered ship gives up accounts, components or fuel without a shot.
+  Intelligence, as everywhere in this game, is the premium currency.
+- Hull damage persists and is repaired in yards; a destroyed ship is an
+  ending.
 
-### 9.1 Combat turn
-
-Range bands: **Long / Medium / Close**. Each round both sides pick a manoeuvre
-and an action.
-
-- **Manoeuvre:** Close / Hold / Withdraw / Evasive (evasion vs accuracy trade)
-- **Power:** reallocate the reactor budget this round
-- **Action:** Fire beams (accurate, short) · Fire torpedoes (heavy, slow, long) ·
-  Target subsystem (harder, disables rather than destroys) · Board (Close range,
-  triggers infantry combat) · Hail (mid-fight surrender/negotiation) ·
-  Jump out (needs drive charge and distance)
-
-### 9.2 Why you'd rather not kill them
-
-Destroying a ship gives salvage. **Disabling** one gives salvage *and* a nav
-computer *and* prisoners — which is to say, clues. Boarding actions are the
-highest-value, highest-risk play in the game: infantry combat aboard a hostile
-hull for their charts.
-
-Prisoners then create an ongoing problem: they eat food, they need guarding, they
-can be traded, released for reputation, or interrogated — and how you treat them
-feeds crew morale and faction standing.
-
-### 9.3 Enemies
-
-Faction-flavoured behaviour: raiders close and board, patrol cutters demand
-compliance and call for help, alien warships are outrageously strong and should
-be run from. Threat scales with Drift, so dawdling makes space meaner.
+There is **no separate infantry combat system**. Ground violence resolves
+inside scenes with the mission odds machinery.
 
 ---
 
-## 10. Infantry combat
+## 10. Endings
 
-Small-squad tactical, **zone-based rather than grid-based** — cheaper to build,
-faster to read, and better suited to a text-forward presentation.
+Graded on arrival, not just pass/fail, with the epilogue naming individual
+crew and what became of them — the payoff for permadeath.
 
-- A map of 4–8 **zones** with cover ratings and connections.
-- 3–5 of your crew vs 2–6 hostiles; initiative order by a Reflex derivative.
-- Per turn: **Move / Fire / Aim / Take cover / Suppress / Use item / Grapple / Surrender-demand**
-- **Stun vs lethal** on every shot. Stunned enemies become prisoners and
-  intelligence; killed ones become a faction incident and a morale hit for crew
-  who disapprove.
-- Wounds carry back to the ship. The medbay decides whether a wound becomes a scar
-  or a funeral.
-
-Boarding actions reuse this system exactly, with the enemy ship's deck as zones
-and the bridge/computer core as the objective.
-
----
-
-## 11. Factions, reputation and endings
-
-**Factions** (4–6, generated names, fixed archetypes): a mercantile combine, a
-militant patrol, a xenophobic alien polity, a scavenger clan, a monastic order
-that hoards charts.
-
-Reputation −100…+100 per faction, with rival pairs so that pleasing one costs you
-another. Reputation gates the *best* clue sources (archives, elders, pilots), so
-diplomacy is a legitimate route to victory alongside salvage and violence.
-
-### Endings
-
-Graded on arrival, not just pass/fail:
-
-- **Home, honoured** — most crew alive, ship intact, no atrocities
-- **Home, hollow** — you made it, at a cost the epilogue names, person by person
-- **Home, changed** — arrived carrying alien tech or passengers; the epilogue is uneasy
+- **Home** — graded by who and what made it back
 - **The long silence** — stranded: no fuel, no leads, no way to make more
-- **Mutiny** — the crew takes the ship; you get an epilogue from someone else's chair
-- **Lost with all hands** — destroyed
-
-The epilogue should name individual crew and what became of them. That's the
-payoff for permadeath.
+- **The captain did not come back** — lost leading from the front
+- **Lost with all hands** — the ship destroyed
 
 ---
 
-## 12. Technical architecture
+## 11. Technical architecture
 
-### 12.1 Shape
+Unchanged in principle; the engine remains pure, seeded and deterministic.
 
-```
-src/
-  engine/            # pure TypeScript, zero React, zero I/O
-    state/           # GameState types + zod schemas
-    rng/             # seeded PRNG (splitmix/xoshiro); NEVER Math.random
-    worldgen/        # map, factions, gateway + clue placement, solvability proof
-    systems/         # travel, combat.ship, combat.ground, crew, morale, economy, clues
-    reducer.ts       # (state, action) => { state, events }
-    selectors/       # candidate-set filter, derived stats
-  content/           # authored data: encounters, sites, clue prose, crew, items, traits
-  ui/                # React: StarMap, Bridge, NavPlot, Combat, AwayMission, Log
-  app/               # store wiring, save/load, routing
-tests/
-  engine/            # unit tests per system
-  golden/            # seed + action log => expected final state (replay tests)
-```
-
-### 12.2 Key decisions
-
-- **The engine is pure and deterministic.** `(state, action) → (state, events)`.
-  All randomness from a seeded PRNG stored *in* the state. This buys: trivial
-  save/load (serialize the state), replay-based regression tests, debuggability,
-  and the option of a future headless/CLI or mobile front end.
-- **The UI renders state and dispatches actions. It contains no rules.** If a
-  number is computed in a component, that's a bug.
-- **Events, not mutations, drive the fiction.** The reducer emits an event stream
-  (`CrewDied`, `ClueFiled`, `SubsystemDisabled`); the UI turns events into log
-  prose and animation. The captain's log falls out of this for free.
-- **Content is data, validated at build time.** Encounters, sites, clue phrasings
-  and crew archetypes live in typed content modules checked with zod, so writing
-  content never requires touching engine code.
-- **Stack:** Vite · React 18 · TypeScript strict · Zustand (thin store over the
-  reducer) · Tailwind · Vitest · Playwright for a couple of smoke flows.
-
-### 12.3 Testing strategy
-
-- Unit tests per system (combat maths, fuel, morale thresholds).
-- **Worldgen property tests** — generate 10k seeds, assert every one satisfies the
-  §4.2 solvability contract. This is the single most valuable test in the project.
-- **Golden replays** — a seed plus a recorded action list must always produce the
-  same final state hash. Catches accidental non-determinism immediately.
+- **The engine is pure.** `(state, action) → (state, events)`; all randomness
+  from a seeded PRNG; a seed plus an action log always replays identically.
+- **The UI renders state and dispatches actions.** If a number is computed in
+  a component, that is a bug.
+- **Scenes are content, validated at build time.** Templates live in typed
+  content modules; the caster binds them at worldgen; choices dispatch
+  ordinary actions, so replay covers dialogue too.
+- **Events drive the fiction.** The reducer emits events; scenes and the log
+  render them.
+- **Testing:** unit tests per system; the 10k-seed solvability property test
+  (extended to all three tracks); golden replays.
 
 ---
 
-## 13. Presentation
+## 12. Presentation
 
-Text-forward, chart-heavy, deliberately low on art assets:
+Text-forward, chart-heavy, faces everywhere:
 
-- **Star map** — SVG, the primary screen. Lanes, fog, range rings, candidate
-  highlighting from the Nav Plot.
-- **Bridge** — crew roster with portraits (generated/composed), status, and the
-  Consult panel.
-- **Nav Plot** — evidence board; the game's signature screen.
-- **Combat** — schematic ship diagrams with subsystem damage, range band strip.
-- **Log** — running prose in a monospaced captain's-log voice.
+- **Scene overlay** — portraits, beats, options; the game's most-used surface.
+- **Star map & system view** — SVG chart plus rendered planets.
+- **Nav Plot** — the evidence board; the signature screen.
+- **Research bench** — the tree, the projects, the officer's proposals.
+- **Combat** — schematic, range strip, legible numbers.
+- **The ship** — the cutaway hub, room views, the roster.
 
-Aesthetic: amber/green CRT, thin rules, generous whitespace — *Alien*'s MU-TH-UR
-by way of a paperback. Prose in second person, present tense, terse.
-
----
-
-## 14. Open questions
-
-1. **Save scumming.** Permadeath is the point, but the web makes reloading trivial.
-   Ironman-by-default with an explicit "casual" toggle, or accept it?
-2. **Long Jump attempts.** Should a wrong guess be economically survivable twice,
-   or is once enough to make the deduction weigh properly?
-3. **Multiple routes home.** Deferred for v1, but the architecture allows several
-   Gateways with independent clue chains. Worth revisiting after the first
-   playable.
-4. **Run length.** 4–8 hours may be too long for the audience. A "short galaxy"
-   option (40 systems, 5 true clues) is cheap to add and worth prototyping.
-5. **Combat depth vs. count.** Two full tactical combat systems is the largest
-   build risk here. Ground combat could ship as a lighter check-based resolution
-   first and be deepened later (see roadmap M6).
+Aesthetic: amber/green CRT, thin rules, generous whitespace — *Alien*'s
+MU-TH-UR by way of a paperback. Prose in second person, present tense, terse.
 
 ---
 
-## 15. Scope guard
+## 13. Open questions
+
+1. **Save scumming.** Ironman-by-default with a casual toggle, or accept it?
+2. **Long Jump attempts.** Survivable twice, or once?
+3. **Run length.** A "short galaxy" option (40 systems, fewer components) is
+   cheap and worth prototyping.
+4. **Scene fatigue.** If every arrival fires a scene, arrivals at empty
+   systems must stay quiet — silence needs to stay meaningful.
+
+---
+
+## 14. Scope guard
 
 The failure mode for this project is building the galaxy simulation and never
-building the mystery. The mystery is the game. **Milestones 1–3 in
-[ROADMAP.md](./ROADMAP.md) deliver a playable, winnable game with no combat at
-all** — travel, clues, deduction and a Long Jump. Everything after that is
-enrichment of a thing that already works.
+building the game. The scenes and the mystery are the game. No colonies, no
+fleets, no economy simulation, no second tactical combat system. One ship, one
+crew, one way home.
