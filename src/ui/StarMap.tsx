@@ -1,55 +1,66 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { travelCost } from '../engine/state/reducer.js'
 import { routeTo } from '../engine/travel/travel.js'
 import type { StarSystem, SystemId } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
-const PADDING = 40
+const PADDING = 60
+
+/** How far the legend floats above the deck floor, with and without the drawer. */
+const LEGEND_ABOVE_RAIL = 186
+const LEGEND_ABOVE_DRAWER = 396
 
 /**
- * The chart. Its job is to answer one question at a glance — *which stars are
- * still possible* — and to make the second question ("and where is the
- * evidence I have not collected") answerable without hunting.
+ * The chart, full bleed. Its job is to answer one question at a glance —
+ * *which stars are still possible* — and to make the second question ("and
+ * where is the evidence I have not collected") answerable without hunting.
  *
  * Everything the clues can talk about (star type, features, region, lanes) is
  * public astrographic data, drawn straight on the chart. That is not a
  * concession: a deduction the player cannot check against the map is not a
  * deduction, so this data has to be catalogued even for systems never visited.
  * M1's fog of war hides what is *happening* at a system, not what it is.
+ *
+ * The chart owns the whole deck now: the HUD floats over it and the command
+ * rail is docked along the bottom, so nothing but the sky sits between the
+ * player and the stars they are ruling out.
  */
-export function StarMap() {
+export function StarMap({
+  evidenceOpen = false,
+  onOpenGuide,
+}: {
+  /** The evidence drawer is up, so the legend steps out of its way. */
+  evidenceOpen?: boolean
+  onOpenGuide?: () => void
+}) {
   const index = useGalaxyIndex()
   const dispatch = useDispatch()
   const selected = useGame((s) => s.state.selected)
   const searched = useGame((s) => s.state.searched)
-  const start = useGame((s) => s.state.galaxy.start)
   const jumps = useGame((s) => s.state.jumps)
   const ship = useGame((s) => s.state.ship)
   const recruitSites = useGame((s) => s.state.recruits.sites)
-  const { candidateSet, sites, clues } = useNavPlot()
+  const { candidateSet, sites, clues, trusted } = useNavPlot()
   const [hovered, setHovered] = useState<SystemId | null>(null)
-  const [zoom, setZoom] = useState(1.35)
-  const [pan, setPan] = useState({ x: -90, y: -35 })
-  const [showLanes, setShowLanes] = useState(true)
-  const [showRegions, setShowRegions] = useState(true)
-  const [showLabels, setShowLabels] = useState(false)
+  const [zoom, setZoom] = useState(1)
+  const [pan, setPan] = useState({ x: 0, y: 0 })
   const [query, setQuery] = useState('')
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
 
   const { viewBox, project } = useMemo(() => {
     const xs = index.systems.map((s) => s.x)
     const ys = index.systems.map((s) => s.y)
-    const minX = Math.min(...xs)
     const maxX = Math.max(...xs)
     const minY = Math.min(...ys)
-    const maxY = Math.max(...ys)
-    const width = maxX - minX + PADDING * 2
-    const height = maxY - minY + PADDING * 2
+    const width = Math.max(...ys) - minY + PADDING * 2
+    const height = maxX - Math.min(...xs) + PADDING * 2
     return {
       viewBox: `0 0 ${width} ${height}`,
-      // The core sits at the origin, off to the left of the sector, so drawing
-      // in raw coordinates already puts "coreward" on the left of the chart.
-      project: (s: StarSystem) => ({ x: s.x - minX + PADDING, y: s.y - minY + PADDING }),
+      // Quarter-turned from raw galactic coordinates: the core sits at the
+      // origin, so putting it at the bottom of the frame lets the chart's
+      // light come up off the core the way it does out of a window.
+      project: (s: StarSystem) => ({ x: s.y - minY + PADDING, y: maxX - s.x + PADDING }),
     }
   }, [index])
 
@@ -57,14 +68,15 @@ export function StarMap() {
   const anyTrusted = candidateSet.size < index.systems.length
 
   // The plotted course to whatever is selected, drawn on the chart so the
-  // player sees what a trip costs before the Inspector says it in words.
+  // player sees what a trip costs before the rail says it in words.
   const route = useMemo(() => {
     if (!selected || selected === ship.at) return null
     return routeTo(index, ship.at, selected)
   }, [index, ship.at, selected])
 
-  // Region labels drawn at the centroid of each region's actual systems —
-  // the chart names the places the engine knows, not invented sectors.
+  // Region names drawn at the centroid of each region's actual systems — the
+  // chart names the places the engine knows, because the accounts name them
+  // too and a region constraint has to be checkable against the sky.
   const regionLabels = useMemo(() => {
     const groups = new Map<string, { x: number; y: number; n: number }>()
     for (const system of index.systems) {
@@ -81,12 +93,12 @@ export function StarMap() {
 
   const onWheel = (event: React.WheelEvent) => {
     event.preventDefault()
-    setZoom((value) => Math.min(3.2, Math.max(0.85, value + (event.deltaY < 0 ? 0.14 : -0.14))))
+    setZoom((value) => Math.min(3.4, Math.max(0.6, value + (event.deltaY < 0 ? 0.12 : -0.12))))
   }
 
   const resetView = () => {
-    setZoom(1.35)
-    setPan({ x: -90, y: -35 })
+    setZoom(1)
+    setPan({ x: 0, y: 0 })
   }
 
   const findSystem = (event: React.FormEvent) => {
@@ -97,23 +109,64 @@ export function StarMap() {
     if (!match) return
     dispatch({ type: 'select', system: match.id })
     setHovered(match.id)
-    setZoom((value) => Math.max(value, 1.75))
+    setZoom((value) => Math.max(value, 1.5))
+  }
+
+  /**
+   * Arrow keys step the selection from star to star in the direction pressed:
+   * the nearest system ahead, penalised for how far off the bearing it sits.
+   * Panning a chart to find the next candidate is not navigation, it is work.
+   */
+  const stepSelection = (dx: number, dy: number) => {
+    const current = selected ? index.system(selected) : null
+    if (!current) return
+    const from = project(current)
+    let best: SystemId | null = null
+    let bestScore = Infinity
+    for (const system of index.systems) {
+      if (system.id === current.id) continue
+      const p = project(system)
+      const ahead = (p.x - from.x) * dx + (p.y - from.y) * dy
+      if (ahead <= 0) continue
+      const aside = Math.abs((p.x - from.x) * dy - (p.y - from.y) * dx)
+      const score = ahead + aside * 2.2
+      if (score < bestScore) {
+        bestScore = score
+        best = system.id
+      }
+    }
+    if (!best) return
+    dispatch({ type: 'select', system: best })
+    setHovered(best)
   }
 
   useEffect(() => {
+    const steps: Record<string, [number, number]> = {
+      ArrowRight: [1, 0],
+      ArrowLeft: [-1, 0],
+      ArrowUp: [0, -1],
+      ArrowDown: [0, 1],
+    }
     const onKey = (event: KeyboardEvent) => {
       if (event.target instanceof HTMLInputElement) return
-      if (event.key === '+' || event.key === '=') setZoom((value) => Math.min(3.2, value + 0.2))
-      if (event.key === '-') setZoom((value) => Math.max(0.85, value - 0.2))
+      if (event.key === '+' || event.key === '=') setZoom((value) => Math.min(3.4, value + 0.2))
+      if (event.key === '-') setZoom((value) => Math.max(0.6, value - 0.2))
       if (event.key === '0') resetView()
+      const step = steps[event.key]
+      if (step) {
+        event.preventDefault()
+        stepSelection(step[0], step[1])
+      }
     }
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
-  }, [])
+    // Re-armed whenever the selection moves: stepping is relative to it.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selected, index])
 
   return (
     <div
-      className="star-map relative h-full w-full overflow-hidden"
+      className="star-map absolute inset-0 overflow-hidden"
       onWheel={onWheel}
       onPointerDown={(event) => {
         if ((event.target as Element).closest('.map-ui')) return
@@ -126,9 +179,8 @@ export function StarMap() {
       }}
       onPointerUp={() => { drag.current = null }}
     >
-      <div className="nebula nebula-one" aria-hidden="true" />
-      <div className="nebula nebula-two" aria-hidden="true" />
-      <div className="galactic-core" aria-hidden="true"><i /><i /><i /></div>
+      <div className="core-glow" aria-hidden="true" />
+      <div className="star-dust" aria-hidden="true" />
       <svg
         viewBox={viewBox}
         className="galaxy-canvas"
@@ -138,28 +190,34 @@ export function StarMap() {
       >
         <defs>
           <filter id="star-glow" x="-300%" y="-300%" width="600%" height="600%">
-            <feGaussianBlur stdDeviation="2.5" result="blur" />
+            <feGaussianBlur stdDeviation="2.2" result="blur" />
             <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
-          <radialGradient id="region-haze"><stop offset="0" stopColor="#164e63" stopOpacity=".24" /><stop offset="1" stopColor="#02060a" stopOpacity="0" /></radialGradient>
         </defs>
 
-        {showRegions && regionLabels.map(({ region, x, y }) => (
-          <g key={region} opacity={0.38}>
-            <ellipse cx={x} cy={y} rx={150} ry={105} fill="url(#region-haze)" />
-            <text x={x} y={y} textAnchor="middle" className="sector-label">
-              {REGION_NAMES[region].toUpperCase()}
-            </text>
-          </g>
+        {regionLabels.map(({ region, x, y }) => (
+          <text key={region} x={x} y={y} textAnchor="middle" className="sector-label">
+            {REGION_NAMES[region].toUpperCase()}
+          </text>
         ))}
 
-        {showLanes && <g stroke="var(--color-rule)" strokeWidth={0.8}>
+        <g>
           {index.galaxy.lanes.map(([a, b]) => {
             const from = project(index.system(a))
             const to = project(index.system(b))
-            return <line key={`${a}-${b}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="jump-lane" />
+            const lit = hovered === a || hovered === b
+            return (
+              <line
+                key={`${a}-${b}`}
+                x1={from.x}
+                y1={from.y}
+                x2={to.x}
+                y2={to.y}
+                className={`jump-lane ${lit ? 'is-lit' : ''}`}
+              />
+            )
           })}
-        </g>}
+        </g>
 
         {route && route.path.length > 1 && (
           <polyline
@@ -170,9 +228,9 @@ export function StarMap() {
               })
               .join(' ')}
             fill="none"
-            stroke="var(--color-amber-dim)"
-            strokeWidth={1.4}
-            strokeDasharray="4 3"
+            stroke="var(--color-amber)"
+            strokeWidth={1.5}
+            strokeDasharray="6 4"
             className="plotted-route"
           />
         )}
@@ -183,18 +241,16 @@ export function StarMap() {
           const isSelected = selected === system.id
           const isHovered = hovered === system.id
           const hasEvidence = sites.has(system.id)
-          const isStart = system.id === start
           const wasSearched = searched.includes(system.id)
           const failed = failedJumps.has(system.id)
 
           // Eliminated stars stay on the chart — knowing what you have ruled
           // out is half of knowing anything.
-          const fill = failed
+          const colour = failed
             ? 'var(--color-alarm-dim)'
             : isCandidate
               ? 'var(--color-phosphor)'
               : 'var(--color-ink-faint)'
-          const radius = isCandidate ? 3.4 : 2.2
 
           return (
             <g
@@ -217,84 +273,106 @@ export function StarMap() {
               }}
             >
               {/* Generous invisible hit area — the dots are deliberately small. */}
-              <circle cx={x} cy={y} r={11} fill="transparent" />
+              <circle cx={x} cy={y} r={15} fill="transparent" />
+
+              {/* The selection is a reticle, not a highlight: the chart is an
+                  instrument and the ship is aimed with it. */}
+              {isSelected && (
+                <>
+                  <circle cx={x} cy={y} r={14} fill="none" stroke="var(--color-amber)" strokeWidth={0.9} opacity={0.9} />
+                  <path
+                    d={`M ${x} ${y - 18} L ${x} ${y - 13} M ${x} ${y + 13} L ${x} ${y + 18} M ${x - 18} ${y} L ${x - 13} ${y} M ${x + 13} ${y} L ${x + 18} ${y}`}
+                    stroke="var(--color-amber)"
+                    strokeWidth={1.1}
+                  />
+                </>
+              )}
 
               {hasEvidence && (
                 <circle
                   className="site-ring"
                   cx={x}
                   cy={y}
-                  r={9}
+                  r={11}
                   fill="none"
                   stroke="var(--color-amber)"
                   strokeWidth={0.9}
-                />
-              )}
-
-              {recruitSites[system.id] && (
-                <rect
-                  x={x - 3.4}
-                  y={y - 3.4}
-                  width={6.8}
-                  height={6.8}
-                  fill="none"
-                  stroke="var(--color-phosphor)"
-                  strokeWidth={0.8}
-                  transform={`rotate(45 ${x} ${y})`}
-                />
-              )}
-
-              {isSelected && (
-                <circle cx={x} cy={y} r={7} fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
-              )}
-
-              {isStart && (
-                <rect
-                  x={x - 6}
-                  y={y - 6}
-                  width={12}
-                  height={12}
-                  fill="none"
-                  stroke="var(--color-ink-dim)"
-                  strokeWidth={0.9}
-                />
-              )}
-
-              {ship.at === system.id && (
-                <path
-                  d={`M ${x} ${y - 8} L ${x + 6} ${y} L ${x} ${y + 8} L ${x - 6} ${y} Z`}
-                  fill="none"
-                  stroke="var(--color-amber)"
-                  strokeWidth={1.3}
+                  strokeDasharray="2.5 3"
                 />
               )}
 
               <circle
                 cx={x}
                 cy={y}
-                r={radius}
-                fill={fill}
-                opacity={isCandidate || isHovered || isSelected ? 1 : 0.55}
-                filter={isCandidate || isSelected ? 'url(#star-glow)' : undefined}
+                r={isCandidate ? 7.5 : 5}
+                fill="none"
+                stroke={colour}
+                strokeWidth={isCandidate ? 1.1 : 0.8}
+                opacity={isCandidate ? 0.95 : isHovered || isSelected ? 0.8 : 0.4}
               />
 
+              {recruitSites[system.id] && (
+                <rect
+                  x={x - 3}
+                  y={y - 3}
+                  width={6}
+                  height={6}
+                  fill="none"
+                  stroke="var(--color-phosphor)"
+                  strokeWidth={1}
+                  transform={`rotate(45 ${x} ${y})`}
+                />
+              )}
+
+              {failed && (
+                <path
+                  d={`M ${x - 4} ${y - 4} L ${x + 4} ${y + 4} M ${x + 4} ${y - 4} L ${x - 4} ${y + 4}`}
+                  stroke="var(--color-alarm-dim)"
+                  strokeWidth={1.1}
+                />
+              )}
+
               {wasSearched && !hasEvidence && (
-                <circle cx={x} cy={y} r={5.5} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.5} />
+                <circle cx={x} cy={y} r={9.5} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.5} opacity={0.55} />
+              )}
+
+              <circle
+                cx={x}
+                cy={y}
+                r={isCandidate ? 3.4 : isHovered || isSelected ? 2.8 : 2}
+                fill={colour}
+                filter={isCandidate || isSelected || isHovered ? 'url(#star-glow)' : undefined}
+              />
+
+              {ship.at === system.id && (
+                <path
+                  d={`M ${x} ${y - 13} L ${x + 9} ${y} L ${x} ${y + 13} L ${x - 9} ${y} Z`}
+                  fill="none"
+                  stroke="var(--color-amber)"
+                  strokeWidth={1.4}
+                />
               )}
 
               {/* Label only what matters: candidates when the field is small,
-                  plus whatever the player is pointing at. Labelling ninety
-                  stars at once makes the chart unreadable. */}
+                  the landmarks the accounts name, plus whatever the player is
+                  pointing at. Labelling ninety stars at once makes the chart
+                  unreadable. */}
               {(isHovered ||
                 isSelected ||
-                showLabels ||
+                system.landmark ||
                 (isCandidate && anyTrusted && candidateSet.size <= 12)) && (
                 <text
-                  x={x + 9}
+                  x={x + 11}
                   y={y + 3.5}
                   fontSize={9}
-                  fill={isCandidate ? 'var(--color-phosphor)' : 'var(--color-ink-dim)'}
-                  className="pointer-events-none select-none"
+                  fill={
+                    isSelected
+                      ? 'var(--color-amber)'
+                      : isCandidate
+                        ? '#bdeeea'
+                        : 'var(--color-ink-dim)'
+                  }
+                  className="star-label pointer-events-none select-none"
                 >
                   {system.name}
                 </text>
@@ -304,29 +382,29 @@ export function StarMap() {
         })}
       </svg>
 
-      <div className="map-ui map-title pointer-events-none absolute top-5 left-5 flex flex-col gap-1">
-        <div className="eyebrow">Astrogation · sector chart 7</div>
-        <h2>Galactic Navigation</h2>
-        <div className="text-ink-dim text-[11px]">
-          {anyTrusted ? (
-            <>
-              <span className="text-phosphor">{candidateSet.size}</span> of {index.systems.length}{' '}
-              stars still consistent
-            </>
-          ) : (
-            <>{index.systems.length} stars catalogued — nothing ruled out yet</>
-          )}
+      <div className="map-ui map-heading pointer-events-none absolute top-6 left-7 flex flex-wrap items-center gap-x-5 gap-y-3">
+        <div className="map-title">
+          <h2>Galactic Chart</h2>
+        </div>
+        <div className="map-tally">
+          <div>
+            {anyTrusted ? (
+              <>
+                <span className="text-phosphor text-[15px]">{candidateSet.size}</span> of{' '}
+                {index.systems.length} consistent
+              </>
+            ) : (
+              <>{index.systems.length} stars catalogued — nothing ruled out yet</>
+            )}
+          </div>
+          <div>
+            {clues.length} {clues.length === 1 ? 'account' : 'accounts'} · {trusted.length} trusted ·{' '}
+            {sites.size} {sites.size === 1 ? 'site' : 'sites'} unsearched
+          </div>
         </div>
       </div>
 
-      <div className="map-ui map-controls absolute top-5 right-5">
-        <button onClick={() => setZoom((value) => Math.min(3.2, value + 0.2))} aria-label="Zoom in">+</button>
-        <span>{Math.round(zoom * 100)}%</span>
-        <button onClick={() => setZoom((value) => Math.max(0.85, value - 0.2))} aria-label="Zoom out">−</button>
-        <button onClick={resetView} aria-label="Reset map view">⌖</button>
-      </div>
-
-      <div className="map-ui map-tools absolute top-5">
+      <div className="map-ui absolute top-6 right-7 flex items-center gap-2.5">
         <form onSubmit={findSystem} className="map-search">
           <span aria-hidden="true">⌕</span>
           <input
@@ -340,83 +418,116 @@ export function StarMap() {
             {index.systems.map((system) => <option key={system.id} value={system.name} />)}
           </datalist>
         </form>
-        <div className="map-layers" aria-label="Map layers">
-          <button className={showLanes ? 'is-on' : ''} onClick={() => setShowLanes((value) => !value)}>Routes</button>
-          <button className={showRegions ? 'is-on' : ''} onClick={() => setShowRegions((value) => !value)}>Regions</button>
-          <button className={showLabels ? 'is-on' : ''} onClick={() => setShowLabels((value) => !value)}>Names</button>
+        <div className="map-controls">
+          <button onClick={() => setZoom((value) => Math.min(3.4, value + 0.2))} aria-label="Zoom in">+</button>
+          <span>{Math.round(zoom * 100)}%</span>
+          <button onClick={() => setZoom((value) => Math.max(0.6, value - 0.2))} aria-label="Zoom out">−</button>
+          <button onClick={resetView} aria-label="Reset map view">⌖</button>
+          {onOpenGuide && (
+            <button onClick={onOpenGuide} aria-label="How to read the chart" title="How to read the chart">?</button>
+          )}
         </div>
       </div>
 
-      <Legend
-        evidenceCount={sites.size}
-        held={clues.length}
-        recruits={Object.keys(recruitSites).length}
-      />
+      {hovered && hovered !== selected && <Readout id={hovered} />}
 
-      <div className="map-ui map-scale absolute right-5 bottom-5">
-        <span>50 LY</span><i />
-        <small>DRAG TO PAN · SCROLL TO ZOOM</small>
-      </div>
-
-      {hovered && hovered !== selected && <Readout system={index.system(hovered)} />}
-      <div className="map-frame" aria-hidden="true" />
+      <Legend bottom={evidenceOpen ? LEGEND_ABOVE_DRAWER : LEGEND_ABOVE_RAIL} />
     </div>
   )
 }
 
-function Legend({
-  evidenceCount,
-  held,
-  recruits,
-}: {
-  evidenceCount: number
-  held: number
-  recruits: number
-}) {
+/**
+ * The hover card. It answers the two questions a pointed-at star raises —
+ * is it still possible, and what does getting there cost — without the
+ * player having to select it and lose the star they were comparing against.
+ */
+function Readout({ id }: { id: SystemId }) {
+  const index = useGalaxyIndex()
+  const state = useGame((s) => s.state)
+  const ship = useGame((s) => s.state.ship)
+  const searched = useGame((s) => s.state.searched)
+  const jumps = useGame((s) => s.state.jumps)
+  const recruitSites = useGame((s) => s.state.recruits.sites)
+  const { candidateSet, sites } = useNavPlot()
+  const system = index.system(id)
+  const here = ship.at === id
+  const route = here ? null : routeTo(index, ship.at, id)
+  const hasEvidence = sites.has(id)
+
+  const standing = jumps.some((j) => j.target === id && !j.correct)
+    ? 'jump attempted'
+    : candidateSet.has(id)
+      ? 'consistent'
+      : 'ruled out'
+
   return (
-    <div className="map-ui map-legend pointer-events-none absolute bottom-5 left-5 flex flex-col gap-1 text-[10px]">
-      <div className="flex items-center gap-2">
-        <svg width={14} height={14}>
-          <path d="M 7 1.5 L 12 7 L 7 12.5 L 2 7 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
+    <div className="map-ui map-readout pointer-events-none absolute right-7">
+      <div className="readout-name">{system.name}</div>
+      <div className="readout-region">{REGION_NAMES[system.region]}</div>
+      <div className="readout-line">
+        <span>{standing}</span>
+        <span>
+          {here
+            ? 'ship is here'
+            : route
+              ? `${route.path.length - 1} ${route.path.length - 1 === 1 ? 'jump' : 'jumps'} · ${travelCost(state, route.cost)} fuel`
+              : 'no lane route'}
+        </span>
+      </div>
+      <div className={`readout-site ${hasEvidence ? 'is-live' : ''}`}>
+        {hasEvidence
+          ? 'Evidence, unsearched'
+          : recruitSites[id]
+            ? 'Specialist for hire'
+            : searched.includes(id)
+              ? 'Searched — nothing further'
+              : 'No contact reported'}
+      </div>
+    </div>
+  )
+}
+
+function Legend({ bottom }: { bottom: number }) {
+  return (
+    <div className="map-ui map-legend pointer-events-none absolute right-7" style={{ bottom }}>
+      <span>
+        <svg width={12} height={12} aria-hidden="true">
+          <circle cx={6} cy={6} r={4.6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} />
+          <circle cx={6} cy={6} r={1.8} fill="var(--color-phosphor)" />
         </svg>
-        <span className="text-ink-faint">the Ithaca</span>
-      </div>
-      <LegendRow colour="var(--color-phosphor)" label="consistent with your plot" />
-      <LegendRow colour="var(--color-ink-faint)" label="ruled out" />
-      <LegendRow colour="var(--color-amber)" label={`unsearched evidence (${evidenceCount})`} ring />
-      {recruits > 0 && (
-        <div className="flex items-center gap-2">
-          <svg width={14} height={14}>
-            <rect x={4} y={4} width={6} height={6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} transform="rotate(45 7 7)" />
-          </svg>
-          <span className="text-ink-faint">specialist for hire ({recruits})</span>
-        </div>
-      )}
-      <div className="text-ink-faint mt-1">{held} accounts in hand</div>
-    </div>
-  )
-}
-
-function LegendRow({ colour, label, ring }: { colour: string; label: string; ring?: boolean }) {
-  return (
-    <div className="flex items-center gap-2">
-      <svg width={14} height={14}>
-        {ring ? (
-          <circle cx={7} cy={7} r={5} fill="none" stroke={colour} strokeWidth={1} />
-        ) : (
-          <circle cx={7} cy={7} r={3} fill={colour} />
-        )}
-      </svg>
-      <span className="text-ink-faint">{label}</span>
-    </div>
-  )
-}
-
-function Readout({ system }: { system: StarSystem }) {
-  return (
-    <div className="panel pointer-events-none absolute top-3 right-3 px-3 py-2">
-      <div className="text-amber text-[12px]">{system.name}</div>
-      <div className="text-ink-faint text-[10px]">{REGION_NAMES[system.region]}</div>
+        consistent
+      </span>
+      <span>
+        <svg width={12} height={12} aria-hidden="true">
+          <circle cx={6} cy={6} r={3.4} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.9} />
+          <circle cx={6} cy={6} r={1.3} fill="var(--color-ink-faint)" />
+        </svg>
+        ruled out
+      </span>
+      <span>
+        <svg width={14} height={14} aria-hidden="true">
+          <circle cx={7} cy={7} r={5.6} fill="none" stroke="var(--color-amber)" strokeWidth={0.9} strokeDasharray="2.5 3" />
+        </svg>
+        evidence
+      </span>
+      <span>
+        <svg width={14} height={14} aria-hidden="true">
+          <circle cx={7} cy={7} r={5.6} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.5} />
+        </svg>
+        searched
+      </span>
+      <span>
+        <svg width={14} height={14} aria-hidden="true">
+          <rect x={4} y={4} width={6} height={6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} transform="rotate(45 7 7)" />
+        </svg>
+        specialist
+      </span>
+      <span>
+        <svg width={14} height={14} aria-hidden="true">
+          <path d="M 7 1.5 L 12.5 7 L 7 12.5 L 1.5 7 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.1} />
+        </svg>
+        the Ithaca
+      </span>
     </div>
   )
 }

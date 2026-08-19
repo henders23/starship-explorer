@@ -19,7 +19,12 @@ by scenes between people.
 ## 1. The pitch
 
 The *Ithaca* enters a jump anomaly and comes out somewhere the star
-charts do not describe. Familiar space is reachable — the anomaly has a far
+charts do not describe. A five-panel intro comic plays that transit before the
+briefing: Cpt. Alexander Vale, Lt. Helen Morozova and Chief Gabriel Cross take
+the ship into an engineered aperture, the field inverts halfway through, and
+the drive and the astrogation core are gone by the time it lets go of them.
+Those three are pinned in the roster generator, so the faces in the comic are
+the faces at the stations for the rest of the voyage. Familiar space is reachable — the anomaly has a far
 end — but nobody aboard knows which of ninety stars it hides behind, and the
 drive that was dragged through it could not make the return transit even if
 they did.
@@ -199,6 +204,15 @@ way to catch liars), corroboration, and the commit button. **Never show a
 progress bar** — the candidate count is the progress bar, and it can go up
 when you doubt something. The plot screen also shows the technological track's
 state plainly: what is built, what is missing, where the trail points.
+
+The chart runs full bleed: nothing is docked beside it. The title block, the
+search and zoom controls, the hover readout and the legend float over the sky;
+a command rail along the foot carries the selected system, the candidates
+still standing and everything the ship can do about them; the evidence board
+rises over that rail on request and drops away again. The first time a captain
+takes the station, a one-slide briefing explains the marks, the movement keys
+and the rail — it is reachable afterwards from the "?" beside the zoom, and it
+teaches navigation only, never the answer.
 
 ### 5.5 Committing: the Long Jump
 
