@@ -112,11 +112,20 @@ gateway arrival is a scene, not a screen-swap.
 
 *Goal: a stranger can finish a run, want another, and hear the game.*
 
-- **Full-run playtests first**: three complete seeds, log stalls/snowballs/
-  boredom before tuning anything. Truth-reveal stats are the telemetry.
+- ~~**Full-run playtests first**~~ Done 19 Aug, and automated: `npm run
+  playtest` sweeps the pilot across dozens of seeds and reports outcomes,
+  fuel floors, stalls and combat load (`docs/playtests/`). First findings
+  drove real fixes — surge bleeds tuned (8/15 → 6/10, scarred drives vent
+  fuel instead of re-scarring), stranding detected honestly (reachability,
+  not "any affordable lane") and declared on any fuel spend, and the chart
+  now prints each leg's arrival fuel against the cost of rescue beyond it.
+  After the pilot learned staged refuelling, 60/60 standard seeds finish —
+  the economy is sound but demands planning, which the new readout teaches.
 - **The tuning pass**: contact rates and the 12-day grace, damage curves and
-  tier-2 timing, research day costs, component counts, fuel economy, target
-  run length — plus a **short galaxy** (~40 systems) as the first-run mode.
+  tier-2 timing, research day costs, component counts — the sweep is now the
+  instrument for all of it. ~~Short galaxy as the first-run mode~~ done
+  19 Aug: 48 systems, same solvability contract, chosen on the title screen;
+  sweeps read it at 100% completion, a third shorter, 90% bloodless.
 - **Audio**: scene stingers, a map bed, surge and jump cues.
 - **Onboarding & access**: first-clue nudge on the Nav Plot, colourblind-safe
   chart markers, keyboard coverage for scenes and battle.
