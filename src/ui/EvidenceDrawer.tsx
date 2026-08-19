@@ -6,62 +6,82 @@ import { commsTier, requiredTier } from '../engine/research/tech.js'
 import { fileClue, useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
- * The evidence board.
+ * The evidence drawer.
+ *
+ * It rises over the foot of the chart when the captain asks for it and gets
+ * out of the way again: the accounts are read *against* the sky, so the sky
+ * stays visible while they are read.
  *
  * The one rule this screen obeys: there is no progress bar. The candidate
  * count is the progress bar, and it is allowed to go *up* when the player
  * doubts something. Showing "7 of 12 clues found" would turn a deduction into
  * a shopping list.
  */
-export function EvidenceBoard() {
-  const { clues, contradictions, conflicted, corroborated, impossible, undecoded, canDecode } =
+export function EvidenceDrawer({ onClose }: { onClose: () => void }) {
+  const { clues, trusted, contradictions, conflicted, corroborated, impossible, undecoded, canDecode } =
     useNavPlot()
 
-  if (clues.length === 0) {
-    return (
-      <div className="text-ink-faint px-4 py-8 text-center text-[12px] leading-relaxed">
-        No accounts of the anomaly yet.
-        <br />
-        <span className="text-ink-dim">Search a ringed star on the chart.</span>
-      </div>
-    )
-  }
-
   return (
-    <div className="flex h-full min-h-0 flex-col">
-      {/* Pinned. When the plot collapses, the explanation of *why* must not be
-          somewhere the player has to go looking for it. */}
-      {(impossible || contradictions.length > 0) && (
-        // Capped: a plot with five conflicts in it would otherwise push the
-        // evidence itself off the panel, which is the one thing the player
-        // needs in order to act on the warning.
-        <div className="border-rule max-h-[45%] shrink-0 overflow-y-auto border-b">
-          {impossible && (
-            <div className="border-alarm-dim bg-alarm-dim/10 text-alarm mx-3 mt-3 border px-3 py-1.5 text-[11px]">
-              <strong className="tracking-wide">Nothing fits.</strong> At least one account you
-              trust is false.
+    <div className="evidence-drawer" role="region" aria-label="Evidence">
+      <div className="drawer-head">
+        <span className="label">
+          Evidence · {clues.length} {clues.length === 1 ? 'account' : 'accounts'} ·{' '}
+          {trusted.length} trusted
+        </span>
+        <span className="flex items-center gap-3.5">
+          {contradictions.length > 0 && (
+            <span className="text-alarm text-[10px] tracking-[0.12em] uppercase">
+              {contradictions.length}{' '}
+              {contradictions.length === 1 ? 'contradiction' : 'contradictions'}
+            </span>
+          )}
+          <button onClick={onClose} className="drawer-close">Close</button>
+        </span>
+      </div>
+
+      {clues.length === 0 ? (
+        <div className="drawer-empty">
+          No accounts of the anomaly yet.{' '}
+          <span className="text-ink-dim">Search a ringed star on the chart.</span>
+        </div>
+      ) : (
+        <div className="drawer-body">
+          {/* Pinned. When the plot collapses, the explanation of *why* must not
+              be somewhere the player has to go looking for it. */}
+          {(impossible || contradictions.length > 0) && (
+            <div className="drawer-conflicts">
+              {impossible && (
+                <div className="border-alarm-dim bg-alarm-dim/10 text-alarm mb-2 border px-3 py-1.5 text-[11px]">
+                  <strong className="tracking-wide">Nothing fits.</strong> At least one account you
+                  trust is false.
+                </div>
+              )}
+              {contradictions.length > 0 && (
+                <Conflicts
+                  contradictions={contradictions}
+                  clues={clues}
+                  corroborated={corroborated}
+                />
+              )}
             </div>
           )}
-          {contradictions.length > 0 && (
-            <Conflicts contradictions={contradictions} clues={clues} corroborated={corroborated} />
-          )}
+
+          <div className="drawer-cards">
+            {clues.map((clue) =>
+              undecoded.has(clue.id) ? (
+                <UndecodedCard key={clue.id} clue={clue} canDecode={canDecode} />
+              ) : (
+                <ClueCard
+                  key={clue.id}
+                  clue={clue}
+                  conflicted={conflicted.has(clue.id)}
+                  corroborated={corroborated.has(clue.id)}
+                />
+              ),
+            )}
+          </div>
         </div>
       )}
-
-      <div className="divide-rule min-h-0 flex-1 divide-y overflow-y-auto">
-        {clues.map((clue) =>
-          undecoded.has(clue.id) ? (
-            <UndecodedCard key={clue.id} clue={clue} canDecode={canDecode} />
-          ) : (
-            <ClueCard
-              key={clue.id}
-              clue={clue}
-              conflicted={conflicted.has(clue.id)}
-              corroborated={corroborated.has(clue.id)}
-            />
-          ),
-        )}
-      </div>
     </div>
   )
 }
@@ -94,7 +114,7 @@ function Conflicts({
   const hidden = ordered.length - shown.length
 
   return (
-    <div className="px-3 py-2">
+    <div>
       <div className="label mb-1.5">Contradictions — these cannot all be true</div>
       <div className="flex flex-col gap-1">
         {shown.map((conflict) => (
@@ -146,7 +166,7 @@ function UndecodedCard({ clue, canDecode }: { clue: PlayerClue; canDecode: boole
   const untranslated = tierNeeded > tierHeld
 
   return (
-    <div className="border-l-amber-dim border-l-2 px-3 py-3 opacity-80">
+    <div className="clue-card border-l-amber-dim opacity-80">
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
         <span className="text-amber-dim text-[12px]">
           {untranslated ? 'Untranslated account' : 'Undecoded artefact'}
@@ -201,7 +221,7 @@ function ClueCard({
         : 'border-l-transparent'
 
   return (
-    <div className={`border-l-2 px-3 py-3 ${border} ${clue.state === 'doubted' ? 'opacity-45' : ''}`}>
+    <div className={`clue-card ${border} ${clue.state === 'doubted' ? 'opacity-45' : ''}`}>
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
         <span className="text-amber text-[12px]">{describeConstraint(clue.constraint, index)}</span>
         <span className="text-ink-faint shrink-0 text-[10px]">{clue.id}</span>
