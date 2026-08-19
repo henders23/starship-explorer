@@ -21,9 +21,13 @@ let state: GameState
 let index: GalaxyIndex
 
 beforeEach(() => {
-  // These suites are about the deduction, not the research track: start with
-  // the full translation matrix so every collected account is readable.
-  state = { ...newGame(SEED), tech: { researched: ['comms-1', 'comms-2'], active: null } }
+  // These suites are about the deduction, not the other tracks: start with
+  // the full translation matrix (every account readable) and the rift tech
+  // built (the Long Jump answers to the plot alone).
+  state = {
+    ...newGame(SEED),
+    tech: { researched: ['comms-1', 'comms-2', 'rift-drive', 'rift-shield'], active: null },
+  }
   index = new GalaxyIndex(state.galaxy)
 })
 

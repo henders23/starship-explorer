@@ -3,6 +3,7 @@ import { needsDecoding } from '../engine/missions/sites.js'
 import { describeConstraint } from '../engine/mystery/constraints.js'
 import { profileFor } from '../engine/mystery/prose.js'
 import type { ClueSourceKind, PlayerClue } from '../engine/mystery/types.js'
+import { PARTS_NEEDED } from '../engine/research/parts.js'
 import {
   canResearch,
   commsTier,
@@ -164,6 +165,7 @@ export function LabScreen() {
               researched={state.tech.researched.includes(node.id)}
               available={canResearch(state, node.id)}
               active={state.tech.active?.id === node.id}
+              partsHeld={node.component ? state.parts[node.component] : 0}
               onStart={() => dispatch({ type: 'startResearch', tech: node.id })}
             />
           ))}
@@ -178,22 +180,33 @@ function ResearchCard({
   researched,
   available,
   active,
+  partsHeld,
   onStart,
 }: {
   node: TechNode
   researched: boolean
   available: boolean
   active: boolean
+  partsHeld: number
   onStart: () => void
 }) {
   const [open, setOpen] = useState(false)
-  const status = researched ? 'DONE' : active ? 'ACTIVE' : node.locked ? 'LOCKED' : available ? `${node.days}D` : 'GATED'
+  const partsGated = node.component !== undefined && partsHeld < PARTS_NEEDED[node.component]
+  const status = researched
+    ? 'DONE'
+    : active
+      ? 'ACTIVE'
+      : partsGated
+        ? `PARTS ${partsHeld}/${PARTS_NEEDED[node.component!]}`
+        : available
+          ? `${node.days}D`
+          : 'GATED'
 
   return (
-    <div className={`research-card ${researched ? 'is-done' : ''} ${node.locked ? 'is-locked' : ''}`}>
+    <div className={`research-card ${researched ? 'is-done' : ''} ${partsGated ? 'is-locked' : ''}`}>
       <button className="research-row" onClick={() => setOpen((v) => !v)}>
         <strong>{node.name}</strong>
-        <span className={`research-status status-${status.toLowerCase()}`}>{status}</span>
+        <span className={`research-status status-${partsGated ? 'locked' : status.toLowerCase()}`}>{status}</span>
       </button>
       {open && (
         <div className="research-detail">
@@ -206,8 +219,8 @@ function ResearchCard({
           )}
           {!available && !researched && !active && (
             <p className="lab-blocked">
-              {node.locked
-                ? 'Locked — the components have not been found.'
+              {partsGated
+                ? `Locked — ${partsHeld} of ${PARTS_NEEDED[node.component!]} components recovered. The trail will provide.`
                 : `Requires ${node.requires.map((r) => TECH_BY_ID[r]!.name).join(', ')}.`}
             </p>
           )}

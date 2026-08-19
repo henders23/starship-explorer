@@ -15,7 +15,11 @@ import { GalaxyIndex } from '../src/engine/worldgen/index-galaxy.js'
 const SEED = 'travel-tests'
 
 function fresh(): { state: GameState; index: GalaxyIndex } {
-  const state = newGame(SEED)
+  // Rift tech pre-built: this suite is about fuel and lanes, not the tracks.
+  const state: GameState = {
+    ...newGame(SEED),
+    tech: { researched: ['rift-drive', 'rift-shield'], active: null },
+  }
   return { state, index: new GalaxyIndex(state.galaxy) }
 }
 

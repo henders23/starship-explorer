@@ -1,7 +1,10 @@
 import { useMemo, useState } from 'react'
+import { PARTS_NEEDED } from '../engine/research/parts.js'
+import { jumpReady, TECH_BY_ID } from '../engine/research/tech.js'
 import { sitePlan, travelCost } from '../engine/state/reducer.js'
 import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
+import { JumpCeremony } from './JumpCeremony.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
@@ -19,6 +22,7 @@ export function Inspector() {
   const gameState = useGame((s) => s.state)
   const { candidateSet, sites, trusted } = useNavPlot()
   const [confirming, setConfirming] = useState(false)
+  const [ceremony, setCeremony] = useState(false)
 
   if (!selectedId) {
     return <div className="text-ink-faint px-4 py-6 text-[11px]">Select a star on the chart.</div>
@@ -136,14 +140,48 @@ export function Inspector() {
           isCandidate={isCandidate}
           alreadyTried={alreadyTried}
           fuel={ship.fuel}
+          ready={jumpReady(gameState)}
           confirming={confirming}
           setConfirming={setConfirming}
           onCommit={() => {
-            dispatch({ type: 'plotTheJump', target: system.id })
             setConfirming(false)
+            setCeremony(true)
           }}
         />
       )}
+
+      {ceremony && (
+        <JumpCeremony
+          target={system.id}
+          name={system.name}
+          onClose={() => setCeremony(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** The technological gate, itemised: what stands between the ship and the jump. */
+function TrackStatus() {
+  const state = useGame((s) => s.state)
+
+  const line = (id: 'rift-drive' | 'rift-shield') => {
+    const node = TECH_BY_ID[id]!
+    const kind = node.component!
+    if (state.tech.researched.includes(id)) return `${node.name}: built`
+    if (state.tech.active?.id === id)
+      return `${node.name}: building, ${state.tech.active.daysLeft}d left`
+    if (state.parts[kind] >= PARTS_NEEDED[kind])
+      return `${node.name}: components complete — build it on the research bench`
+    return `${node.name}: ${state.parts[kind]} of ${PARTS_NEEDED[kind]} components found`
+  }
+
+  return (
+    <div className="border-rule text-ink-dim border px-2 py-1.5 text-[10px] leading-relaxed">
+      <div className="text-ink-faint mb-0.5 tracking-[0.1em] uppercase">The way home takes three things</div>
+      <div>{line('rift-drive')}</div>
+      <div>{line('rift-shield')}</div>
+      <div>Heading: what the Nav Plot says, when you trust it.</div>
     </div>
   )
 }
@@ -166,6 +204,7 @@ function LongJump({
   isCandidate,
   alreadyTried,
   fuel,
+  ready,
   confirming,
   setConfirming,
   onCommit,
@@ -174,6 +213,7 @@ function LongJump({
   isCandidate: boolean
   alreadyTried: boolean
   fuel: number
+  ready: boolean
   confirming: boolean
   setConfirming: (v: boolean) => void
   onCommit: () => void
@@ -185,6 +225,8 @@ function LongJump({
       </div>
     )
   }
+
+  if (!ready) return <TrackStatus />
 
   if (fuel < LONG_JUMP_RESERVE) {
     return (

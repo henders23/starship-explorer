@@ -282,6 +282,18 @@ export function castScene(state: GameState, systemId: string): SceneInstance | n
   const ctx: CastContext = { system, clues, site, officer, figure, rng }
   const beats = rng.pick(template.variants)(ctx)
 
+  // A component waiting here is worth a line of its own: the science officer
+  // flags it, so the player knows this stop feeds the technological track.
+  for (const component of state.parts.sites[systemId] ?? []) {
+    beats.push({
+      speaker: 'science',
+      text:
+        component === 'engine'
+          ? '“And Captain — the survey return shows drive machinery down there that no yard in this sector built. A core segment. If we are ever building the rift drive, we do not leave without it.”'
+          : '“One more thing on the scan, Captain: lattice-work with rift-grade shielding signatures. A segment of exactly what the return transit needs. We do not leave without it.”',
+    })
+  }
+
   return {
     at: systemId,
     templateId: template.id,

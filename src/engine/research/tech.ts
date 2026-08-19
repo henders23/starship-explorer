@@ -1,5 +1,6 @@
 import type { ClueSourceKind } from '../mystery/types.js'
 import type { GameState } from '../state/types.js'
+import { PARTS_NEEDED, type ComponentKind } from './parts.js'
 
 /**
  * The research track: understanding, bought with the science officer's days.
@@ -26,8 +27,8 @@ export interface TechNode {
   /** Days of a fit science officer's time. */
   days: number
   requires: TechId[]
-  /** Unbuildable until a later milestone unlocks it (R3: components). */
-  locked?: boolean
+  /** Component-gated: unbuildable until enough of these are recovered. */
+  component?: ComponentKind
   /** What it is, in the officer's voice — the pitch shown on the bench. */
   pitch: string
   /** The rule it changes, stated plainly. */
@@ -76,20 +77,20 @@ export const TECH_TREE: TechNode[] = [
     name: 'Rift Drive',
     days: 8,
     requires: [],
-    locked: true,
+    component: 'engine',
     pitch:
-      '“The drive we have cannot make the return transit — nothing sold in this sector can. It will have to be built, and it starts with finding the pieces.”',
-    effect: 'Required for the Long Jump · awaiting recovered components',
+      '“The drive we have cannot make the return transit — nothing sold in this sector can. It will have to be built, and it starts with finding the pieces: two drive core segments, out there somewhere.”',
+    effect: 'Required for the Long Jump · needs 2 drive core segments',
   },
   {
     id: 'rift-shield',
     name: 'Rift Shielding',
     days: 8,
     requires: [],
-    locked: true,
+    component: 'shield',
     pitch:
-      '“The anomaly took the hull apart at the seams on the way in, and we were lucky. Going back through unshielded is not a plan, it is a eulogy.”',
-    effect: 'Required for the Long Jump · awaiting recovered components',
+      '“The anomaly took the hull apart at the seams on the way in, and we were lucky. Going back through unshielded is not a plan, it is a eulogy. Two lattice segments, and I can build the real thing.”',
+    effect: 'Required for the Long Jump · needs 2 shield lattice segments',
   },
 ]
 
@@ -123,11 +124,17 @@ export function isResearched(state: GameState, id: TechId): boolean {
   return state.tech.researched.includes(id)
 }
 
-/** Whether a project can be started right now (locks, prerequisites, dupes). */
+/** Whether a project can be started right now (components, prereqs, dupes). */
 export function canResearch(state: GameState, id: TechId): boolean {
   const node = TECH_BY_ID[id]
-  if (!node || node.locked) return false
+  if (!node) return false
+  if (node.component && state.parts[node.component] < PARTS_NEEDED[node.component]) return false
   if (state.tech.researched.includes(id)) return false
   if (state.tech.active?.id === id) return false
   return node.requires.every((req) => state.tech.researched.includes(req))
+}
+
+/** The Long Jump's technological gate: both rift projects built. */
+export function jumpReady(state: GameState): boolean {
+  return state.tech.researched.includes('rift-drive') && state.tech.researched.includes('rift-shield')
 }

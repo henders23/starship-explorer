@@ -2,6 +2,7 @@ import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js
 import type { SceneInstance } from '../encounters/types.js'
 import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
+import type { ComponentKind } from '../research/parts.js'
 import type { TechId } from '../research/tech.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 
@@ -45,6 +46,13 @@ export interface GameState {
     researched: TechId[]
     /** Ticks down through advanceTime while the science officer is fit. */
     active: { id: TechId; daysLeft: number } | null
+  }
+  /** The technological track: components waiting out there, and counts held. */
+  parts: {
+    /** Which systems still hold components. Recovered with the evidence. */
+    sites: Record<SystemId, ComponentKind[]>
+    engine: number
+    shield: number
   }
   /** Rift Surges endured so far; each is worse than the last. */
   surges: number
@@ -132,6 +140,7 @@ export type GameEvent =
   | { type: 'sceneClosed'; at: SystemId; option: string }
   | { type: 'techStarted'; tech: TechId }
   | { type: 'techCompleted'; tech: TechId }
+  | { type: 'componentRecovered'; component: ComponentKind; at: SystemId }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }

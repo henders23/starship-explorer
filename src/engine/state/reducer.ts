@@ -27,7 +27,8 @@ import { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import { generatePuzzle, type MysteryOptions } from '../mystery/generate.js'
 import type { Clue, ClueId, ClueState, PlayerClue } from '../mystery/types.js'
 import { toPlayerClue } from '../mystery/types.js'
-import { canResearch, commsTier, requiredTier, TECH_BY_ID, type TechId } from '../research/tech.js'
+import { COMPONENT_LABELS, PARTS_NEEDED, placeComponents } from '../research/parts.js'
+import { canResearch, commsTier, jumpReady, requiredTier, TECH_BY_ID, type TechId } from '../research/tech.js'
 import { createRng, type Rng } from '../rng/prng.js'
 import type { SystemId } from '../worldgen/types.js'
 import type { Action, GameEvent, GameState, LogEntry, Transition } from './types.js'
@@ -57,6 +58,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     driveScarred: false,
     surges: 0,
     tech: { researched: [], active: null },
+    parts: { sites: placeComponents(seed, puzzle.mystery.clues), engine: 0, shield: 0 },
     roster: generateRoster(seed),
     loadouts: defaultLoadouts(),
     pools: { ...STARTING_POOLS },
@@ -220,13 +222,41 @@ function collectClues(
       undecoded: undecodedNow,
     },
   ]
-  const next: GameState = {
+  let next: GameState = {
     ...state,
     collected: [...state.collected, ...found.map((c) => c.id)],
     clueStates,
     undecoded,
     log: appendLog(state.log, { kind: 'evidence', text: logText }),
   }
+
+  // A site that yields its evidence yields whatever component waited with
+  // it — the technological track advances through the same scenes.
+  const systemId = found[0]!.source.at
+  const waiting = next.parts.sites[systemId]
+  if (waiting && waiting.length > 0) {
+    const sites = { ...next.parts.sites }
+    delete sites[systemId]
+    let { engine, shield } = next.parts
+    let log = next.log
+    for (const kind of waiting) {
+      if (kind === 'engine') engine += 1
+      else shield += 1
+      const count = kind === 'engine' ? engine : shield
+      events.push({ type: 'componentRecovered', component: kind, at: systemId })
+      log = appendLog(log, {
+        kind: 'evidence',
+        text:
+          `${systemName(state, systemId)}: a ${COMPONENT_LABELS[kind]} is crated and aboard — ` +
+          `${count} of ${PARTS_NEEDED[kind]}.` +
+          (count === PARTS_NEEDED[kind]
+            ? ` That is the last piece: the ${kind === 'engine' ? 'Rift Drive' : 'Rift Shielding'} can be built.`
+            : ''),
+      })
+    }
+    next = { ...next, parts: { sites, engine, shield }, log }
+  }
+
   return { state: next, events }
 }
 
@@ -1001,6 +1031,8 @@ function file(state: GameState, clueId: ClueId, clueState: ClueState): Transitio
 function plotTheJump(state: GameState, target: SystemId): Transition {
   if (state.outcome !== 'seeking') return { state, events: [] }
   if (state.ship.fuel < LONG_JUMP_RESERVE) return { state, events: [] }
+  // The transit takes all three tracks: the place, the engine, the shield.
+  if (!jumpReady(state)) return { state, events: [] }
 
   const correct = target === state.mystery.gateway
   const jumps = [...state.jumps, { target, correct }]
