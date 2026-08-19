@@ -33,6 +33,44 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('ship')
   const [phase, setPhase] = useState<Phase>('title')
   const ambientRef = useRef<HTMLAudioElement | null>(null)
+  const themeRef = useRef<HTMLAudioElement | null>(null)
+
+  // The theme runs for the whole voyage, from the title card on. Browsers
+  // usually refuse audio that no user gesture sanctioned, so try it on mount
+  // and, if that is refused, arm the first click or keypress to start it.
+  useEffect(() => {
+    const theme = new Audio('/assets/audio/starship-ithaca-theme.mp3')
+    themeRef.current = theme
+    theme.loop = true
+    theme.volume = 0.34
+
+    let armed = false
+    const start = () => {
+      void theme.play().catch(() => {})
+    }
+    const onGesture = () => {
+      start()
+      disarm()
+    }
+    const disarm = () => {
+      if (!armed) return
+      armed = false
+      window.removeEventListener('pointerdown', onGesture)
+      window.removeEventListener('keydown', onGesture)
+    }
+
+    void theme.play().catch(() => {
+      armed = true
+      window.addEventListener('pointerdown', onGesture)
+      window.addEventListener('keydown', onGesture)
+    })
+
+    return () => {
+      disarm()
+      theme.pause()
+      themeRef.current = null
+    }
+  }, [])
 
   useEffect(() => {
     const navigate = (event: Event) => {
@@ -46,13 +84,15 @@ export function App() {
   const restart = useGame((s) => s.restart)
 
   // The ship's ambience runs aboard ship — the briefing on the bridge and the
-  // cutaway both count. Playback must begin inside the "Take command" click —
-  // browsers refuse audio that was never sanctioned by a user gesture.
+  // cutaway both count. It sits under the theme, so it is mixed low. Playback
+  // begins inside the "Take command" click, which also covers the theme in
+  // case autoplay was refused on mount.
   const startAmbience = () => {
+    void themeRef.current?.play().catch(() => {})
     const ambient = ambientRef.current ?? new Audio('/assets/audio/ship-ambient.mp3')
     ambientRef.current = ambient
     ambient.loop = true
-    ambient.volume = 0.15
+    ambient.volume = 0.1
     void ambient.play().catch(() => {})
   }
 
@@ -161,7 +201,7 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
   return (
     <header className="command-bar border-rule flex shrink-0 items-center gap-5 border-b px-5">
       <div className="brand-lockup flex shrink-0 items-center">
-        <h1 className="text-ink text-[17px] font-normal tracking-[0.24em] uppercase">Starship Explorer</h1>
+        <h1 className="text-ink text-[17px] font-normal tracking-[0.24em] uppercase">Starship Ithaca</h1>
       </div>
 
       <nav className="primary-nav flex h-full min-w-0 flex-1 items-stretch" aria-label="Primary stations">
@@ -376,7 +416,7 @@ function TheCost() {
       {casualties.officers.map((name) => (
         <div key={name}>
           <span className="text-alarm-dim">{name}</span> did not live to see how it ends. The
-          log has their name spelled right, where whoever finds it will read it.
+          log has their name in it, spelled right.
         </div>
       ))}
       {casualties.generics > 0 && (
@@ -422,7 +462,7 @@ function Ending() {
               <div key={o.role}>
                 <span className="text-ink">{o.name}</span>{' '}
                 {o.origin === 'promoted'
-                  ? 'steps off the ship with a rank nobody can take back.'
+                  ? 'steps off the ship holding a rank they were never meant to hold.'
                   : o.status === 'injured'
                     ? 'walks down the ramp unaided, against medical advice.'
                     : 'goes home.'}
@@ -468,8 +508,8 @@ function StrandedEnding() {
         <h2 className="text-ink-dim mb-3 text-[18px]">The tank is dry at {name}.</h2>
         <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
           No lane the ship can afford, nothing here to scoop, and not enough left for the rift.
-          The plot on the board may even be right — someone should check it, someday, whoever
-          finds the log. The ship keeps its orbit. The orbit keeps its ship.
+          The plot on the board may even be right. Somebody should check it one day, whoever
+          finds the log.
         </p>
         <TheCost />
         <VoyageEpilogue />
@@ -496,9 +536,9 @@ function DestroyedEnding() {
         <div className="label mb-2">No further entries</div>
         <h2 className="text-alarm mb-3 text-[18px]">Lost with all hands.</h2>
         <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
-          The <em>Indefatigable</em> comes apart a very long way from anywhere she was built to
-          be. The plot on the Nav board — the accounts, the trust so carefully placed and
-          withheld — burns with everything else. Whatever the answer was, it stays out here.
+          The <em>Ithaca</em> comes apart a very long way from anywhere she was built to
+          be. The plot on the Nav board burns with everything else, accounts and all. Whatever
+          the answer was, it stays out here.
         </p>
         <TheCost />
         <VoyageEpilogue />
@@ -527,7 +567,7 @@ function LostEnding() {
         <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
           The ship is still out here. The evidence is still on the plot, and somebody else is
           reading it now. Whatever happens to the {' '}
-          <em>Indefatigable</em> next, it happens without you.
+          <em>Ithaca</em> next, it happens without you.
         </p>
         <TheCost />
         <VoyageEpilogue />

@@ -35,7 +35,7 @@ export function JumpCeremony({
       return 'The plot names one star, and this is it. The whole ship’s company is on the bridge to watch.'
     if (candidates.length <= 3)
       return `The plot still admits ${candidates.length} stars. Someone exhales, slowly, as the drive charges.`
-    return `The plot still admits ${candidates.length} stars. The ship jumps on your conviction, not its arithmetic.`
+    return `The plot still admits ${candidates.length} stars. That is a wide field to jump on, and the drive is charging anyway.`
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 

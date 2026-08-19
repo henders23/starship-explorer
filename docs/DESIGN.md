@@ -1,4 +1,4 @@
-# Starship Explorer — Game Design Document
+# Starship Ithaca — Game Design Document
 
 > You are the captain of a ship that is very far from home, with a crew you
 > live alongside, a drive that cannot make the jump, and no chart that means
@@ -18,7 +18,7 @@ by scenes between people.
 
 ## 1. The pitch
 
-The *Indefatigable* enters a jump anomaly and comes out somewhere the star
+The *Ithaca* enters a jump anomaly and comes out somewhere the star
 charts do not describe. Familiar space is reachable — the anomaly has a far
 end — but nobody aboard knows which of ninety stars it hides behind, and the
 drive that was dragged through it could not make the return transit even if
@@ -312,7 +312,7 @@ avoidable and legible.
 - **Contact opens with a posture scene:** hail, evade, or engage — with the
   odds and the stakes stated. Tolls can be paid; intelligence ends fights
   before they start.
-- **Battle is a room-based simulation.** The Indefatigable's compartments
+- **Battle is a room-based simulation.** The Ithaca's compartments
   (engines, shields, two weapon rooms, launch bay, sensors, helm) hold power
   from a fixed reactor budget; the enemy's compartments are clickable
   targets. Weapons charge in real time and hold or auto-fire: the pulse

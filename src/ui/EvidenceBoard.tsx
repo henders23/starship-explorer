@@ -125,8 +125,8 @@ function Conflicts({
         )}
       </div>
       <div className="text-ink-faint mt-2 text-[10px] leading-relaxed">
-        Weigh the sources, not the tally: one honest witness contradicts every liar it meets, so
-        the account named most often is often the truthful one.
+        Weigh how reliable each source is rather than counting them up. One honest witness
+        contradicts every liar it meets, so the star named most often here is often the true one.
       </div>
     </div>
   )
