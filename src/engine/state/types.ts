@@ -2,6 +2,7 @@ import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js
 import type { SceneInstance } from '../encounters/types.js'
 import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
+import type { TechId } from '../research/tech.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 
 /**
@@ -39,6 +40,12 @@ export interface GameState {
   day: number
   /** A scarred drive burns 30% more per lane until refitted. */
   driveScarred: boolean
+  /** The research track: what is known, and what the bench is working on. */
+  tech: {
+    researched: TechId[]
+    /** Ticks down through advanceTime while the science officer is fit. */
+    active: { id: TechId; daysLeft: number } | null
+  }
   /** Rift Surges endured so far; each is worse than the last. */
   surges: number
 
@@ -90,6 +97,8 @@ export type Action =
   | { type: 'search'; system: SystemId }
   | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
   | { type: 'equip'; role: OfficerRole; slot: GearSlot; item: string }
+  /** Put the bench on a research project (replacing any active one). */
+  | { type: 'startResearch'; tech: TechId }
   /** Reopen the scene at the ship's position, if content remains. */
   | { type: 'openScene' }
   /** Answer the playing scene with one of its options. */
@@ -121,6 +130,8 @@ export type GameEvent =
   | { type: 'injurySpared'; role: OfficerRole; name: string }
   | { type: 'sceneOpened'; at: SystemId }
   | { type: 'sceneClosed'; at: SystemId; option: string }
+  | { type: 'techStarted'; tech: TechId }
+  | { type: 'techCompleted'; tech: TechId }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }

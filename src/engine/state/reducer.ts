@@ -27,6 +27,7 @@ import { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import { generatePuzzle, type MysteryOptions } from '../mystery/generate.js'
 import type { Clue, ClueId, ClueState, PlayerClue } from '../mystery/types.js'
 import { toPlayerClue } from '../mystery/types.js'
+import { canResearch, commsTier, requiredTier, TECH_BY_ID, type TechId } from '../research/tech.js'
 import { createRng, type Rng } from '../rng/prng.js'
 import type { SystemId } from '../worldgen/types.js'
 import type { Action, GameEvent, GameState, LogEntry, Transition } from './types.js'
@@ -55,6 +56,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     day: 0,
     driveScarred: false,
     surges: 0,
+    tech: { researched: [], active: null },
     roster: generateRoster(seed),
     loadouts: defaultLoadouts(),
     pools: { ...STARTING_POOLS },
@@ -94,6 +96,8 @@ export function reduce(state: GameState, action: Action): Transition {
       return runMission(state, action.system, action.team, action.approach)
     case 'equip':
       return equip(state, action.role, action.slot, action.item)
+    case 'startResearch':
+      return startResearch(state, action.tech)
     case 'openScene':
       return openScene(state)
     case 'sceneOption':
@@ -193,10 +197,16 @@ function collectClues(
   const clueStates = { ...state.clueStates }
   const undecoded = [...state.undecoded]
   const undecodedNow: ClueId[] = []
+  const tier = commsTier(state)
 
   for (const clue of found) {
     clueStates[clue.id] = 'unfiled'
-    if (!scienceOnTeam && needsDecoding(clue.source.kind)) {
+    // Two ways to hold something you cannot read: an artefact that came back
+    // without the science officer on the ground, or any source whose language
+    // is beyond the ship's translation matrix.
+    const rawArtefact = !scienceOnTeam && needsDecoding(clue.source.kind)
+    const untranslated = requiredTier(clue.source.kind) > tier
+    if (rawArtefact || untranslated) {
       undecoded.push(clue.id)
       undecodedNow.push(clue.id)
     }
@@ -218,6 +228,46 @@ function collectClues(
     log: appendLog(state.log, { kind: 'evidence', text: logText }),
   }
   return { state: next, events }
+}
+
+/* ------------------------------------------------------------------------ *
+ * Research
+ * ------------------------------------------------------------------------ */
+
+/** The medbay stay an injury earns today, given the doctor and the tech. */
+function injuryDuration(state: GameState, roster: readonly Officer[], hurtRole: OfficerRole): number {
+  const doctored = isFit(roster, 'medical') && hurtRole !== 'medical'
+  const protocols = state.tech.researched.includes('trauma-protocols')
+  return doctored ? (protocols ? 4 : 6) : protocols ? 8 : 12
+}
+
+/** With Rift Telemetry researched, the bridge knows the next surge's day. */
+export function surgeForecast(state: GameState): number | null {
+  if (!state.tech.researched.includes('rift-telemetry')) return null
+  return surgeDay(state.seed, state.surges)
+}
+
+/**
+ * Put the bench on a project. Starting a new project abandons the old one's
+ * progress — the officer says so on the bench before you do it.
+ */
+function startResearch(state: GameState, techId: TechId): Transition {
+  if (state.outcome !== 'seeking') return { state, events: [] }
+  if (!canResearch(state, techId)) return { state, events: [] }
+  if (!officer(state.roster, 'science')) return { state, events: [] }
+
+  const node = TECH_BY_ID[techId]!
+  return {
+    state: {
+      ...state,
+      tech: { ...state.tech, active: { id: techId, daysLeft: node.days } },
+      log: appendLog(state.log, {
+        kind: 'crew',
+        text: `The bench takes up ${node.name} — ${node.days} days of the science officer's time.`,
+      }),
+    },
+    events: [{ type: 'techStarted', tech: techId }],
+  }
 }
 
 /* ------------------------------------------------------------------------ *
@@ -310,6 +360,27 @@ function advanceTime(state: GameState, days: number, events: GameEvent[]): GameS
   const day = state.day + days
   let next: GameState = { ...state, day }
 
+  // The bench works while the ship flies: an active project ticks down for
+  // every day the science officer is fit to work it.
+  if (next.tech.active && isFit(next.roster, 'science')) {
+    const daysLeft = next.tech.active.daysLeft - days
+    if (daysLeft > 0) {
+      next = { ...next, tech: { ...next.tech, active: { ...next.tech.active, daysLeft } } }
+    } else {
+      const completed = next.tech.active.id
+      const science = officer(next.roster, 'science')!
+      events.push({ type: 'techCompleted', tech: completed })
+      next = {
+        ...next,
+        tech: { researched: [...next.tech.researched, completed], active: null },
+        log: appendLog(next.log, {
+          kind: 'crew',
+          text: `${science.name} signs off on ${TECH_BY_ID[completed]!.name}. ${TECH_BY_ID[completed]!.effect}.`,
+        }),
+      }
+    }
+  }
+
   // The medbay discharges by the calendar, not by the mission counter.
   const recovered = next.roster.filter(
     (o) => o.status === 'injured' && (o.healedAfter ?? Infinity) <= day,
@@ -361,7 +432,7 @@ function applySurge(state: GameState, events: GameEvent[]): GameState {
     const fitOfficers = next.roster.filter((o) => o.role !== 'captain' && o.status === 'fit')
     if (fitOfficers.length > 0) {
       const hurt = rng.pick(fitOfficers)
-      const duration = isFit(next.roster, 'medical') && hurt.role !== 'medical' ? 6 : 12
+      const duration = injuryDuration(next, next.roster, hurt.role)
       next = {
         ...next,
         roster: next.roster.map((o) =>
@@ -809,10 +880,10 @@ function applyHarm(
         continue
       }
       target.status = 'injured'
-      // Days in the medbay, not missions: the wound heals on the calendar,
-      // and a fit medical officer roughly halves the stay.
-      target.healedAfter =
-        state.day + (isFit(roster, 'medical') && target.role !== 'medical' ? 6 : 12)
+      // Days in the medbay, not missions: the wound heals on the calendar;
+      // a fit medical officer roughly halves the stay, and trauma protocols
+      // shorten it further.
+      target.healedAfter = state.day + injuryDuration(state, roster, target.role)
       events.push({ type: 'officerInjured', role: target.role, name: target.name })
     }
   }
@@ -868,6 +939,11 @@ function casualtyLine(before: GameState, after: GameState): string {
 function decode(state: GameState, clueId: ClueId): Transition {
   if (!state.undecoded.includes(clueId)) return { state, events: [] }
   if (!isFit(state.roster, 'science')) return { state, events: [] }
+
+  // Language before labour: below the required translation tier, the bench
+  // can stare at it all day and get nothing. Research is the way through.
+  const clue = state.mystery.clues.find((c) => c.id === clueId)
+  if (clue && requiredTier(clue.source.kind) > commsTier(state)) return { state, events: [] }
 
   const science = officer(state.roster, 'science')!
   const events: GameEvent[] = [{ type: 'clueDecoded', clue: clueId }]

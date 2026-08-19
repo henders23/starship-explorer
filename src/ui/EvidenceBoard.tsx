@@ -2,7 +2,8 @@ import { describeConstraint } from '../engine/mystery/constraints.js'
 import { countCandidatesForAll } from '../engine/mystery/deduce.js'
 import type { ClueState, PlayerClue } from '../engine/mystery/types.js'
 import { profileFor } from '../engine/mystery/prose.js'
-import { fileClue, useDispatch, useGalaxyIndex, useNavPlot } from './store.js'
+import { commsTier, requiredTier } from '../engine/research/tech.js'
+import { fileClue, useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
  * The evidence board.
@@ -139,19 +140,29 @@ function Conflicts({
 function UndecodedCard({ clue, canDecode }: { clue: PlayerClue; canDecode: boolean }) {
   const index = useGalaxyIndex()
   const dispatch = useDispatch()
+  const tierHeld = useGame((s) => commsTier(s.state))
   const site = index.system(clue.source.at)
+  const tierNeeded = requiredTier(clue.source.kind)
+  const untranslated = tierNeeded > tierHeld
 
   return (
     <div className="border-l-amber-dim border-l-2 px-3 py-3 opacity-80">
       <div className="mb-1.5 flex items-baseline justify-between gap-2">
-        <span className="text-amber-dim text-[12px]">Undecoded artefact</span>
+        <span className="text-amber-dim text-[12px]">
+          {untranslated ? 'Untranslated account' : 'Undecoded artefact'}
+        </span>
         <span className="text-ink-faint shrink-0 text-[10px]">{clue.id}</span>
       </div>
       <p className="text-ink-dim mb-2 text-[11px] leading-relaxed italic">
         Recovered from {site.name}. Whatever it says about the way home, nobody aboard has
         read it yet.
       </p>
-      {canDecode ? (
+      {untranslated ? (
+        <div className="text-alarm-dim text-[10px]">
+          The script defeats the ship's matrix — needs Translation Matrix{' '}
+          {tierNeeded === 2 ? 'II' : 'I'} on the research bench.
+        </div>
+      ) : canDecode ? (
         <button
           onClick={() => dispatch({ type: 'decode', clue: clue.id })}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-2 py-0.5 text-[10px]"

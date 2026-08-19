@@ -4,6 +4,8 @@ import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
+import { surgeForecast } from '../engine/state/reducer.js'
+import { TECH_BY_ID } from '../engine/research/tech.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StarMap } from './StarMap.js'
@@ -16,7 +18,7 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
   { id: 'ship', label: 'Ship Overview', code: '01' },
   { id: 'galaxy', label: 'Galaxy', code: '02' },
   { id: 'loadout', label: 'Loadout', code: '03' },
-  { id: 'lab', label: 'Lab', code: '04' },
+  { id: 'lab', label: 'Research', code: '04' },
 ]
 
 /** Title → briefing → the game. The briefing is the crew handing over context. */
@@ -140,6 +142,7 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
       </nav>
 
       <div className="header-telemetry flex shrink-0 items-center gap-3">
+        <ResearchChip />
         <FuelGauge />
         {jumps.length > 0 && (
           <span className="text-alarm-dim text-[10px]">
@@ -218,6 +221,28 @@ function CandidateList() {
         </div>
       )}
     </div>
+  )
+}
+
+/** The bench's active project, and the surge forecast once telemetry exists. */
+function ResearchChip() {
+  const active = useGame((s) => s.state.tech.active)
+  const forecast = useGame((s) => surgeForecast(s.state))
+  const day = useGame((s) => s.state.day)
+
+  return (
+    <span className="flex items-center gap-4 text-[11px]">
+      {forecast !== null && (
+        <span className="text-phosphor-dim" title="Rift Telemetry: the next surge, forecast to the day">
+          surge day {forecast}{forecast <= day + 2 ? ' — soon' : ''}
+        </span>
+      )}
+      {active && (
+        <span className="text-amber-dim" title="Active research: ticks down while the science officer is fit">
+          R&D: {TECH_BY_ID[active.id]!.name} · {active.daysLeft}d
+        </span>
+      )}
+    </span>
   )
 }
 

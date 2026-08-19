@@ -21,7 +21,9 @@ let state: GameState
 let index: GalaxyIndex
 
 beforeEach(() => {
-  state = newGame(SEED)
+  // These suites are about the deduction, not the research track: start with
+  // the full translation matrix so every collected account is readable.
+  state = { ...newGame(SEED), tech: { researched: ['comms-1', 'comms-2'], active: null } }
   index = new GalaxyIndex(state.galaxy)
 })
 

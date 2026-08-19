@@ -3,35 +3,47 @@ import { needsDecoding } from '../engine/missions/sites.js'
 import { describeConstraint } from '../engine/mystery/constraints.js'
 import { profileFor } from '../engine/mystery/prose.js'
 import type { ClueSourceKind, PlayerClue } from '../engine/mystery/types.js'
+import {
+  canResearch,
+  commsTier,
+  requiredTier,
+  TECH_BY_ID,
+  TECH_TREE,
+  type TechNode,
+} from '../engine/research/tech.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
- * The lab, made honest. The sample queue is the artefacts the away teams
- * actually brought back — inscriptions, log cores, signal loops — and the
- * deep analysis button is the engine's decode action: it takes the science
- * officer a day, and what it yields is the clue's real prose and constraint,
- * ready to be weighed on the Nav Plot. No invented specimens, no fake scan
- * percentages: an empty bench says so.
+ * The research bench: the artefact queue on the left, the sample under
+ * analysis in the middle, and the research track on the right — projects
+ * pitched in the science officer's own voice, ticking down in the
+ * background as the calendar runs.
  */
 
 const FORM_TAGS: Partial<Record<ClueSourceKind, string>> = {
   'ruins-tablet': 'INSCRIPTION',
   'derelict-log': 'LOG CORE',
   'listening-post': 'SIGNAL LOOP',
+  'alien-trader': 'PIDGIN LEDGER',
 }
+
+const TIER_NAMES = ['', 'Translation Matrix I', 'Translation Matrix II']
 
 export function LabScreen() {
   const dispatch = useDispatch()
   const roster = useGame((s) => s.state.roster)
+  const state = useGame((s) => s.state)
   const index = useGalaxyIndex()
   const science = roster.find((officer) => officer.role === 'science')
   const { clues, undecoded, canDecode } = useNavPlot()
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
-  // The bench holds every artefact recovered so far: sealed ones first,
-  // because they are the ones the lab still owes the Nav Plot.
+  // The bench holds every clue that ever needed working: artefact forms and
+  // anything the translation matrix has not caught up with. Sealed first.
   const artefacts = useMemo(() => {
-    const held = clues.filter((clue) => needsDecoding(clue.source.kind))
+    const held = clues.filter(
+      (clue) => needsDecoding(clue.source.kind) || requiredTier(clue.source.kind) > 0,
+    )
     return [...held].sort(
       (a, b) => Number(undecoded.has(b.id)) - Number(undecoded.has(a.id)),
     )
@@ -50,20 +62,20 @@ export function LabScreen() {
       <div className="lab-overlay" aria-hidden="true" />
 
       <header className="lab-title">
-        <div className="eyebrow">Science deck · containment laboratory 03</div>
+        <div className="eyebrow">Science deck · research bench</div>
         <h2>Research & Analysis</h2>
-        <p>Artefacts come back sealed. Until they are read, they say nothing about the way home.</p>
+        <p>What the ship cannot read, it cannot use. The bench turns time into understanding.</p>
       </header>
 
       <aside className="lab-samples panel-glass">
         <div className="panel-heading">
-          <span>Recovered artefacts</span>
-          <span>{artefacts.length === 0 ? 'none' : `${artefacts.length} held`}</span>
+          <span>Held for analysis</span>
+          <span>{artefacts.length === 0 ? 'none' : `${artefacts.length} items`}</span>
         </div>
         {artefacts.length === 0 && (
           <div className="lab-empty">
-            The bench is clear. Artefacts recovered without a science officer on the ground
-            arrive here sealed — everything readable is already on the Nav Plot.
+            The bench is clear. Artefacts and untranslated accounts arrive here; everything
+            readable is already on the Nav Plot.
           </div>
         )}
         {artefacts.map((clue, i) => (
@@ -102,15 +114,14 @@ export function LabScreen() {
             <span className="containment-state">CONTAINMENT IDLE</span>
           </div>
           <p className="lab-idle">
-            Away teams that go down without the science officer bring their finds here.
-            Anything they recover with {science?.name ?? 'a science officer'} on the ground
-            is read on site and goes straight to the plot.
+            Away teams that go down without the science officer bring their finds here, and so
+            does anything the translation matrix cannot yet read.
           </p>
         </section>
       )}
 
       <aside className="science-officer panel-glass">
-        <div className="panel-heading"><span>Officer on station</span><span>{science?.status ?? 'vacant'}</span></div>
+        <div className="panel-heading"><span>Research track</span><span>{science?.status ?? 'vacant'}</span></div>
         <div className="officer-profile">
           <span className="officer-portrait">
             {science?.portrait ? (
@@ -121,19 +132,87 @@ export function LabScreen() {
           </span>
           <span><strong>{science?.name ?? 'Science station vacant'}</strong><small>Chief science officer · skill {science?.skill ?? 0}</small></span>
         </div>
-        {canDecode ? (
-          <p>“Give me a day with a sealed one and it will talk, Captain. They always talk.”</p>
+
+        {state.tech.active ? (
+          <div className="research-active">
+            <div className="research-heading">
+              <strong>{TECH_BY_ID[state.tech.active.id]!.name}</strong>
+              <span>{state.tech.active.daysLeft}d left</span>
+            </div>
+            <div className="research-bar">
+              <i
+                style={{
+                  width: `${Math.round(
+                    (1 - state.tech.active.daysLeft / TECH_BY_ID[state.tech.active.id]!.days) * 100,
+                  )}%`,
+                }}
+              />
+            </div>
+            {science?.status !== 'fit' && (
+              <p className="lab-blocked">Paused — the science officer is not fit to work it.</p>
+            )}
+          </div>
         ) : (
-          <p className="officer-warning">
-            No fit science officer aboard. Sealed artefacts stay dark until there is one.
-          </p>
+          <p className="research-idle">The bench is between projects. {science ? 'Proposals below.' : ''}</p>
         )}
-        <dl>
-          <div><dt>Sealed artefacts</dt><dd>{[...undecoded].length}</dd></div>
-          <div><dt>Accounts held</dt><dd>{clues.length}</dd></div>
-          <div><dt>Decode time</dt><dd>1 day each</dd></div>
-        </dl>
+
+        <div className="research-list">
+          {TECH_TREE.map((node) => (
+            <ResearchCard
+              key={node.id}
+              node={node}
+              researched={state.tech.researched.includes(node.id)}
+              available={canResearch(state, node.id)}
+              active={state.tech.active?.id === node.id}
+              onStart={() => dispatch({ type: 'startResearch', tech: node.id })}
+            />
+          ))}
+        </div>
       </aside>
+    </div>
+  )
+}
+
+function ResearchCard({
+  node,
+  researched,
+  available,
+  active,
+  onStart,
+}: {
+  node: TechNode
+  researched: boolean
+  available: boolean
+  active: boolean
+  onStart: () => void
+}) {
+  const [open, setOpen] = useState(false)
+  const status = researched ? 'DONE' : active ? 'ACTIVE' : node.locked ? 'LOCKED' : available ? `${node.days}D` : 'GATED'
+
+  return (
+    <div className={`research-card ${researched ? 'is-done' : ''} ${node.locked ? 'is-locked' : ''}`}>
+      <button className="research-row" onClick={() => setOpen((v) => !v)}>
+        <strong>{node.name}</strong>
+        <span className={`research-status status-${status.toLowerCase()}`}>{status}</span>
+      </button>
+      {open && (
+        <div className="research-detail">
+          <p className="research-pitch">{node.pitch}</p>
+          <p className="research-effect">{node.effect}</p>
+          {available && !active && (
+            <button className="primary-action" onClick={onStart}>
+              Put the bench on it — {node.days} days <span>›</span>
+            </button>
+          )}
+          {!available && !researched && !active && (
+            <p className="lab-blocked">
+              {node.locked
+                ? 'Locked — the components have not been found.'
+                : `Requires ${node.requires.map((r) => TECH_BY_ID[r]!.name).join(', ')}.`}
+            </p>
+          )}
+        </div>
+      )}
     </div>
   )
 }
@@ -150,7 +229,13 @@ function ArtefactAnalysis({
   onDecode: () => void
 }) {
   const index = useGalaxyIndex()
+  const state = useGame((s) => s.state)
+  const dispatch = useDispatch()
   const profile = profileFor(clue.source.kind)
+  const tierNeeded = requiredTier(clue.source.kind)
+  const tierHeld = commsTier(state)
+  const tierBlocked = sealed && tierNeeded > tierHeld
+  const nextMatrix = tierBlocked ? (['comms-1', 'comms-2'] as const)[tierHeld] : null
 
   return (
     <section className="lab-analysis panel-glass">
@@ -179,7 +264,11 @@ function ArtefactAnalysis({
       <div className="analysis-grid">
         <LabMetric label="Origin" value={index.system(clue.source.at).name} tone="cyan" />
         <LabMetric label="Form" value={profile.label} />
-        <LabMetric label="Status" value={sealed ? 'SEALED' : 'DECODED'} tone={sealed ? 'red' : 'cyan'} />
+        <LabMetric
+          label="Language"
+          value={tierNeeded === 0 ? 'FAMILIAR' : TIER_NAMES[tierNeeded]!.toUpperCase()}
+          tone={tierBlocked ? 'red' : 'muted'}
+        />
         <LabMetric
           label="Source reliability"
           value={sealed ? 'UNKNOWN' : `${Math.round(clue.confidence * 100)}%`}
@@ -190,8 +279,9 @@ function ArtefactAnalysis({
       {sealed ? (
         <p className="lab-log">
           <span>SCI/{clue.id}</span>
-          Recovered from {index.system(clue.source.at).name}. Whatever it says about the way
-          home, nobody aboard has read it yet.
+          {tierBlocked
+            ? `Recovered from ${index.system(clue.source.at).name}. The script defeats the current matrix — whatever it says, the ship cannot read it yet.`
+            : `Recovered from ${index.system(clue.source.at).name}. Whatever it says about the way home, nobody aboard has read it yet.`}
         </p>
       ) : (
         <div className="lab-reading">
@@ -204,14 +294,34 @@ function ArtefactAnalysis({
       )}
 
       {sealed ? (
-        <>
-          <button className="primary-action" disabled={!canDecode} onClick={onDecode}>
-            Run deep analysis — 1 day <span>›</span>
-          </button>
-          {!canDecode && (
-            <p className="lab-blocked">Needs a fit science officer at the bench.</p>
-          )}
-        </>
+        tierBlocked ? (
+          <>
+            {nextMatrix && canResearch(state, nextMatrix) ? (
+              <button
+                className="primary-action"
+                onClick={() => dispatch({ type: 'startResearch', tech: nextMatrix })}
+              >
+                Needs {TIER_NAMES[tierHeld + 1]} — put the bench on it <span>›</span>
+              </button>
+            ) : (
+              <p className="lab-blocked">
+                Needs {TIER_NAMES[tierNeeded]}
+                {state.tech.active !== null && state.tech.active.id === nextMatrix
+                  ? ` — in progress, ${state.tech.active.daysLeft}d left.`
+                  : '.'}
+              </p>
+            )}
+          </>
+        ) : (
+          <>
+            <button className="primary-action" disabled={!canDecode} onClick={onDecode}>
+              Run deep analysis — 1 day <span>›</span>
+            </button>
+            {!canDecode && (
+              <p className="lab-blocked">Needs a fit science officer at the bench.</p>
+            )}
+          </>
+        )
       ) : (
         <button
           className="primary-action"
