@@ -18,20 +18,22 @@ repository's default branch.
 
 | Environment | Serving | Status |
 |---|---|---|
-| Production | tracks `main` @ 11774bb — the **pre-pivot build** (10 Aug): morale & supplies, old lab, no scenes, no combat | **STALE** |
+| Production | tracks `main` @ bbfc065 — the **full R-series game**, deployed 19 Aug | **READY** |
 | Default branch | `claude/space-adventure-game-plan-29sgn5` @ 9ac3e7a — full R-series via PRs #3 & #4 | READY |
 | Working branch | `claude/game-cohesion-transitions-29u57t` @ fd37ec2 — all 11 deployments clean | READY |
-| Parallel prototype | `claude/ithaca-encounters-combat-dxkwdl` — divergent variant from another session, unmerged | DECIDE |
+| Parallel prototype | `claude/ithaca-encounters-combat-dxkwdl` — to be deleted; its three ideas are specced in R8/R9 below | DELETE |
 
-**The one action that matters now:** Vercel's production target follows
-`main`, and `main` was last updated before the pivot — so the public URL still
-serves the old game. Either fast-forward `main` to the default branch, or
-change the Vercel project's production branch. One-line change either way;
-branch strategy should then be settled for good (R8).
-
-*Verification note: deployment states were confirmed through the Vercel API;
-the checking environment's network policy blocks fetching the preview URLs
-directly. Worth one manual click after the production cutover.*
+**Status 19 Aug (done this session):** `main` was fast-forwarded through the
+default branch plus the doc commit and pushed; Vercel built and promoted it —
+production now serves the full game (deployment `READY`, commit bbfc065).
+Remaining hand-work: **deleting the Ithaca branch needs one click in the
+GitHub UI** (the remote environment's git proxy refuses deletion pushes, and
+the GitHub API surface here has no delete-branch route) — Branches page →
+`claude/ithaca-encounters-combat-dxkwdl` → delete. Its three worthwhile ideas
+are already captured as specs in R8/R9. Branch strategy note for R8: `main`
+is now current, but the repo's *default* branch is still
+`claude/space-adventure-game-plan-29sgn5`; pick one as the branch of record
+(recommend `main`) and change the GitHub default accordingly.
 
 ## 2. Where the game stands — feature-complete systems, thin content
 
