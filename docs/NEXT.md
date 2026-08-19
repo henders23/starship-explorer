@@ -89,15 +89,18 @@ is the best scene in the game.*
 - ~~**Scene pool depth**~~ Done 19 Aug: 3–4 beat variants per family with
   region flavour, and variant *rotation* — a run repeats no scene text until
   a family outgrows its pool (pinned by the encounters suite).
-- **Mid-mission choice nodes**: one authored decision inside away missions
-  with printed odds, riding the existing harm ladder.
+- ~~**Mid-mission choice nodes**~~ Done 19 Aug: the crisis — some missions
+  hold at an authored complication per site family, odds printed exactly as
+  rolled, riding the harm ladder; saves resume mid-crisis (schema v3).
 - **The finale**: ~~an arrival scene at the gateway threshold~~ done 19 Aug —
   the correct Long Jump arrives at the threshold and the transit is the
   scene's commit option. Remaining: the optional contested transit (per
   `docs/specs/doorway-home.md`), which wants the campaign-endings flags
   groundwork first.
-- **Combat presentation depth**: per-class enemy room layouts, hi-res exports
-  of favourite catalog ships, a tier-3 flagship class.
+- **Combat presentation depth**: ~~per-class enemy room layouts~~ and ~~a
+  tier-3 flagship class~~ done 19 Aug (seven interior plans, the Ashen
+  Sovereign at surge ≥ 4). Remaining: hi-res exports of favourite catalog
+  ships — an art task, not a code one.
 - ~~**Loss epilogues**~~ Done 19 Aug: the epilogue rulebook
   (`src/engine/state/epilogue.ts`) shows every ending the lines the run
   earned, and the loss screens name the dead.
