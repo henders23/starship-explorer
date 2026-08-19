@@ -1,66 +1,74 @@
 import { useMemo, useState } from 'react'
 import type { Officer } from '../engine/crew/types.js'
-import { useGame } from './store.js'
+import {
+  defaultLoadouts,
+  GEAR,
+  GEAR_BY_ID,
+  gearGuard,
+  loadoutMass,
+  type ApproachStyle,
+  type GearItem,
+  type GearSlot,
+} from '../engine/missions/gear.js'
+import { useDispatch, useGame } from './store.js'
 
-type Slot = 'primary' | 'armour' | 'equipment'
+/**
+ * The equipment locker. Everything on this screen is engine state: what is
+ * issued here is what `approachOdds` and the harm rules read when a team
+ * goes down, and the effect lines are the rules themselves.
+ */
 
-interface GearItem {
-  id: string
-  name: string
-  slot: Slot
-  mark: string
-  effect: string
-  mass: number
-  risk: string
-}
-
-const GEAR: GearItem[] = [
-  { id: 'pulse', name: 'M-9 Pulse Carbine', slot: 'primary', mark: 'M9', effect: '+12 clean outcome', mass: 4.8, risk: 'Medium range' },
-  { id: 'scatter', name: 'Kestrel Scattergun', slot: 'primary', mark: 'SG', effect: '+18 breach outcome', mass: 6.1, risk: 'Close range' },
-  { id: 'stunner', name: 'Vektor Arc Projector', slot: 'primary', mark: 'AP', effect: '+16 capture outcome', mass: 5.4, risk: 'Non-lethal' },
-  { id: 'hardsuit', name: 'Aegis Mk III Hardsuit', slot: 'armour', mark: 'A3', effect: '−24 injury chance', mass: 12.6, risk: 'Sealed' },
-  { id: 'scout', name: 'Pathfinder Flexweave', slot: 'armour', mark: 'PF', effect: '−10 injury · +8 speed', mass: 6.2, risk: 'Mobile' },
-  { id: 'hazmat', name: 'Sable Environment Rig', slot: 'armour', mark: 'ER', effect: 'Immune to exposure', mass: 9.7, risk: 'Hazard rated' },
-  { id: 'scanner', name: 'Tarsis Field Scanner', slot: 'equipment', mark: 'FS', effect: '+22 science approach', mass: 2.1, risk: '8 hour cell' },
-  { id: 'medkit', name: 'Trauma Foam Kit', slot: 'equipment', mark: 'TK', effect: 'First injury ignored', mass: 1.8, risk: 'Single use' },
-  { id: 'drone', name: 'Firefly Survey Drone', slot: 'equipment', mark: 'SD', effect: '+12 clean · reveals traps', mass: 3.4, risk: 'Autonomous' },
-]
-
-const DEFAULTS: Record<string, Record<Slot, string>> = {
-  captain: { primary: 'pulse', armour: 'hardsuit', equipment: 'scanner' },
-  security: { primary: 'scatter', armour: 'hardsuit', equipment: 'drone' },
-  science: { primary: 'stunner', armour: 'scout', equipment: 'scanner' },
-  medical: { primary: 'stunner', armour: 'hazmat', equipment: 'medkit' },
-}
-
-const SLOT_LABELS: Record<Slot, string> = {
+const SLOT_LABELS: Record<GearSlot, string> = {
   primary: 'Primary weapon',
   armour: 'Armour system',
   equipment: 'Field equipment',
 }
 
+const SLOTS = Object.keys(SLOT_LABELS) as GearSlot[]
+
+const STYLE_LABELS: Record<ApproachStyle, string> = {
+  force: 'Direct approaches',
+  tactical: 'Tactical approaches',
+  finesse: 'Finesse approaches',
+}
+
 export function LoadoutScreen() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
-  const morale = useGame((s) => s.state.morale)
+  const loadouts = useGame((s) => s.state.loadouts)
+  const dispatch = useDispatch()
   const [selectedRole, setSelectedRole] = useState(roster[0]?.role ?? 'captain')
-  const [loadouts, setLoadouts] = useState(DEFAULTS)
-  const [slot, setSlot] = useState<Slot>('primary')
+  const [slot, setSlot] = useState<GearSlot>('primary')
   const [notice, setNotice] = useState('Locker manifest synchronised')
 
   const officer = roster.find((entry) => entry.role === selectedRole) ?? roster[0]!
-  const assigned = loadouts[selectedRole] ?? DEFAULTS.captain!
-  const equipped = (target: Slot) => GEAR.find((item) => item.id === assigned[target])!
-  const mass = (Object.keys(SLOT_LABELS) as Slot[]).reduce((sum, target) => sum + equipped(target).mass, 0)
+  const assigned = loadouts[officer.role]
+  const equipped = (target: GearSlot) => GEAR_BY_ID[assigned[target]]!
+  const mass = loadoutMass(assigned)
+  const guard = gearGuard(loadouts, officer.role)
   const ready = roster.filter((entry) => entry.status === 'fit').length
   const options = useMemo(() => GEAR.filter((item) => item.slot === slot), [slot])
 
+  // The officer's whole kit, summed per approach style — the same numbers
+  // gearCleanBonus feeds into the mission odds when they are on the team.
+  const styleBonus = (style: ApproachStyle) =>
+    SLOTS.reduce((sum, target) => sum + equipped(target).clean[style], 0)
+
   const equip = (item: GearItem) => {
-    setLoadouts((current) => ({
-      ...current,
-      [selectedRole]: { ...(current[selectedRole] ?? DEFAULTS.captain!), [slot]: item.id },
-    }))
+    dispatch({ type: 'equip', role: officer.role, slot, item: item.id })
     setNotice(`${item.name} issued to ${officer.name}`)
+  }
+
+  const restoreStandard = () => {
+    // Re-issue standard kit through the reducer so the engine stays the
+    // single source of truth; already-standard slots no-op harmlessly.
+    const standard = defaultLoadouts()
+    for (const entry of roster) {
+      for (const target of SLOTS) {
+        dispatch({ type: 'equip', role: entry.role, slot: target, item: standard[entry.role][target] })
+      }
+    }
+    setNotice('Standard issue restored')
   }
 
   return (
@@ -69,11 +77,11 @@ export function LoadoutScreen() {
         <div>
           <div className="eyebrow">Away mission operations</div>
           <h2>Expedition Loadout</h2>
-          <p>Issue weapons, armour and specialist equipment before deployment.</p>
+          <p>What is issued here is what the mission odds and the injury rolls read.</p>
         </div>
         <div className="mission-readiness">
           <span>Team readiness</span>
-          <strong>{Math.round(((ready * 18 + morale) / (roster.length * 18 + 100)) * 100)}%</strong>
+          <strong>{Math.round((ready / roster.length) * 100)}%</strong>
           <small>{ready}/{roster.length} officers fit · {pools.security} security available</small>
         </div>
       </header>
@@ -110,7 +118,7 @@ export function LoadoutScreen() {
           </div>
 
           <div className="equipped-grid">
-            {(Object.keys(SLOT_LABELS) as Slot[]).map((target, index) => {
+            {SLOTS.map((target, index) => {
               const item = equipped(target)
               return (
                 <button
@@ -153,19 +161,28 @@ export function LoadoutScreen() {
         </main>
 
         <aside className="loadout-summary">
-          <div className="panel-heading"><span>Mission package</span><span>Draft</span></div>
-          <div className="readiness-ring" style={{ '--readiness': `${Math.min(100, 70 + officer.skill * 6)}%` } as React.CSSProperties}>
-            <strong>{70 + officer.skill * 6}%</strong>
-            <span>projected readiness</span>
+          <div className="panel-heading"><span>Kit effect</span><span>{officer.role}</span></div>
+          <div className="readiness-ring" style={{ '--readiness': `${Math.min(100, Math.round((guard / 15) * 100))}%` } as React.CSSProperties}>
+            <strong>−{guard}%</strong>
+            <span>injury chance</span>
           </div>
-          <div className="summary-stat"><span>Protection</span><strong>Class III</strong></div>
-          <div className="summary-stat"><span>Firepower</span><strong>7.4 kJ</strong></div>
-          <div className="summary-stat"><span>Field utility</span><strong>{equipped('equipment').mark}</strong></div>
+          {(Object.keys(STYLE_LABELS) as ApproachStyle[]).map((style) => (
+            <div className="summary-stat" key={style}>
+              <span>{STYLE_LABELS[style]}</span>
+              <strong>{styleBonus(style) >= 0 ? '+' : ''}{styleBonus(style)} clean</strong>
+            </div>
+          ))}
+          {SLOTS.some((target) => equipped(target).medkit) && (
+            <div className="summary-stat"><span>Trauma kit</span><strong>1 injury negated</strong></div>
+          )}
           <p className="loadout-notice">{notice}</p>
-          <button className="primary-action" disabled={officer.status !== 'fit'} onClick={() => setNotice('Loadout locked · shuttle crew notified')}>
-            Confirm loadout <span>›</span>
+          <button
+            className="primary-action"
+            onClick={() => window.dispatchEvent(new CustomEvent('starship:navigate', { detail: 'galaxy' }))}
+          >
+            To the star chart <span>›</span>
           </button>
-          <button className="secondary-action" onClick={() => { setLoadouts(DEFAULTS); setNotice('Standard issue restored') }}>
+          <button className="secondary-action" onClick={restoreStandard}>
             Restore standard issue
           </button>
         </aside>

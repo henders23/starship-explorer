@@ -1,7 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
+import { BriefingScreen } from './BriefingScreen.js'
+import { CombatOverlay } from './CombatOverlay.js'
+import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
+import { surgeForecast } from '../engine/state/reducer.js'
+import { TruthReveal } from './TruthReveal.js'
+import { TECH_BY_ID } from '../engine/research/tech.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StarMap } from './StarMap.js'
@@ -14,13 +20,16 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
   { id: 'ship', label: 'Ship Overview', code: '01' },
   { id: 'galaxy', label: 'Galaxy', code: '02' },
   { id: 'loadout', label: 'Loadout', code: '03' },
-  { id: 'lab', label: 'Lab', code: '04' },
+  { id: 'lab', label: 'Research', code: '04' },
 ]
+
+/** Title → briefing → the game. The briefing is the crew handing over context. */
+type Phase = 'title' | 'briefing' | 'game'
 
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
   const [screen, setScreen] = useState<Screen>('ship')
-  const [started, setStarted] = useState(false)
+  const [phase, setPhase] = useState<Phase>('title')
   const ambientRef = useRef<HTMLAudioElement | null>(null)
 
   useEffect(() => {
@@ -32,29 +41,66 @@ export function App() {
     return () => window.removeEventListener('starship:navigate', navigate)
   }, [])
 
-  // The ship's ambience runs only while the cutaway is on screen. Playback
-  // must begin inside the "Take command" click — browsers refuse audio that
-  // was never sanctioned by a user gesture.
-  const begin = () => {
+  const restart = useGame((s) => s.restart)
+
+  // The ship's ambience runs aboard ship — the briefing on the bridge and the
+  // cutaway both count. Playback must begin inside the "Take command" click —
+  // browsers refuse audio that was never sanctioned by a user gesture.
+  const startAmbience = () => {
     const ambient = ambientRef.current ?? new Audio('/assets/audio/ship-ambient.mp3')
     ambientRef.current = ambient
     ambient.loop = true
     ambient.volume = 0.15
     void ambient.play().catch(() => {})
-    setStarted(true)
   }
+
+  const begin = (seed?: string) => {
+    startAmbience()
+    // A named seed replays a known galaxy; a blank one rolls a fresh sky.
+    restart(seed || `voyager-${Date.now().toString(36)}`)
+    setPhase('briefing')
+  }
+
+  const resume = () => {
+    startAmbience()
+    setPhase('game')
+  }
+
+  // Station hotkeys, active once aboard and only when no overlay is playing.
+  const encounterOpen = useGame((s) => s.state.encounter !== null || s.state.combat !== null)
+  useEffect(() => {
+    if (phase !== 'game') return
+    const onKey = (event: KeyboardEvent) => {
+      if (encounterOpen) return
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      const stations: Record<string, Screen> = { '1': 'ship', '2': 'galaxy', '3': 'loadout', '4': 'lab' }
+      const next = stations[event.key]
+      if (next) setScreen(next)
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [phase, encounterOpen])
 
   useEffect(() => {
     const ambient = ambientRef.current
     if (!ambient) return
-    if (started && screen === 'ship') void ambient.play().catch(() => {})
+    if (phase === 'briefing' || (phase === 'game' && screen === 'ship'))
+      void ambient.play().catch(() => {})
     else ambient.pause()
-  }, [started, screen])
+  }, [phase, screen])
 
-  if (!started) {
+  if (phase === 'title') {
     return (
       <div className="crt app-shell h-full">
-        <StartScreen onBegin={begin} />
+        <StartScreen onBegin={begin} onResume={resume} />
+      </div>
+    )
+  }
+
+  if (phase === 'briefing') {
+    return (
+      <div className="crt app-shell h-full">
+        <BriefingScreen onComplete={() => setPhase('game')} />
       </div>
     )
   }
@@ -63,16 +109,22 @@ export function App() {
     <div className="crt app-shell flex h-full flex-col">
       <Header screen={screen} onScreen={setScreen} />
       <div className="min-h-0 flex-1 overflow-hidden">
-        {screen === 'ship' && <ShipHub onNavigate={setScreen} />}
-        {screen === 'galaxy' && <GalaxyDeck />}
-        {screen === 'loadout' && <LoadoutScreen />}
-        {screen === 'lab' && <LabScreen />}
+        {/* Keyed on the screen so switching stations plays the same short
+            arrival transition everywhere, instead of a hard cut. */}
+        <div key={screen} className="screen-stage h-full">
+          {screen === 'ship' && <ShipHub onNavigate={setScreen} />}
+          {screen === 'galaxy' && <GalaxyDeck />}
+          {screen === 'loadout' && <LoadoutScreen />}
+          {screen === 'lab' && <LabScreen />}
+        </div>
       </div>
       <CaptainsLog />
+      <EncounterOverlay />
+      <CombatOverlay />
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}
       {outcome === 'stranded' && <StrandedEnding />}
-      {outcome === 'mutiny' && <MutinyEnding />}
+      {outcome === 'destroyed' && <DestroyedEnding />}
     </div>
   )
 }
@@ -122,6 +174,7 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
       </nav>
 
       <div className="header-telemetry flex shrink-0 items-center gap-3">
+        <ResearchChip />
         <FuelGauge />
         {jumps.length > 0 && (
           <span className="text-alarm-dim text-[10px]">
@@ -203,8 +256,31 @@ function CandidateList() {
   )
 }
 
+/** The bench's active project, and the surge forecast once telemetry exists. */
+function ResearchChip() {
+  const active = useGame((s) => s.state.tech.active)
+  const forecast = useGame((s) => surgeForecast(s.state))
+  const day = useGame((s) => s.state.day)
+
+  return (
+    <span className="flex items-center gap-4 text-[11px]">
+      {forecast !== null && (
+        <span className="text-phosphor-dim" title="Rift Telemetry: the next surge, forecast to the day">
+          surge day {forecast}{forecast <= day + 2 ? ' — soon' : ''}
+        </span>
+      )}
+      {active && (
+        <span className="text-amber-dim" title="Active research: ticks down while the science officer is fit">
+          R&D: {TECH_BY_ID[active.id]!.name} · {active.daysLeft}d
+        </span>
+      )}
+    </span>
+  )
+}
+
 function FuelGauge() {
   const fuel = useGame((s) => s.state.ship.fuel)
+  const hull = useGame((s) => s.state.ship.hull)
   const day = useGame((s) => s.state.day)
   const scarred = useGame((s) => s.state.driveScarred)
   const max = 80
@@ -227,6 +303,14 @@ function FuelGauge() {
           {fuel}/{max}
         </span>
       </span>
+      {hull < 100 && (
+        <span
+          className={hull <= 35 ? 'text-alarm' : 'text-amber-dim'}
+          title="Battle damage. A faction yard refit plates it over."
+        >
+          hull {hull}%
+        </span>
+      )}
       {scarred && (
         <span className="text-alarm-dim" title="A scarred drive burns 30% more per lane until refitted in faction space">
           drive scarred
@@ -299,6 +383,7 @@ function Ending() {
               : '.'}
           </div>
         </div>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
@@ -327,6 +412,7 @@ function StrandedEnding() {
           The plot on the board may even be right — someone should check it, someday, whoever
           finds the log. The ship keeps its orbit. The orbit keeps its ship.
         </p>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
@@ -338,27 +424,27 @@ function StrandedEnding() {
   )
 }
 
-/** The crew has done its arithmetic, and the answer was not the captain. */
-function MutinyEnding() {
+/** Lost with all hands. The shortest entry in any registry. */
+function DestroyedEnding() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
       <div className="panel border-alarm-dim max-w-lg px-6 py-5">
-        <div className="label mb-2">Entry not logged by the captain</div>
-        <h2 className="text-alarm mb-3 text-[18px]">The ship is no longer yours.</h2>
+        <div className="label mb-2">No further entries</div>
+        <h2 className="text-alarm mb-3 text-[18px]">Lost with all hands.</h2>
         <p className="text-ink-dim mb-4 text-[12px] leading-relaxed">
-          They were polite about it, which was somehow worse. The plot on the Nav board is still
-          good — better than they know — and someone else will get the credit for finishing it,
-          or the blame for abandoning it. You are given quarters amidships and nothing to decide,
-          ever again.
+          The <em>Indefatigable</em> comes apart a very long way from anywhere she was built to
+          be. The plot on the Nav board — the accounts, the trust so carefully placed and
+          withheld — burns with everything else. Whatever the answer was, it stays out here.
         </p>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
         >
-          Another galaxy
+          Another ship, another galaxy
         </button>
       </div>
     </div>
@@ -380,6 +466,7 @@ function LostEnding() {
           reading it now. Whatever happens to the {' '}
           <em>Indefatigable</em> next, it happens without you.
         </p>
+        <TruthReveal />
         <button
           onClick={() => restart(`${seed}-again`)}
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"

@@ -1,5 +1,10 @@
-import type { AwayTeam, CrewPools, Officer, OfficerRole } from '../crew/types.js'
+import type { CombatState } from '../combat/combat.js'
+import type { AwayTeam, CrewPools, Officer, OfficerRole, Specialist } from '../crew/types.js'
+import type { SceneInstance } from '../encounters/types.js'
+import type { GearSlot, Loadouts } from '../missions/gear.js'
 import type { ClueId, ClueState, Mystery } from '../mystery/types.js'
+import type { ComponentKind } from '../research/parts.js'
+import type { TechId } from '../research/tech.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 
 /**
@@ -28,26 +33,43 @@ export interface GameState {
   searched: SystemId[]
   /** The system currently under inspection on the chart. */
   selected: SystemId | null
+  /** The scene playing right now, if any. Cast on arrival, plain data. */
+  encounter: SceneInstance | null
 
-  /** Where the ship is and what is in the tank. Everything else orbits this. */
-  ship: { at: SystemId; fuel: number }
+  /** Where the ship is, what is in the tank, and what the hull can take. */
+  ship: { at: SystemId; fuel: number; hull: number }
+  /** The interception being fought, if any. Most actions wait for it. */
+  combat: CombatState | null
+  /** Contacts met so far; seeds each fight's dice. */
+  combats: number
   /** Days since arrival. Travel, missions and repairs all spend it. */
   day: number
-  /** Ship-wide morale, 0–100. Bands: see MORALE_BANDS in the reducer. */
-  morale: number
-  /** True once morale has hit Mutinous: the next loss takes the ship. */
-  mutinyArmed: boolean
-  /** Stores, 0–100. Drains a point a day; at zero, morale bleeds instead. */
-  supplies: number
   /** A scarred drive burns 30% more per lane until refitted. */
   driveScarred: boolean
+  /** The research track: what is known, and what the bench is working on. */
+  tech: {
+    researched: TechId[]
+    /** Ticks down through advanceTime while the science officer is fit. */
+    active: { id: TechId; daysLeft: number } | null
+  }
+  /** The technological track: components waiting out there, and counts held. */
+  parts: {
+    /** Which systems still hold components. Recovered with the evidence. */
+    sites: Record<SystemId, ComponentKind[]>
+    engine: number
+    shield: number
+  }
   /** Rift Surges endured so far; each is worse than the last. */
   surges: number
 
   /** The captain and department officers — the named people. */
   roster: Officer[]
+  /** What each station's locker holds. Missions read this, per carrier. */
+  loadouts: Loadouts
   /** The generic pools: alive counts, nothing more. */
   pools: CrewPools
+  /** Specialists: waiting at stations, and signed aboard. */
+  recruits: { sites: Record<SystemId, Specialist>; aboard: Specialist[] }
   /** Missions attempted, successful or not. Drives injury recovery and RNG. */
   missionsRun: number
   /** How many promotions have happened, to seed replacement names. */
@@ -56,7 +78,7 @@ export interface GameState {
   casualties: { generics: number; officers: string[] }
 
   jumps: JumpAttempt[]
-  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'mutiny'
+  outcome: 'seeking' | 'home' | 'lost' | 'stranded' | 'destroyed'
   log: LogEntry[]
 }
 
@@ -85,11 +107,23 @@ export interface LogEntry {
 export type Action =
   | { type: 'travel'; to: SystemId }
   | { type: 'scoop' }
-  | { type: 'resupply' }
   | { type: 'refit' }
   | { type: 'consult' }
   | { type: 'search'; system: SystemId }
   | { type: 'runMission'; system: SystemId; team: AwayTeam; approach: string }
+  | { type: 'equip'; role: OfficerRole; slot: GearSlot; item: string }
+  /** Put the bench on a research project (replacing any active one). */
+  | { type: 'startResearch'; tech: TechId }
+  /** Reopen the scene at the ship's position, if content remains. */
+  | { type: 'openScene' }
+  /** Answer the playing scene with one of its options. */
+  | { type: 'sceneOption'; option: string }
+  /** The posture on contact. */
+  | { type: 'combatContact'; choice: 'hail' | 'evade' | 'engage' }
+  /** Answer a toll demand. */
+  | { type: 'combatToll'; pay: boolean }
+  /** One battle round: where the power goes, and what the ship does. */
+  | { type: 'combatRound'; power: 'guns' | 'shields'; intent: 'fire' | 'flee' }
   | { type: 'decode'; clue: ClueId }
   | { type: 'promote'; role: Exclude<OfficerRole, 'captain'> }
   | { type: 'file'; clue: ClueId; state: ClueState }
@@ -106,16 +140,30 @@ export type GameEvent =
   | { type: 'scooped'; at: SystemId }
   | { type: 'fuelSalvaged'; amount: number }
   | { type: 'strandedDeclared' }
-  | { type: 'moraleShifted'; delta: number; morale: number }
   | { type: 'surgeStruck'; ordinal: number }
-  | { type: 'resupplied' }
   | { type: 'refitted' }
   | { type: 'consulted' }
-  | { type: 'mutinyDeclared' }
   | { type: 'officerRecovered'; role: OfficerRole; name: string }
   | { type: 'evidenceFound'; clues: ClueId[]; at: SystemId; undecoded: ClueId[] }
   | { type: 'nothingFound'; at: SystemId }
   | { type: 'missionResolved'; at: SystemId; outcome: 'clean' | 'messy' | 'disaster' }
+  | { type: 'equipped'; role: OfficerRole; item: string }
+  | { type: 'injurySpared'; role: OfficerRole; name: string }
+  | { type: 'sceneOpened'; at: SystemId }
+  | { type: 'sceneClosed'; at: SystemId; option: string }
+  | { type: 'techStarted'; tech: TechId }
+  | { type: 'techCompleted'; tech: TechId }
+  | { type: 'componentRecovered'; component: ComponentKind; at: SystemId }
+  | { type: 'contactMade'; at: SystemId; enemy: string }
+  | {
+      type: 'combatResolved'
+      at: SystemId
+      result: 'stood-down' | 'slipped' | 'toll-paid' | 'fled' | 'yielded' | 'driven-off' | 'destroyed-them'
+    }
+  | { type: 'shipDamaged'; amount: number; hull: number }
+  | { type: 'shipDestroyed' }
+  | { type: 'specialistJoined'; name: string; focus: Specialist['focus'] }
+  | { type: 'officerImproved'; role: OfficerRole; name: string; skill: number }
   | { type: 'genericsLost'; count: number }
   | { type: 'officerInjured'; role: OfficerRole; name: string }
   | { type: 'officerDied'; role: OfficerRole; name: string }

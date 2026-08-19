@@ -21,6 +21,8 @@ export interface Officer {
   portrait?: string
   /** 1–5. Founding officers start at 3; promoted replacements at 2. */
   skill: number
+  /** Experience toward the next skill point; rises through use. */
+  xp: number
   status: OfficerStatus
   /** For injured officers: fit again once missionsRun reaches this. */
   healedAfter?: number
@@ -52,3 +54,31 @@ export const STARTING_POOLS: CrewPools = { crew: 12, security: 12 }
 
 export const MAX_ESCORTS = 4
 export const MAX_HANDS = 4
+
+/** Skill caps at 5; the next point costs three contributions per level held. */
+export const SKILL_MAX = 5
+export const xpToNextSkill = (skill: number): number => skill * 3
+
+/**
+ * A recruited specialist: a named, portraited person with one focus, hired
+ * through a scene at a station. Their bonuses are flat and always on.
+ */
+export type SpecialistFocus = 'gunnery' | 'research' | 'comms'
+
+export interface Specialist {
+  name: string
+  portrait?: string
+  focus: SpecialistFocus
+}
+
+export const FOCUS_LABELS: Record<SpecialistFocus, string> = {
+  gunnery: 'Gunner',
+  research: 'Researcher',
+  comms: 'Linguist',
+}
+
+export const FOCUS_EFFECTS: Record<SpecialistFocus, string> = {
+  gunnery: '+3 damage per volley in ship combat',
+  research: 'Research projects take a day less',
+  comms: 'The bench decodes without spending a day',
+}

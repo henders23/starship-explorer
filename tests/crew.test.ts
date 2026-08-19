@@ -19,7 +19,7 @@ const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).
  */
 const at = (from: GameState, system: string): GameState => ({
   ...from,
-  ship: { at: system, fuel: 999 },
+  ship: { at: system, fuel: 999, hull: 100 },
 })
 
 /** First system holding evidence behind the given hazard filter. */
@@ -286,6 +286,12 @@ describe('away missions', () => {
 describe('decoding', () => {
   const SEED = 'decode-tests'
 
+  /** Full translation matrix: these tests are about the science chair, not comms. */
+  const freshDecodeState = (): GameState => ({
+    ...newGame(SEED),
+    tech: { researched: ['comms-1', 'comms-2'], active: null },
+  })
+
   /** A hazardous site holding decode-required evidence. */
   function artefactSystem(state: GameState): string | null {
     for (const clue of state.mystery.clues) {
@@ -307,7 +313,7 @@ describe('decoding', () => {
   }
 
   it('returns artefacts unread when science stays aboard, and locks filing', () => {
-    const state = newGame(SEED)
+    const state = freshDecodeState()
     const system = artefactSystem(state)
     if (!system) return
     const after = collectWithoutScience(state, system)
@@ -323,7 +329,7 @@ describe('decoding', () => {
   })
 
   it('a fit science officer decodes; a dead one leaves the plot dark', () => {
-    const state = newGame(SEED)
+    const state = freshDecodeState()
     const system = artefactSystem(state)
     if (!system) return
     const after = collectWithoutScience(state, system)
@@ -347,7 +353,7 @@ describe('decoding', () => {
   })
 
   it('science on the ground means nothing arrives undecoded', () => {
-    const state = newGame(SEED)
+    const state = freshDecodeState()
     const system = artefactSystem(state)
     if (!system) return
     let current = at(state, system)

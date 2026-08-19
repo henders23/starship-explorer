@@ -1,181 +1,181 @@
 # Starship Explorer — Build Roadmap
 
-Ordering principle: **the mystery is the game.** Get to a winnable loop with no
-combat as fast as possible, then enrich. Each milestone ends with something
+Ordering principle: **the scenes and the mystery are the game.** The deduction
+engine is built and proven; the R-series turns the game dialogue-first and
+adds the technological and research tracks. Each milestone ends with something
 playable, not something merely built.
 
----
-
-## M0 — Skeleton
-
-*Goal: an empty game that runs, saves, and is deterministic.*
-
-- Vite + React + TypeScript (strict) + Tailwind + Vitest
-- Seeded PRNG in engine state; lint rule banning `Math.random`
-- `GameState` types + zod schemas; `(state, action) => {state, events}` reducer
-- Zustand store, event log rendering to a captain's-log panel
-- Save/load via state serialization; a golden-replay test harness
-
-**Done when:** a seed + action list replays to an identical state hash in CI.
+R1 comes before everything else because every later milestone — research
+proposals, component discovery, recruitment, surrender negotiations — is
+expressed *through* scenes. Building combat or the tech tree first would mean
+building their interfaces twice.
 
 ---
 
-## M1 — The galaxy and the fuel clock — **done**
+## Foundation (the former M0–M3) — **done**
 
-*Goal: fly around a generated map and run out of fuel.*
+What the R-series builds on, all shipped and tested:
 
-- Worldgen: 70–110 systems, lane graph, regions, star/planet properties ✓ (built in M2)
-- Travel: the ship is a place on the map; every action requires presence;
-  lane costs scale with length; routes plotted by cheapest fuel ✓
-- Refuelling: scoop at gas giants (full tank, free), drain swept derelicts
-  (+8 as mission salvage) ✓ — refining and buying deferred to M7's economy
-- The Long Jump takes a 30-fuel reserve; a wrong guess displaces the ship at
-  least five jumps from the target with 25 in the tank ✓
-- Loss condition: stranded — no affordable lane, nothing to scoop, the rift
-  out of reach, and no derelict left to drain. Declared on the transition
-  that closes the trap ✓
-- Deferred: fog of war over system *contents*, drive charge time, and the
-  Drift counter (rest of M3)
+- Pure, seeded, deterministic rules engine; `(state, action) => {state, events}`;
+  a seed plus an action log always replays identically
+- Worldgen: 70–110 systems, lane graph, regions; travel, fuel, scooping,
+  derelict salvage; the stranded loss ("the long silence")
+- **The mystery**: constraint clues, trust/doubt filing, contradiction and
+  corroboration detection, false clues with decoy consistency, and a
+  **solvability proof** holding across a 10,000-seed property test
+- The Nav Plot UI: evidence board, live candidate list, map overlay
+- Crew: named roster with portraits, away missions with legible odds and a
+  harm ladder, injuries on a medbay day-clock, promotion from the ranks,
+  skill-gated decoding
+- Rift Surges on a seeded escalating schedule; drive scarring and refits
+- A real equipment locker: loadouts in engine state, feeding mission odds and
+  injury rolls
+- The opening bridge briefing — the presentation prototype for R1's scenes
 
-**Done when:** you can plan a 20-jump route and strand yourself by planning badly.
-**Status:** met — arriving at a barren dead-end with an empty tank ends the run
-in "the long silence"; the stranding test constructs exactly that trap.
-
----
-
-## M2 — Clues and deduction ★  — **done**
-
-*Goal: the game is winnable. This is the milestone that matters.*
-
-- `Constraint` evaluator and candidate-set selector
-- Gateway placement + clue generation + **solvability proof** (DESIGN §4.2)
-- Worldgen property test over 10k seeds asserting the contract
-- False clues with decoy consistency; corroboration and contradiction detection
-- Nav Plot UI: evidence board, trust/doubt toggles, live candidate list, map overlay
-- Clue-bearing points of interest scattered across the map (placeholder prose)
-- The Long Jump: commit, win, or be flung across the galaxy
-
-**Done when:** a playtester with no combat, no crew and no story can reason their
-way home from evidence — and can also get it wrong.
-
-**Status:** met. The contract holds across 10,000 seeds, and the Nav Plot plays
-end to end — gather, file, catch the liars, commit, win. See
-[MYSTERY.md](./MYSTERY.md), including the playtest finding on how the
-contradiction panel was quietly arguing for the wrong answer.
+Removed in the pivot (R0): morale, mutiny, and supplies. Pacing pressure now
+rests on fuel and the surge schedule.
 
 ---
 
-## M3 — Crew, ship and pressure — **done**
+## R0 — The pivot — **done**
 
-*Goal: the ship becomes a thing you care about.*
+*Goal: the design of record matches the game being built.*
 
-Shipped:
-- Named roster: the captain (the player) plus security, science and medical
-  officers; two generic pools (12 crew, 12 security staff), numbers only
-- Away missions with skill-gated approaches, legible odds, and a harm ladder
-  (generics before officers, injuries before deaths, the captain last)
-- **The medbay on a day clock**: wounded officers are out of action for 6
-  days with a fit medical officer aboard, 12 without, shown as "medbay Nd"
-  on the roster. Travel, scooping, missions and decoding all spend days
-- Promotion: a generic steps up into a dead officer's chair, gaining a name
-  and starting weaker
-- Skill-gated decoding: artefacts recovered without science arrive
-  unreadable; a dead science chair with an empty pool leaves them dark
-- **Morale** in four bands. A fractious crew caps volunteers at 2 per detail
-  and works worse on the ground; Mutinous arms a two-stage fuse — the next
-  loss takes the ship, and the run ends in the Mutiny ending
-- **Supplies** drain a point a day and bleed morale at 2/day once empty;
-  restock (2 days) at habitable or faction systems
-- **Drive scarring**: a failed Long Jump (or a late Rift Surge) scars the
-  drive for +30% lane costs until a 4-day refit in a faction yard
-- **Rift Surges** on a seeded, escalating schedule: fuel venting, spoiled
-  stores, an officer injured, then drive scarring — the design's soft clock
-- **Consult the Bridge**: science points at the nearest uncollected thread,
-  medical reads the medbay and stores, security counts what is left. A
-  mutinous crew gives the captain nothing
+- DESIGN.md rewritten around the three-track goal (place / engine / shield),
+  dialogue-first delivery, research and translation, recruitment and
+  experience, destroy-or-drive-off combat ✓
+- Morale, the mutiny fuse, volunteer caps, and fractious-crew penalties
+  removed from engine, UI and tests ✓
+- Supplies and resupply removed; the rift surge that spoiled stores now vents
+  fuel harder ✓
+- Endings reduce to: home, the long silence, the captain lost — combat adds
+  "lost with all hands" in R5 ✓
 
-Deferred beyond M3, with reasons:
-- Power allocation and per-subsystem damage — belongs with ship combat (M5),
-  where the reactor budget becomes a per-round decision
-- Per-crew loyalty and loyalty-gated clue release — the generic pools have
-  no individuals to be loyal; revisit if the roster model ever deepens
-- Constraint degradation on weak decode rolls — the undecoded-artefact gate
-  covers the same strategic ground with less risk to puzzle solvability
-
-**Done when:** losing your xenolinguist visibly hurts your chances of getting home.
-**Status:** met, twice over — undecoded artefacts go dark without a science
-officer, and the calendar the medbay runs on is the same one the Rift's
-surge schedule and the supplies drain are counting.
+**Done when:** the docs describe the new game, the engine contains no morale or
+supplies state, and the full test suite passes.
 
 ---
 
-## M4 — Planets and away missions
+## R1 — The encounter engine ★ — **done**
 
-*Goal: places worth going to.*
+*Goal: everything arrives through a scene. This is the milestone that matters.*
 
-- Planet generation and trait-driven site eligibility
-- Site archetypes + authored choice nodes with skill checks and visible odds
-- Away team selection, equipment locker and loadout
-- Hazards, injuries, contamination, equipment loss
-- Real authored clue prose replacing M2 placeholders
-- Ground encounters resolved by **check-based abstraction** for now
+- Scene schema: trigger, cast, beats with casting slots, options with
+  requirements (fit officer, skill, gear, later tech tier) and effects that
+  dispatch ordinary reducer actions
+- Seeded casting: templates bound to systems, payloads and cast at worldgen;
+  deterministic and replayable — a dialogue choice is an action in the log
+- Arrival triggers: reaching a system with content fires its scene; empty
+  systems stay quiet so silence keeps meaning
+- Scene UI generalised from the briefing screen: portraits, speaker
+  attribution, beats, choice buttons carrying their odds and requirements
+- Clue delivery moves into scenes: social sources play as conversations;
+  hazardous sites play as scenes whose options are the mission approaches,
+  team selection included
+- Template pool v1: at least one family per source kind (trader, castaway,
+  derelict, ruins, holdout, listening post, crew memory)
 
-**Done when:** the decision of whom to send down is genuinely difficult.
-
----
-
-## M5 — Ship-to-ship combat
-
-*Goal: space has teeth, and mercy has value.*
-
-- Range bands, manoeuvre, per-round power allocation, initiative
-- Beams / torpedoes / subsystem targeting / hail / flee
-- Encounter posture choice (hail, scan, evade, engage, ambush)
-- Disable-vs-destroy: salvage, nav computers, prisoners
-- Faction AI archetypes; threat scaling with Drift
-- Prisoners as an ongoing logistical and moral problem
-
-**Done when:** taking a ship intact is measurably better play than destroying it.
+**Done when:** every clue in a run arrives through a scene where at least one
+choice mattered, and a replayed action log replays the same conversations.
 
 ---
 
-## M6 — Infantry combat
+## R2 — Research and translation — **done**
 
-*Goal: boarding actions and the ground fights that earned it.*
+*Goal: understanding is a track, and the science officer drives it.*
 
-- Zone maps, cover, initiative, move/fire/aim/suppress/grapple
-- Stun vs lethal with faction and morale consequences
-- Boarding actions reusing the system with enemy decks as zones
-- Wounds carried back to the medbay
-- Retrofit M4's abstract ground encounters onto the tactical system
+- Tech state and a research bench screen (the lab, repurposed): projects cost
+  days with a fit science officer; skill and specialists set the pace
+- **Translation tiers** gate alien accounts — the undecoded-artefact mechanic
+  generalised: held but dark until comms research catches up, and the player
+  can always see what they are missing
+- Science-officer proposal scenes: research options pitched in dialogue, not
+  menus
+- Tree v1: comms tiers, sensors, medbay improvement, and the two R3 slots
+  (rift engine, rift shielding) visible but unbuildable
+- Understanding is gated by time and crew only — never by findable materials
 
-**Done when:** boarding a raider for their charts is the tensest thing in the game.
-
----
-
-## M7 — Factions, economy and endings
-
-*Goal: a world with politics, and a payoff.*
-
-- Faction reputation, rival pairs, territory, safe passage
-- Markets, trade goods, prices varying by region and standing
-- Reputation-gated archives as premium clue sources
-- Crew personal threads with triggers and resolutions
-- All six endings with per-crew epilogues
-- Full-run balance pass: fuel curve, clue density, threat curve
-
-**Done when:** diplomacy is a viable route home without firing a shot.
+**Done when:** a run is visibly blocked on understanding an alien account until
+comms research completes, and the player knew it the whole time.
 
 ---
 
-## M8 — Polish
+## R3 — The three-part way home — **done**
 
-- Alien tech and strange (not merely bigger) upgrades
-- Portrait composition, CRT presentation pass, sound
-- Onboarding: first 10 minutes must teach the Nav Plot
-- Accessibility: keyboard-only play, screen-reader log, colourblind-safe map
-- Ironman/casual toggle, run stats, seed sharing
-- Playwright smoke flows; performance pass on the map
+*Goal: the win condition is place + engine + shield.*
+
+- Engine and shield **components** as scene payloads placed at worldgen —
+  wrecks and traders skew engine, ruins and hazard sites skew shield
+- Rift engine and rift shielding as research projects requiring their
+  components; the Long Jump refuses until both are built and says what is
+  missing
+- **Solvability contract extended across all three tracks** and enforced by
+  the 10k-seed property test: every run can find the place, the parts, and
+  read enough evidence at achievable tiers
+- The Long Jump becomes a ceremony: the commit, the burn, the reveal
+
+**Done when:** 10,000 seeds prove every run can finish all three tracks, and
+losing a component source never silently strands a run.
+
+---
+
+## R4 — A map worth staring at — **done**
+
+*Goal: the galaxy looks like the place the scenes happen.*
+
+- System view: click a system, see its star and planets rendered
+  (procedurally, per seed) with the scene hooks visible on them
+- Visual pass on the chart: richer starfield, region texture, lane rendering
+- Scene triggers surfaced on the map — the place something happened is a place
+  the player remembers
+
+**Done when:** a playtester pans the map for pleasure and can point to where
+each story beat happened.
+
+---
+
+## R5 — Ship-to-ship combat — **done**
+
+*Goal: space has teeth; intelligence has value.*
+
+- Seeded hostile contacts by region and rift escalation
+- Contact opens as a posture scene: hail, evade, engage — odds stated
+- Turn-based resolution, legible numbers: range, power to shields or guns,
+  fire or break off; gunnery skill and weapons research feed it
+- Destroy or drive off; **surrender when the player holds intelligence** on
+  the enemy — yielding accounts, components or fuel without a shot
+- Hull damage persists; yard repairs; the "lost with all hands" ending
+- No boarding, no capture logistics, no infantry system
+
+**Done when:** a fight can be won, fled, or — with the right knowledge —
+never fought at all, and the player can say why each time.
+
+---
+
+## R6 — Crew depth — **done**
+
+*Goal: the roster grows, and the people on it grow.*
+
+- Recruitment through station and rescue scenes: specialists (gunner,
+  linguist, engineer, physicist) join as named, portraited people
+- Experience: skills rise through use — missions, research, battles — and
+  every system that reads skill feels it
+- Roster UI beyond the founding four; specialists assignable where they help
+
+**Done when:** two runs diverge meaningfully because of who was recruited and
+who was lost.
+
+---
+
+## R7 — Polish and the payoff — **in progress**
+
+- Save/resume (autosave; the state was built serialisable from day one) ✓
+- The post-run **truth reveal**: every account stamped true/false against how
+  the player filed it, plus run stats ✓
+- Seed entry and sharing on the title screen ✓; station hotkeys (1–4) ✓
+- Per-crew epilogues (home ending has them; the loss endings do not yet)
+- Audio beyond the hub; colourblind-safe map
+- Onboarding: the first ten minutes teach the Nav Plot through scenes
 
 ---
 
@@ -183,8 +183,9 @@ surge schedule and the supplies drain are counting.
 
 | Risk | Impact | Mitigation |
 |---|---|---|
-| Two tactical combat systems eat the schedule | High | M4 ships abstract ground combat; M6 is deferrable without breaking the game |
-| Generated puzzles are unsolvable or trivial | Fatal | Solvability proof in the generator + 10k-seed property test, built in M2 |
-| Procedural content reads as flavourless | High | Map is procedural, *prose is authored*; content pool grows every milestone |
-| Deduction UI is confusing | High | Nav Plot prototyped in M2 and playtested before any combat work starts |
-| Scope creep into a 4X | Fatal | No colonies, no fleets, no economy simulation. One ship, one crew, one way home |
+| Scene authoring volume eats the schedule | High | Templates + seeded casting, never one-off scenes; pool grows every milestone |
+| Three mandatory tracks feel like a checklist | High | Any landing can advance any track; tracks share the scene delivery |
+| Extended solvability contract breaks | Fatal | Extend the 10k-seed property test in R3 before balancing anything |
+| Generated puzzles unsolvable or trivial | Fatal | Existing proof retained and extended |
+| Procedural content reads as flavourless | High | Map is procedural, *prose is authored*; template pool grows every milestone |
+| Scope creep into a 4X | Fatal | No colonies, no fleets, no economy simulation, no second combat system |

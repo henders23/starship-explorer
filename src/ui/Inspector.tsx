@@ -1,8 +1,11 @@
 import { useMemo, useState } from 'react'
-import { canResupply, sitePlan, SUPPLIES_MAX, travelCost } from '../engine/state/reducer.js'
+import { PARTS_NEEDED } from '../engine/research/parts.js'
+import { jumpReady, TECH_BY_ID } from '../engine/research/tech.js'
+import { sitePlan, travelCost } from '../engine/state/reducer.js'
 import { canScoop, FUEL_MAX, LONG_JUMP_RESERVE, routeTo } from '../engine/travel/travel.js'
 import { FEATURE_NAMES, REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
-import { MissionPanel } from './MissionPanel.js'
+import { JumpCeremony } from './JumpCeremony.js'
+import { SystemView } from './SystemView.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
 /**
@@ -20,7 +23,7 @@ export function Inspector() {
   const gameState = useGame((s) => s.state)
   const { candidateSet, sites, trusted } = useNavPlot()
   const [confirming, setConfirming] = useState(false)
-  const [planning, setPlanning] = useState(false)
+  const [ceremony, setCeremony] = useState(false)
 
   if (!selectedId) {
     return <div className="text-ink-faint px-4 py-6 text-[11px]">Select a star on the chart.</div>
@@ -29,6 +32,7 @@ export function Inspector() {
   const system = index.system(selectedId)
   const isCandidate = candidateSet.has(system.id)
   const hasEvidence = sites.has(system.id)
+  const hasRecruit = gameState.recruits.sites[system.id] !== undefined
   const alreadyTried = jumps.some((j) => j.target === system.id)
   const { site } = sitePlan(gameState, system.id)
   const ship = gameState.ship
@@ -47,6 +51,8 @@ export function Inspector() {
         </div>
         <div className="text-ink-faint text-[10px]">{REGION_NAMES[system.region]}</div>
       </div>
+
+      <SystemView system={system} hasEvidence={hasEvidence} here={here} />
 
       <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[11px]">
         <Row label="Star">{STAR_NAMES[system.star]}</Row>
@@ -104,50 +110,41 @@ export function Inspector() {
         </button>
       )}
 
-      {here && canResupply(index, system.id) && gameState.supplies < SUPPLIES_MAX && outcome === 'seeking' && (
-        <button
-          onClick={() => dispatch({ type: 'resupply' })}
-          className="border-phosphor-dim text-phosphor hover:bg-phosphor-dim/15 border px-3 py-1.5 text-[11px]"
-        >
-          Take on stores (2 days)
-        </button>
-      )}
+      {here &&
+        (gameState.driveScarred || gameState.ship.hull < 100) &&
+        system.faction !== null &&
+        outcome === 'seeking' && (
+          <button
+            onClick={() => dispatch({ type: 'refit' })}
+            className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
+          >
+            {gameState.driveScarred && gameState.ship.hull < 100
+              ? 'Refit the drive and the hull (4 days)'
+              : gameState.driveScarred
+                ? 'Refit the scarred drive (4 days)'
+                : 'Repair the hull (4 days)'}
+          </button>
+        )}
 
-      {here && gameState.driveScarred && system.faction !== null && outcome === 'seeking' && (
+      {here && (hasEvidence || hasRecruit) && outcome === 'seeking' && (
         <button
-          onClick={() => dispatch({ type: 'refit' })}
+          onClick={() => dispatch({ type: 'openScene' })}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
-          Refit the scarred drive (4 days)
+          {hasEvidence
+            ? site !== null
+              ? `Respond — ${site.label.toLowerCase()}`
+              : 'Respond to the contact'
+            : 'Someone dockside is asking for the captain'}
         </button>
       )}
 
-      {here && hasEvidence && site === null && (
-        <button
-          onClick={() => dispatch({ type: 'search', system: system.id })}
-          className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
-        >
-          Search this system
-        </button>
-      )}
-
-      {here && hasEvidence && site !== null && (
-        <button
-          onClick={() => setPlanning(true)}
-          className="border-alarm-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
-        >
-          Send an away team — {site.label.toLowerCase()}
-        </button>
-      )}
-
-      {!here && hasEvidence && (
+      {!here && (hasEvidence || hasRecruit) && (
         <div className="text-ink-faint text-[10px]">
-          Evidence waits here, but the ship must arrive before anyone collects it.
+          {hasEvidence
+            ? 'Something waits here, but the ship must arrive before anyone answers it.'
+            : 'Word of a specialist looking for a berth at this station.'}
         </div>
-      )}
-
-      {planning && site !== null && (
-        <MissionPanel system={system.id} site={site} onClose={() => setPlanning(false)} />
       )}
 
       {!hasEvidence && searched.includes(system.id) && (
@@ -160,14 +157,48 @@ export function Inspector() {
           isCandidate={isCandidate}
           alreadyTried={alreadyTried}
           fuel={ship.fuel}
+          ready={jumpReady(gameState)}
           confirming={confirming}
           setConfirming={setConfirming}
           onCommit={() => {
-            dispatch({ type: 'plotTheJump', target: system.id })
             setConfirming(false)
+            setCeremony(true)
           }}
         />
       )}
+
+      {ceremony && (
+        <JumpCeremony
+          target={system.id}
+          name={system.name}
+          onClose={() => setCeremony(false)}
+        />
+      )}
+    </div>
+  )
+}
+
+/** The technological gate, itemised: what stands between the ship and the jump. */
+function TrackStatus() {
+  const state = useGame((s) => s.state)
+
+  const line = (id: 'rift-drive' | 'rift-shield') => {
+    const node = TECH_BY_ID[id]!
+    const kind = node.component!
+    if (state.tech.researched.includes(id)) return `${node.name}: built`
+    if (state.tech.active?.id === id)
+      return `${node.name}: building, ${state.tech.active.daysLeft}d left`
+    if (state.parts[kind] >= PARTS_NEEDED[kind])
+      return `${node.name}: components complete — build it on the research bench`
+    return `${node.name}: ${state.parts[kind]} of ${PARTS_NEEDED[kind]} components found`
+  }
+
+  return (
+    <div className="border-rule text-ink-dim border px-2 py-1.5 text-[10px] leading-relaxed">
+      <div className="text-ink-faint mb-0.5 tracking-[0.1em] uppercase">The way home takes three things</div>
+      <div>{line('rift-drive')}</div>
+      <div>{line('rift-shield')}</div>
+      <div>Heading: what the Nav Plot says, when you trust it.</div>
     </div>
   )
 }
@@ -190,6 +221,7 @@ function LongJump({
   isCandidate,
   alreadyTried,
   fuel,
+  ready,
   confirming,
   setConfirming,
   onCommit,
@@ -198,6 +230,7 @@ function LongJump({
   isCandidate: boolean
   alreadyTried: boolean
   fuel: number
+  ready: boolean
   confirming: boolean
   setConfirming: (v: boolean) => void
   onCommit: () => void
@@ -209,6 +242,8 @@ function LongJump({
       </div>
     )
   }
+
+  if (!ready) return <TrackStatus />
 
   if (fuel < LONG_JUMP_RESERVE) {
     return (

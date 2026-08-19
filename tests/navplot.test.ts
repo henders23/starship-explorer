@@ -21,7 +21,13 @@ let state: GameState
 let index: GalaxyIndex
 
 beforeEach(() => {
-  state = newGame(SEED)
+  // These suites are about the deduction, not the other tracks: start with
+  // the full translation matrix (every account readable) and the rift tech
+  // built (the Long Jump answers to the plot alone).
+  state = {
+    ...newGame(SEED),
+    tech: { researched: ['comms-1', 'comms-2', 'rift-drive', 'rift-shield'], active: null },
+  }
   index = new GalaxyIndex(state.galaxy)
 })
 
@@ -31,7 +37,7 @@ const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).
 /** Test-only relocation with a full tank; travel proper has its own suite. */
 const at = (from: GameState, system: string): GameState => ({
   ...from,
-  ship: { at: system, fuel: 999 },
+  ship: { at: system, fuel: 999, hull: 100 },
 })
 
 /**
@@ -55,14 +61,11 @@ function gatherEverything(from: GameState): GameState {
   let current = from
   for (const system of new Set(current.mystery.clues.map((c) => c.source.at))) {
     current = at(current, system)
-    // These suites are about the deduction, not attrition: keep the crew fed,
-    // steady and healthy between sites so morale and the medbay (which have
-    // their own suites) cannot end the run mid-gather.
+    // These suites are about the deduction, not attrition: keep the crew
+    // healthy between sites so the medbay (which has its own suite) cannot
+    // hollow out the roster mid-gather.
     current = {
       ...current,
-      supplies: 100,
-      morale: 70,
-      mutinyArmed: false,
       roster: current.roster.map((o) =>
         o.status === 'injured' ? { ...o, status: 'fit' as const, healedAfter: undefined } : o,
       ),

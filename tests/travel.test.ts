@@ -15,14 +15,18 @@ import { GalaxyIndex } from '../src/engine/worldgen/index-galaxy.js'
 const SEED = 'travel-tests'
 
 function fresh(): { state: GameState; index: GalaxyIndex } {
-  const state = newGame(SEED)
+  // Rift tech pre-built: this suite is about fuel and lanes, not the tracks.
+  const state: GameState = {
+    ...newGame(SEED),
+    tech: { researched: ['rift-drive', 'rift-shield'], active: null },
+  }
   return { state, index: new GalaxyIndex(state.galaxy) }
 }
 
 describe('routes', () => {
   it('starts with a full tank at the arrival point', () => {
     const { state } = fresh()
-    expect(state.ship).toEqual({ at: state.galaxy.start, fuel: FUEL_MAX })
+    expect(state.ship).toEqual({ at: state.galaxy.start, fuel: FUEL_MAX, hull: 100 })
   })
 
   it('plots the same route for the same request, and prices it as its lanes', () => {
@@ -67,7 +71,7 @@ describe('travel', () => {
   it('refuses a trip the tank cannot cover', () => {
     const { state, index } = fresh()
     const neighbour = index.neighbours(state.galaxy.start)[0]!
-    const broke: GameState = { ...state, ship: { ...state.ship, fuel: 1 } }
+    const broke: GameState = { ...state, ship: { ...state.ship, fuel: 1, hull: 100 } }
     expect(reduce(broke, { type: 'travel', to: neighbour }).state).toBe(broke)
   })
 
@@ -90,19 +94,19 @@ describe('scooping', () => {
     const giant = index.systems.find((s) => s.features.includes('gas-giant'))!
     const barren = index.systems.find((s) => !s.features.includes('gas-giant'))!
 
-    const atGiant: GameState = { ...state, ship: { at: giant.id, fuel: 10 } }
+    const atGiant: GameState = { ...state, ship: { at: giant.id, fuel: 10, hull: 100 } }
     const { state: full, events } = reduce(atGiant, { type: 'scoop' })
     expect(full.ship.fuel).toBe(FUEL_MAX)
     expect(events).toEqual([{ type: 'scooped', at: giant.id }])
 
-    const atBarren: GameState = { ...state, ship: { at: barren.id, fuel: 10 } }
+    const atBarren: GameState = { ...state, ship: { at: barren.id, fuel: 10, hull: 100 } }
     expect(reduce(atBarren, { type: 'scoop' }).state).toBe(atBarren)
   })
 
   it('does nothing with a full tank', () => {
     const { state, index } = fresh()
     const giant = index.systems.find((s) => s.features.includes('gas-giant'))!
-    const atGiant: GameState = { ...state, ship: { at: giant.id, fuel: FUEL_MAX } }
+    const atGiant: GameState = { ...state, ship: { at: giant.id, fuel: FUEL_MAX, hull: 100 } }
     expect(reduce(atGiant, { type: 'scoop' }).state).toBe(atGiant)
   })
 })
@@ -110,7 +114,7 @@ describe('scooping', () => {
 describe('the Long Jump under the fuel clock', () => {
   it('is refused without the reserve', () => {
     const { state } = fresh()
-    const broke: GameState = { ...state, ship: { ...state.ship, fuel: LONG_JUMP_RESERVE - 1 } }
+    const broke: GameState = { ...state, ship: { ...state.ship, fuel: LONG_JUMP_RESERVE - 1, hull: 100 } }
     expect(reduce(broke, { type: 'plotTheJump', target: state.mystery.gateway }).state).toBe(broke)
   })
 
@@ -138,7 +142,7 @@ describe('derelict salvage', () => {
       const state = newGame(`salvage-${i}`)
       const derelict = state.mystery.clues.find((c) => c.source.kind === 'derelict-log')
       if (!derelict) continue
-      const placed: GameState = { ...state, ship: { at: derelict.source.at, fuel: 40 } }
+      const placed: GameState = { ...state, ship: { at: derelict.source.at, fuel: 40, hull: 100 } }
       const { state: after, events } = reduce(placed, {
         type: 'runMission',
         system: derelict.source.at,
@@ -186,7 +190,7 @@ describe('stranding — the long silence', () => {
     const cost = laneCost(index, neighbour, grave!)
 
     // Arrive with exactly the lane's cost: the tank hits zero on arrival.
-    const doomed: GameState = { ...state, ship: { at: neighbour, fuel: cost } }
+    const doomed: GameState = { ...state, ship: { at: neighbour, fuel: cost, hull: 100 } }
     const { state: after, events } = reduce(doomed, { type: 'travel', to: grave! })
 
     expect(after.ship.at).toBe(grave)
@@ -209,19 +213,19 @@ describe('stranding — the long silence', () => {
     // Broke, but at a gas giant: the scoop is the way out.
     const giant = index.systems.find((s) => s.features.includes('gas-giant'))!
     expect(
-      isStranded({ ...state, ship: { at: giant.id, fuel: 0 } }, index),
+      isStranded({ ...state, ship: { at: giant.id, fuel: 0, hull: 100 } }, index),
     ).toBe(false)
 
     // Holding the Long Jump reserve: the rift is always an option.
     const grave = quietGrave(state, index)!
     expect(
-      isStranded({ ...state, ship: { at: grave, fuel: LONG_JUMP_RESERVE } }, index),
+      isStranded({ ...state, ship: { at: grave, fuel: LONG_JUMP_RESERVE, hull: 100 } }, index),
     ).toBe(false)
 
     // Enough for the cheapest lane out: still moving.
     const lane = cheapestLaneOut(index, grave)
     if (Number.isFinite(lane) && lane < LONG_JUMP_RESERVE) {
-      expect(isStranded({ ...state, ship: { at: grave, fuel: lane } }, index)).toBe(false)
+      expect(isStranded({ ...state, ship: { at: grave, fuel: lane, hull: 100 } }, index)).toBe(false)
     }
   })
 
@@ -232,7 +236,7 @@ describe('stranding — the long silence', () => {
     const site = index.system(derelict.source.at)
     if (site.features.includes('gas-giant')) return // scoop already saves it
     expect(
-      isStranded({ ...state, ship: { at: site.id, fuel: 0 } }, index),
+      isStranded({ ...state, ship: { at: site.id, fuel: 0, hull: 100 } }, index),
     ).toBe(false)
   })
 })

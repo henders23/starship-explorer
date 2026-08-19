@@ -25,6 +25,7 @@ export function StarMap() {
   const start = useGame((s) => s.state.galaxy.start)
   const jumps = useGame((s) => s.state.jumps)
   const ship = useGame((s) => s.state.ship)
+  const recruitSites = useGame((s) => s.state.recruits.sites)
   const { candidateSet, sites, clues } = useNavPlot()
   const [hovered, setHovered] = useState<SystemId | null>(null)
   const [zoom, setZoom] = useState(1.35)
@@ -58,7 +59,21 @@ export function StarMap() {
     return routeTo(index, ship.at, selected)
   }, [index, ship.at, selected])
 
-  const sectorNames = ['ORPHEUS VEIL', 'CINDER MARCH', 'TALOS EXPANSE', 'RIFT MARGIN']
+  // Region labels drawn at the centroid of each region's actual systems —
+  // the chart names the places the engine knows, not invented sectors.
+  const regionLabels = useMemo(() => {
+    const groups = new Map<string, { x: number; y: number; n: number }>()
+    for (const system of index.systems) {
+      const p = project(system)
+      const group = groups.get(system.region) ?? { x: 0, y: 0, n: 0 }
+      groups.set(system.region, { x: group.x + p.x, y: group.y + p.y, n: group.n + 1 })
+    }
+    return [...groups.entries()].map(([region, { x, y, n }]) => ({
+      region: region as keyof typeof REGION_NAMES,
+      x: x / n,
+      y: y / n,
+    }))
+  }, [index, project])
 
   const onWheel = (event: React.WheelEvent) => {
     event.preventDefault()
@@ -97,10 +112,12 @@ export function StarMap() {
           <radialGradient id="region-haze"><stop offset="0" stopColor="#164e63" stopOpacity=".24" /><stop offset="1" stopColor="#02060a" stopOpacity="0" /></radialGradient>
         </defs>
 
-        {sectorNames.map((name, index) => (
-          <g key={name} opacity={0.38}>
-            <ellipse cx={130 + index * 185} cy={90 + (index % 2) * 170} rx={180} ry={125} fill="url(#region-haze)" />
-            <text x={76 + index * 185} y={48 + (index % 2) * 170} className="sector-label">{name}</text>
+        {regionLabels.map(({ region, x, y }) => (
+          <g key={region} opacity={0.38}>
+            <ellipse cx={x} cy={y} rx={150} ry={105} fill="url(#region-haze)" />
+            <text x={x} y={y} textAnchor="middle" className="sector-label">
+              {REGION_NAMES[region].toUpperCase()}
+            </text>
           </g>
         ))}
 
@@ -166,6 +183,19 @@ export function StarMap() {
                   fill="none"
                   stroke="var(--color-amber)"
                   strokeWidth={0.9}
+                />
+              )}
+
+              {recruitSites[system.id] && (
+                <rect
+                  x={x - 3.4}
+                  y={y - 3.4}
+                  width={6.8}
+                  height={6.8}
+                  fill="none"
+                  stroke="var(--color-phosphor)"
+                  strokeWidth={0.8}
+                  transform={`rotate(45 ${x} ${y})`}
                 />
               )}
 
@@ -250,7 +280,11 @@ export function StarMap() {
         <button onClick={() => { setZoom(1.35); setPan({ x: -90, y: -35 }) }} aria-label="Reset map view">⌖</button>
       </div>
 
-      <Legend evidenceCount={sites.size} held={clues.length} />
+      <Legend
+        evidenceCount={sites.size}
+        held={clues.length}
+        recruits={Object.keys(recruitSites).length}
+      />
 
       <div className="map-ui map-scale absolute right-5 bottom-5">
         <span>50 LY</span><i />
@@ -262,7 +296,15 @@ export function StarMap() {
   )
 }
 
-function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }) {
+function Legend({
+  evidenceCount,
+  held,
+  recruits,
+}: {
+  evidenceCount: number
+  held: number
+  recruits: number
+}) {
   return (
     <div className="map-ui map-legend pointer-events-none absolute bottom-5 left-5 flex flex-col gap-1 text-[10px]">
       <div className="flex items-center gap-2">
@@ -274,6 +316,14 @@ function Legend({ evidenceCount, held }: { evidenceCount: number; held: number }
       <LegendRow colour="var(--color-phosphor)" label="consistent with your plot" />
       <LegendRow colour="var(--color-ink-faint)" label="ruled out" />
       <LegendRow colour="var(--color-amber)" label={`unsearched evidence (${evidenceCount})`} ring />
+      {recruits > 0 && (
+        <div className="flex items-center gap-2">
+          <svg width={14} height={14}>
+            <rect x={4} y={4} width={6} height={6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} transform="rotate(45 7 7)" />
+          </svg>
+          <span className="text-ink-faint">specialist for hire ({recruits})</span>
+        </div>
+      )}
       <div className="text-ink-faint mt-1">{held} accounts in hand</div>
     </div>
   )

@@ -1,6 +1,5 @@
 import { useMemo } from 'react'
-import type { Officer } from '../engine/crew/types.js'
-import { moraleBand } from '../engine/state/reducer.js'
+import { FOCUS_LABELS, type Officer } from '../engine/crew/types.js'
 import { useDispatch, useGame } from './store.js'
 
 /**
@@ -9,13 +8,6 @@ import { useDispatch, useGame } from './store.js'
  * The generics are shown as counts on purpose — they become people, with
  * names, only at the moment one is promoted into a dead officer's chair.
  */
-const BAND_LABELS = {
-  steady: ['steady', 'text-phosphor'],
-  uneasy: ['uneasy', 'text-amber-dim'],
-  fractious: ['fractious', 'text-amber'],
-  mutinous: ['MUTINOUS', 'text-alarm'],
-} as const
-
 const STATION_LABELS: Record<Officer['role'], string> = {
   captain: 'Command',
   security: 'Security',
@@ -26,10 +18,9 @@ const STATION_LABELS: Record<Officer['role'], string> = {
 export function CrewPanel() {
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
-  const morale = useGame((s) => s.state.morale)
+  const specialists = useGame((s) => s.state.recruits.aboard)
   const day = useGame((s) => s.state.day)
   const dispatch = useDispatch()
-  const [bandLabel, bandTone] = BAND_LABELS[moraleBand(morale)]
 
   // Derived with useMemo, not inside the Zustand selector: a selector that
   // builds a fresh array every call never yields a stable snapshot, and React
@@ -49,12 +40,24 @@ export function CrewPanel() {
         <OfficerRow key={o.role} officer={o} day={day} />
       ))}
 
+      {specialists.map((s) => (
+        <div key={s.name} className="flex items-center justify-between gap-2 text-[13px]">
+          <span className="text-ink-dim flex min-w-0 items-center gap-2.5">
+            {s.portrait && <img src={s.portrait} alt="" className="roster-portrait" />}
+            <span className="truncate">
+              <span className="text-ink-faint mr-1.5 text-[11px] tracking-[0.08em] uppercase">
+                {FOCUS_LABELS[s.focus]}
+              </span>
+              {s.name}
+            </span>
+          </span>
+          <span className="text-phosphor-dim w-[86px] shrink-0 text-right text-[12px]">aboard</span>
+        </div>
+      ))}
+
       <div className="text-ink mt-1.5 flex justify-between text-[12px]">
         <span>Security staff ×{pools.security}</span>
         <span>Crew ×{pools.crew}</span>
-        <span>
-          morale <span className={bandTone}>{bandLabel}</span>
-        </span>
       </div>
 
       <button
