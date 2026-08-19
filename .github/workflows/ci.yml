@@ -4,6 +4,12 @@ on:
   push:
   workflow_dispatch:
 
+# One live run per branch: a new push cancels the superseded one instead of
+# leaving it to queue behind scarce runners.
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   test:
     name: Typecheck, unit suites, golden replays
