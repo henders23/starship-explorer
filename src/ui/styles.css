@@ -263,8 +263,11 @@ button:disabled {
   animation: beat-in .28s ease-out both;
 }
 .briefing-portrait {
-  display: grid;
-  place-items: center;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
   /* Dialogue portraits read at 1.5× the old 72px square. */
   width: 108px;
   height: 108px;
@@ -275,7 +278,18 @@ button:disabled {
   color: var(--color-amber);
   font-size: 33px;
 }
-.briefing-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; }
+/* Contained, not cropped: the source portraits are head-and-shoulders in a
+   3:4 frame, so filling a square plate cut the tops of heads off. The whole
+   head sits inside the plate now, centred, with the plate showing at the
+   sides. The overshoot drops the bottom tenth of the frame below the plate,
+   where the source renders carry an index number burned into the tunic. */
+.briefing-portrait img, .scene-portrait img {
+  align-self: flex-start;
+  width: 100%;
+  height: 111%;
+  object-fit: contain;
+  object-position: center top;
+}
 .briefing-portrait.is-log { border-color: var(--color-rule); color: var(--color-ink-faint); }
 .briefing-copy { min-width: 0; }
 .briefing-speaker { display: flex; align-items: baseline; gap: 10px; margin-bottom: 7px; }
@@ -338,8 +352,11 @@ button:disabled {
   animation: beat-in .28s ease-out both;
 }
 .scene-portrait {
-  display: grid;
-  place-items: center;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 4px;
   /* Dialogue portraits read at 1.5× the old 72px square. */
   width: 108px;
   height: 108px;
@@ -350,7 +367,6 @@ button:disabled {
   color: var(--color-amber);
   font-size: 33px;
 }
-.scene-portrait img { width: 100%; height: 100%; object-fit: cover; object-position: center 18%; }
 .scene-portrait.is-log { border-color: var(--color-rule); color: var(--color-ink-faint); }
 .scene-portrait.is-figure { border-color: var(--color-phosphor-dim); color: var(--color-phosphor); background: radial-gradient(circle, #10262c, #071014); }
 .scene-copy { min-width: 0; }
