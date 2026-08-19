@@ -83,6 +83,11 @@ function gatherEverything(from: GameState): GameState {
         approachesFor(site).find((a) => a.needs !== null && team.officers.includes(a.needs)) ??
         approachesFor(site).find((a) => a.needs === null)!
       current = run(current, { type: 'runMission', system, team, approach: approach.id })
+      // A mission can hold at its mid-ground decision; press on regardless.
+      if (current.crisis) {
+        const press = current.crisis.choices.find((c) => !c.needs)!
+        current = run(current, { type: 'crisisCall', choice: press.id })
+      }
     }
   }
   return current

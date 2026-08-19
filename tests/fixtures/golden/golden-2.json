@@ -1,9 +1,9 @@
 {
   "seed": "golden-2",
-  "hash": "6e78f6c302b077e4",
+  "hash": "1e81af3de5f2f3d1",
   "outcome": "home",
   "day": 118,
-  "actionCount": 92,
+  "actionCount": 93,
   "cluesCollected": 17,
   "jumps": 1,
   "casualties": {
@@ -375,6 +375,10 @@
         "hands": 0
       },
       "approach": "survey"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "read"
     },
     {
       "type": "file",

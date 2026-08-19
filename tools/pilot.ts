@@ -75,6 +75,16 @@ function decide(state: GameState): Action | null {
   // A playing interception blocks everything else, so it goes first.
   if (state.combat !== null) return decideCombat(state, index)
 
+  // A team holding at its mid-ground decision: take the best printed odds
+  // the roster can actually deliver.
+  if (state.crisis !== null) {
+    const usable = state.crisis.choices.filter(
+      (c) => !c.needs || (state.crisis!.team.officers.includes(c.needs) && fit(state, c.needs)),
+    )
+    const best = [...usable].sort((a, b) => b.shift.clean - a.shift.clean)[0]
+    return { type: 'crisisCall', choice: (best ?? state.crisis.choices[0]!).id }
+  }
+
   // Answer the playing scene: sign recruits, take walk-in evidence, else close.
   if (state.encounter !== null) return decideScene(state)
 

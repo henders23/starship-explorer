@@ -20,7 +20,7 @@ import type { GameState } from '../engine/state/types.js'
  * pin engine behaviour; this envelope pins the other half — that a player's
  * long run survives a deploy.
  */
-export const SAVE_VERSION = 2
+export const SAVE_VERSION = 3
 
 const SAVE_KEY = 'starship-explorer-save'
 /** The pre-envelope key: a bare GameState, written by builds up to R7. */
@@ -44,7 +44,11 @@ interface SaveEnvelope {
  * reaches `SAVE_VERSION`. Each takes the older state shape (typed as
  * unknown; it predates the current `GameState`) and returns the next one.
  */
-const MIGRATIONS: Record<number, (state: unknown) => unknown> = {}
+const MIGRATIONS: Record<number, (state: unknown) => unknown> = {
+  // v2 → v3: the mission-crisis field arrived (R9's mid-mission choice
+  // nodes). Old saves were never mid-crisis, so null is the honest value.
+  2: (state) => ({ ...(state as Record<string, unknown>), crisis: null }),
+}
 
 /**
  * The shape check is deliberately shallow — enough to reject a save whose

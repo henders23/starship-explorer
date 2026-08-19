@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { BriefingScreen } from './BriefingScreen.js'
 import { CombatOverlay } from './CombatOverlay.js'
+import { CrisisOverlay } from './CrisisOverlay.js'
 import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
@@ -68,7 +69,9 @@ export function App() {
   }
 
   // Station hotkeys, active once aboard and only when no overlay is playing.
-  const encounterOpen = useGame((s) => s.state.encounter !== null || s.state.combat !== null)
+  const encounterOpen = useGame(
+    (s) => s.state.encounter !== null || s.state.combat !== null || s.state.crisis !== null,
+  )
   useEffect(() => {
     if (phase !== 'game') return
     const onKey = (event: KeyboardEvent) => {
@@ -121,6 +124,7 @@ export function App() {
       </div>
       <CaptainsLog />
       <EncounterOverlay />
+      <CrisisOverlay />
       <CombatOverlay />
       {outcome === 'home' && <Ending />}
       {outcome === 'lost' && <LostEnding />}

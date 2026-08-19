@@ -65,6 +65,11 @@ describe('component recovery', () => {
           : sitePlan(current, system).site!.type === 'ruins' ? 'dig'
           : sitePlan(current, system).site!.type === 'holdout' ? 'rush' : 'rip',
       })
+      // A mission can stand at its mid-ground decision; press on regardless.
+      if (current.crisis) {
+        const press = current.crisis.choices.find((c) => !c.needs)!
+        current = run(current, { type: 'crisisCall', choice: press.id })
+      }
       if (current.outcome !== 'seeking') break
     }
     return current

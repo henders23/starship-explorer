@@ -66,6 +66,19 @@ describe('save versioning', () => {
     expect(JSON.parse(archived!)).toEqual(future)
   })
 
+  it('migrates a v2 envelope forward, gaining the crisis field', () => {
+    const storage = fakeStorage()
+    const state = newGame('save-v2-migration')
+    const { crisis: _dropped, ...v2State } = state
+    storage.data.set(KEY, JSON.stringify({ version: 2, state: v2State }))
+
+    const loaded = loadSave(storage)
+    expect(loaded).not.toBeNull()
+    expect(loaded!.crisis).toBeNull()
+    expect(loaded!.seed).toBe('save-v2-migration')
+    expect(JSON.parse(storage.data.get(KEY)!).version).toBe(SAVE_VERSION)
+  })
+
   it('archives an old save whose shape no longer fits, rather than crashing', () => {
     const storage = fakeStorage()
     // A structurally alien pre-envelope save: parseable, wrong shape.

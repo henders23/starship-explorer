@@ -1,9 +1,9 @@
 {
   "seed": "golden-3",
-  "hash": "03ea4ca2427366ab",
+  "hash": "65152420622a222f",
   "outcome": "home",
   "day": 75,
-  "actionCount": 76,
+  "actionCount": 79,
   "cluesCollected": 15,
   "jumps": 1,
   "casualties": {
@@ -112,6 +112,10 @@
         "hands": 0
       },
       "approach": "survey"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "read"
     },
     {
       "type": "file",
@@ -238,6 +242,10 @@
       "approach": "cutting"
     },
     {
+      "type": "crisisCall",
+      "choice": "cut"
+    },
+    {
       "type": "travel",
       "to": "sys-054"
     },
@@ -340,6 +348,10 @@
         "hands": 0
       },
       "approach": "repower"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "cut"
     },
     {
       "type": "file",

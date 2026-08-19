@@ -17,6 +17,7 @@ import { placeSpecialists } from '../crew/specialists.js'
 import { FOCUS_LABELS, SKILL_MAX, xpToNextSkill } from '../crew/types.js'
 import { castScene } from '../encounters/templates.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
+import { castCrisis, crisisFires, shiftOdds } from '../missions/crisis.js'
 import {
   defaultLoadouts,
   GEAR_BY_ID,
@@ -72,6 +73,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX, hull: HULL_MAX },
     ordnance: ORDNANCE_MAX,
     combat: null,
+    crisis: null,
     combats: 0,
     day: 0,
     driveScarred: false,
@@ -116,6 +118,14 @@ export function reduce(state: GameState, action: Action): Transition {
     }
   }
 
+  // A team standing at its mid-ground decision holds everything else: the
+  // ship does not fly, research does not start, scenes do not answer, until
+  // the captain makes the call.
+  if (state.crisis) {
+    if (action.type === 'crisisCall') return crisisCall(state, action.choice)
+    return { state, events: [] }
+  }
+
   switch (action.type) {
     case 'select':
       return { state: { ...state, selected: action.system }, events: [] }
@@ -147,11 +157,12 @@ export function reduce(state: GameState, action: Action): Transition {
       return file(state, action.clue, action.state)
     case 'plotTheJump':
       return plotTheJump(state, action.target)
-    // Combat actions only mean something while a contact is playing, and the
-    // guard above owns that path; here they are no-ops.
+    // Combat and crisis actions only mean something while their moment is
+    // playing, and the guards above own those paths; here they are no-ops.
     case 'combatContact':
     case 'combatToll':
     case 'combatResolve':
+    case 'crisisCall':
       return { state, events: [] }
   }
 }
@@ -1142,10 +1153,7 @@ function runMission(
   if (!approach) return { state, events: [] }
   if (approach.needs && !team.officers.includes(approach.needs)) return { state, events: [] }
 
-  // One mission, one stream: every draw comes from a seed fixed by how many
-  // missions have gone before, so replays land the same way.
   const missionsRun = state.missionsRun + 1
-  const rng = createRng(`${state.seed}:mission:${missionsRun}:${systemId}`)
 
   let next: GameState = {
     ...state,
@@ -1158,11 +1166,86 @@ function runMission(
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
   const odds = approachOdds(approach, team, next.roster, next.loadouts)
+
+  // The complication (R9): some missions hit an authored decision on the
+  // ground. Its own stream, so firing one never disturbs the mission dice.
+  const crisisRng = createRng(`${state.seed}:crisis:${missionsRun}:${systemId}`)
+  if (crisisFires(crisisRng)) {
+    const crisis = castCrisis(systemId, systemName(next, systemId), site.type, team, approachId, odds)
+    return {
+      state: {
+        ...next,
+        crisis,
+        log: appendLog(next.log, {
+          kind: 'mission',
+          text:
+            `${systemName(next, systemId)} — ${site.label.toLowerCase()}: the team is on the ` +
+            `ground and it has stopped going to plan. They are holding for your call.`,
+        }),
+      },
+      events: [...preEvents, { type: 'crisisStruck', at: systemId }],
+    }
+  }
+
+  return resolveMission(next, systemId, site, team, odds, preEvents)
+}
+
+/**
+ * The captain's call at the mid-ground decision. The choice's shift is
+ * applied to the standing odds — the printed numbers are the rolled
+ * numbers — and the mission resolves down the same ladder it always had.
+ */
+function crisisCall(state: GameState, choiceId: string): Transition {
+  const crisis = state.crisis
+  if (!crisis || state.outcome !== 'seeking') return { state, events: [] }
+  const choice = crisis.choices.find((c) => c.id === choiceId)
+  if (!choice) return { state, events: [] }
+  if (
+    choice.needs &&
+    (!crisis.team.officers.includes(choice.needs) || !isFit(state.roster, choice.needs))
+  ) {
+    return { state, events: [] }
+  }
+
+  const { site } = sitePlan(state, crisis.at)
+  if (!site) return { state, events: [] }
+
+  const events: GameEvent[] = []
+  let next: GameState = {
+    ...state,
+    crisis: null,
+    log: appendLog(state.log, {
+      kind: 'mission',
+      text: `${systemName(state, crisis.at)}: the call goes down to the team — ${choice.label.toLowerCase()}.`,
+    }),
+  }
+  if (choice.days > 0) {
+    next = advanceTime(next, choice.days, events)
+    if (next.outcome !== 'seeking') return { state: next, events }
+  }
+
+  return resolveMission(next, crisis.at, site, crisis.team, shiftOdds(crisis.odds, choice.shift), events)
+}
+
+/**
+ * The roll and its consequences — shared by the straight mission and the
+ * one that stood at a crisis first. One stream per mission, seeded by the
+ * mission counter, so replays land the same way whichever path arrived.
+ */
+function resolveMission(
+  next: GameState,
+  systemId: SystemId,
+  site: Site,
+  team: AwayTeam,
+  odds: { clean: number; messy: number; disaster: number },
+  preEvents: GameEvent[],
+): Transition {
+  const rng = createRng(`${next.seed}:mission:${next.missionsRun}:${systemId}`)
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
 
-  const system = systemName(state, systemId)
+  const system = systemName(next, systemId)
   const events: GameEvent[] = [...preEvents, { type: 'missionResolved', at: systemId, outcome }]
 
   // The people who went down and did the job get better at it.
@@ -1191,6 +1274,7 @@ function runMission(
     ? { genericDeaths: 1 + (rng.chance(0.4) ? 1 : 0), officerInjury: 0.2, officerDeath: 0, captainDeath: 0 }
     : { genericDeaths: 2 + rng.int(2), officerInjury: 0.45, officerDeath: 0.25, captainDeath: 0.2 }
 
+  const before = next
   const applied = applyHarm(next, team, harm, rng, events)
   next = applied
 
@@ -1220,7 +1304,7 @@ function runMission(
       found,
       team.officers.includes('science') && isFit(next.roster, 'science'),
       `${system} — ${site.label.toLowerCase()}: the evidence is aboard, and it was paid for. ` +
-        casualtyLine(state, next),
+        casualtyLine(before, next),
     )
     return { state: collected.state, events: [...events, ...collected.events] }
   }
@@ -1235,7 +1319,7 @@ function runMission(
         kind: 'mission',
         text:
           `${system} — ${site.label.toLowerCase()}: it went wrong almost at once. The team pulled ` +
-          `out with nothing. ${casualtyLine(state, next)}`,
+          `out with nothing. ${casualtyLine(before, next)}`,
       }),
     },
     events,

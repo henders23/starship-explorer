@@ -1,9 +1,9 @@
 {
   "seed": "golden-1",
-  "hash": "9ce4b6b5ec763cfb",
+  "hash": "f99c276f38ca95dc",
   "outcome": "home",
   "day": 78,
-  "actionCount": 66,
+  "actionCount": 68,
   "cluesCollected": 14,
   "jumps": 1,
   "casualties": {
@@ -166,6 +166,10 @@
       "approach": "survey"
     },
     {
+      "type": "crisisCall",
+      "choice": "read"
+    },
+    {
       "type": "file",
       "clue": "clue-07",
       "state": "trusted"
@@ -262,6 +266,10 @@
         "hands": 0
       },
       "approach": "decrypt"
+    },
+    {
+      "type": "crisisCall",
+      "choice": "decode"
     },
     {
       "type": "startResearch",
