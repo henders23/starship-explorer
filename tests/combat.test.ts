@@ -10,7 +10,7 @@ import {
   TOLL_FUEL,
   type CombatEnemy,
 } from '../src/engine/combat/combat.js'
-import { classPool, SHIP_BY_ID, SHIP_CLASSES } from '../src/engine/combat/ships.js'
+import { classPool, ENEMY_LAYOUTS, SHIP_BY_ID, SHIP_CLASSES } from '../src/engine/combat/ships.js'
 import { createRng } from '../src/engine/rng/prng.js'
 import { newGame, reduce, reduceAll } from '../src/engine/state/reducer.js'
 import type { Action, GameState } from '../src/engine/state/types.js'
@@ -56,6 +56,31 @@ describe('the catalog', () => {
       expect(early.every((s) => s.tier === 1)).toBe(true)
       expect(classPool(archetype, 2).length).toBeGreaterThanOrEqual(early.length)
     }
+  })
+
+  it('every class carries an interior plan, and archetypes read differently', () => {
+    for (const cls of SHIP_CLASSES) {
+      const plan = ENEMY_LAYOUTS[cls.layout]
+      expect(plan).toBeDefined()
+      for (const key of ['helm', 'weapons', 'shields', 'engines'] as const) {
+        expect(plan[key].w).toBeGreaterThan(0)
+        expect(cls.rooms[key]).toBeGreaterThan(0)
+      }
+    }
+    // The faction families do not all share one plan any more.
+    expect(new Set(SHIP_CLASSES.map((c) => c.layout)).size).toBeGreaterThanOrEqual(5)
+  })
+
+  it('the flagship is tier 3: every navy holds it back until deep escalation', () => {
+    const flagship = SHIP_BY_ID['sovereign']!
+    expect(flagship.tier).toBe(3)
+    expect(flagship.layout).toBe('flagship')
+    for (const archetype of ['militant-patrol', 'mercantile-combine', 'xenophobic-polity', 'scavenger-clan', 'monastic-order'] as const) {
+      expect(classPool(archetype, 2).some((s) => s.id === 'sovereign')).toBe(false)
+      expect(classPool(archetype, 3).some((s) => s.id === 'sovereign')).toBe(true)
+    }
+    // Raiders never field it: theirs is a business, not a navy.
+    expect(classPool('raider', 3).some((s) => s.id === 'sovereign')).toBe(false)
   })
 
   it('contacts pick a class deterministically and name faction ships properly', () => {

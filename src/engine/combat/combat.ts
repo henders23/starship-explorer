@@ -63,8 +63,9 @@ export function buildContact(rng: Rng, state: GameState, at: SystemId, index: Ga
   const archetype = faction
     ? state.galaxy.factions.find((f) => f.id === faction)?.archetype ?? 'militant-patrol'
     : 'raider'
-  // The heavier hulls come out once the rift has surged twice.
-  const maxTier: 1 | 2 = state.surges >= 2 ? 2 : 1
+  // The heavier hulls come out once the rift has surged twice; the
+  // flagships, only when it has surged enough to frighten navies.
+  const maxTier: 1 | 2 | 3 = state.surges >= 4 ? 3 : state.surges >= 2 ? 2 : 1
   const shipClass = rng.pick(classPool(archetype, maxTier))
   return {
     classId: shipClass.id,
