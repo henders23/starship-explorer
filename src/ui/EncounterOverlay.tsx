@@ -33,6 +33,39 @@ export function EncounterOverlay() {
   // A new scene starts from its first beat.
   useEffect(() => setBeat(0), [scene?.at, scene?.templateId])
 
+  // Keyboard coverage (R10): space/enter advance the beats; at the options,
+  // the digits choose and escape stands off, mirroring the printed order.
+  useEffect(() => {
+    if (!scene) return
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement || event.target instanceof HTMLTextAreaElement) return
+      const atLast = beat >= scene.beats.length - 1
+      if ((event.key === ' ' || event.key === 'Enter') && !atLast) {
+        event.preventDefault()
+        setBeat((b) => b + 1)
+        return
+      }
+      if (!atLast) return
+      if (event.key === 'Escape') {
+        const dismiss = scene.options.find((o) => o.effect.kind === 'dismiss')
+        if (dismiss) dispatch({ type: 'sceneOption', option: dismiss.id })
+        return
+      }
+      const digit = Number(event.key)
+      if (digit >= 1 && digit <= scene.options.length) {
+        const option = scene.options[digit - 1]!
+        const unfit = option.needs && roster.find((o) => o.role === option.needs)?.status !== 'fit'
+        const dry =
+          option.effect.kind === 'collect' && (option.effect.fuel ?? 0) > 0 && fuel <= option.effect.fuel!
+        if (unfit || dry) return
+        dispatch({ type: 'sceneOption', option: option.id })
+        if (option.effect.kind === 'mission') setPlanning(scene.at)
+      }
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [scene, beat, roster, fuel, dispatch])
+
   if (planning) {
     const { site } = sitePlan(gameState, planning)
     if (site) {
@@ -115,7 +148,7 @@ export function EncounterOverlay() {
           </button>
         ) : (
           <div className="scene-options">
-            {scene.options.map((option) => {
+            {scene.options.map((option, i) => {
               const blocked = disabledReason(option)
               return (
                 <button
@@ -124,7 +157,9 @@ export function EncounterOverlay() {
                   disabled={blocked !== null}
                   onClick={() => choose(option)}
                 >
-                  <strong>{option.label}</strong>
+                  <strong>
+                    <span className="scene-option-key">{i + 1}</span> {option.label}
+                  </strong>
                   {(blocked ?? option.detail) && <small>{blocked ?? option.detail}</small>}
                 </button>
               )

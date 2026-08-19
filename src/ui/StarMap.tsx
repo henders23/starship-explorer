@@ -234,6 +234,17 @@ export function StarMap() {
                 filter={isCandidate || isSelected ? 'url(#star-glow)' : undefined}
               />
 
+              {/* A shape, not just a colour (R10): the burned attempts wear
+                  a cross so the chart reads without its palette. */}
+              {failed && (
+                <path
+                  d={`M ${x - 3.6} ${y - 3.6} L ${x + 3.6} ${y + 3.6} M ${x - 3.6} ${y + 3.6} L ${x + 3.6} ${y - 3.6}`}
+                  stroke="var(--color-alarm-dim)"
+                  strokeWidth={1.1}
+                  className="pointer-events-none"
+                />
+              )}
+
               {wasSearched && !hasEvidence && (
                 <circle cx={x} cy={y} r={5.5} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.5} />
               )}

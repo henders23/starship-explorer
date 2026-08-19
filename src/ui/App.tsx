@@ -6,6 +6,7 @@ import { EncounterOverlay } from './EncounterOverlay.js'
 import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
+import { playCues } from './audio.js'
 import { epilogueLines } from '../engine/state/epilogue.js'
 import { voyageLengthOf, type VoyageLength } from '../engine/state/modes.js'
 import { surgeForecast } from '../engine/state/reducer.js'
@@ -89,10 +90,19 @@ export function App() {
   useEffect(() => {
     const ambient = ambientRef.current
     if (!ambient) return
-    if (phase === 'briefing' || (phase === 'game' && screen === 'ship'))
+    // The hum runs aboard ship, and quieter under the chart — the map bed.
+    if (phase === 'briefing' || (phase === 'game' && (screen === 'ship' || screen === 'galaxy'))) {
+      ambient.volume = screen === 'galaxy' ? 0.07 : 0.15
       void ambient.play().catch(() => {})
-    else ambient.pause()
+    } else ambient.pause()
   }, [phase, screen])
+
+  // The cue layer (R10): every transition's events can carry a stinger —
+  // scenes opening, surges, contact alarms, the jump. Pure presentation.
+  const lastEvents = useGame((s) => s.lastEvents)
+  useEffect(() => {
+    if (phase === 'game') playCues(lastEvents)
+  }, [phase, lastEvents])
 
   if (phase === 'title') {
     return (
@@ -180,6 +190,7 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
       </nav>
 
       <div className="header-telemetry flex shrink-0 items-center gap-3">
+        <NavPlotNudge />
         <ResearchChip />
         <FuelGauge />
         {jumps.length > 0 && (
@@ -259,6 +270,29 @@ function CandidateList() {
         </div>
       )}
     </div>
+  )
+}
+
+/**
+ * The first-clue nudge (R10): evidence aboard but nothing ever filed means
+ * the player may not know the deduction exists. One quiet chip until the
+ * first act of trust or doubt, then never again.
+ */
+function NavPlotNudge() {
+  const collected = useGame((s) => s.state.collected.length)
+  const anyFiled = useGame((s) =>
+    Object.values(s.state.clueStates).some((v) => v !== 'unfiled'),
+  )
+  if (collected === 0 || anyFiled) return null
+
+  return (
+    <button
+      className="border-amber-dim/50 text-amber-dim hover:bg-amber-dim/10 border px-2 py-0.5 text-[10px]"
+      onClick={() => window.dispatchEvent(new CustomEvent('starship:navigate', { detail: 'galaxy' }))}
+      title="Accounts are aboard but none is trusted or doubted. Filing them is how the field narrows."
+    >
+      unassessed evidence — open the Nav Plot
+    </button>
   )
 }
 

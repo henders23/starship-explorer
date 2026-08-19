@@ -228,6 +228,18 @@ button:disabled {
   background: rgb(28 20 8 / .5);
 }
 
+/* Keyboard hints on scene and crisis options */
+.scene-option-key {
+  display: inline-block;
+  min-width: 14px;
+  margin-right: 2px;
+  border: 1px solid var(--color-rule);
+  padding: 0 3px;
+  font-size: 9px;
+  text-align: center;
+  color: var(--color-ink-faint);
+}
+
 /* Opening briefing — the crew talk the situation through on the bridge */
 .briefing-screen { position: relative; height: 100%; overflow: hidden; background: #010507; cursor: pointer; }
 .briefing-backdrop {
