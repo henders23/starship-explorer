@@ -4,6 +4,7 @@ import { CombatOverlay } from './CombatOverlay.js'
 import { CrisisOverlay } from './CrisisOverlay.js'
 import { EncounterOverlay } from './EncounterOverlay.js'
 import { GalaxyDeck } from './GalaxyDeck.js'
+import { IntroComic } from './IntroComic.js'
 import { LabScreen } from './LabScreen.js'
 import { epilogueLines } from '../engine/state/epilogue.js'
 import { surgeForecast } from '../engine/state/reducer.js'
@@ -23,8 +24,11 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
   { id: 'lab', label: 'Research', code: '04' },
 ]
 
-/** Title → briefing → the game. The briefing is the crew handing over context. */
-type Phase = 'title' | 'briefing' | 'game'
+/**
+ * Title → comic → briefing → the game. The comic is how the ship got here;
+ * the briefing is the crew handing over context once it has.
+ */
+type Phase = 'title' | 'comic' | 'briefing' | 'game'
 
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
@@ -98,7 +102,7 @@ export function App() {
     startAmbience()
     // A named seed replays a known galaxy; a blank one rolls a fresh sky.
     restart(seed || `voyager-${Date.now().toString(36)}`)
-    setPhase('briefing')
+    setPhase('comic')
   }
 
   const resume = () => {
@@ -126,7 +130,7 @@ export function App() {
   useEffect(() => {
     const ambient = ambientRef.current
     if (!ambient) return
-    if (phase === 'briefing' || (phase === 'game' && screen === 'ship'))
+    if (phase === 'comic' || phase === 'briefing' || (phase === 'game' && screen === 'ship'))
       void ambient.play().catch(() => {})
     else ambient.pause()
   }, [phase, screen])
@@ -135,6 +139,14 @@ export function App() {
     return (
       <div className="crt app-shell h-full">
         <StartScreen onBegin={begin} onResume={resume} />
+      </div>
+    )
+  }
+
+  if (phase === 'comic') {
+    return (
+      <div className="crt app-shell h-full">
+        <IntroComic onComplete={() => setPhase('briefing')} />
       </div>
     )
   }

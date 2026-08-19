@@ -18,6 +18,13 @@ test('title → briefing → scene → collect', async ({ page }) => {
   await page.getByRole('textbox').fill('golden-1')
   await page.getByRole('button', { name: /take command|begin a new voyage/i }).click()
 
+  // Intro comic: the aperture test that stranded the ship. Play a couple of
+  // beats to prove the panels advance, then skip to the briefing.
+  await expect(page.locator('.comic-screen')).toBeVisible()
+  await page.getByRole('button', { name: /^Continue/ }).click()
+  await page.getByRole('button', { name: /^Continue/ }).click()
+  await page.getByRole('button', { name: 'Skip intro' }).click()
+
   // Briefing: the crew talks; play two beats, then take the station.
   await expect(page.getByRole('heading', { name: 'All hands to the bridge' })).toBeVisible()
   await page.getByRole('button', { name: /^Continue/ }).click()
