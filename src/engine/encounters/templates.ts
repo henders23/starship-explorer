@@ -374,6 +374,81 @@ function recruitScene(state: GameState, systemId: string, system: StarSystem): S
   }
 }
 
+/* ------------------------------------------------------------------------ *
+ * The gateway threshold — the finale is a place, not a screen-swap (R9).
+ * ------------------------------------------------------------------------ */
+
+/**
+ * Cast when the ship stands at the gateway with the Long Jump proven right:
+ * the arrival is the run's last scene, and its commit option performs the
+ * transit. Standing off is allowed — the door has waited this long — and
+ * the inspector's openScene brings the threshold back.
+ */
+function gatewayScene(state: GameState, system: StarSystem): SceneInstance {
+  const officer = {} as Record<OfficerRole, string>
+  for (const role of ['captain', 'security', 'science', 'medical'] as OfficerRole[]) {
+    officer[role] = shortName(state.roster.find((o) => o.role === role), `the ${role} officer`)
+  }
+  const failed = state.jumps.filter((j) => !j.correct).length
+
+  return {
+    at: system.id,
+    templateId: 'gateway',
+    figure: null,
+    beats: [
+      {
+        speaker: null,
+        text:
+          `${system.name}. The drive spools down and nobody speaks, because the forward ports are ` +
+          `full of it: the rift's far mouth, standing open in the dark exactly where the plot said ` +
+          `it would be. The anomaly that swallowed the ship has an exit, and the exit has been ` +
+          `waiting.`,
+      },
+      {
+        speaker: 'science',
+        text:
+          `“Telemetry confirms it, Captain. The structure matches the transit signature we rode in ` +
+          `on — inverted. The shielding will hold and the drive will answer. It is everything the ` +
+          `evidence promised.”` +
+          (failed > 0 ? ` A pause. “Everything the evidence promised the second time, at least.”` : ''),
+      },
+      {
+        speaker: 'security',
+        text: `“Approach is clear on every board. Whatever this sky wanted from us, it has stopped asking.”`,
+      },
+      {
+        speaker: 'medical',
+        text:
+          `“The whole ship's company is on the bridge, Captain. I did not order them here and neither ` +
+          `did you. Say the word where they can hear it.”`,
+      },
+    ],
+    options: [
+      {
+        id: 'commit',
+        label: 'Take everyone home',
+        detail: 'The transit. The last order of the voyage',
+        effect: { kind: 'transit' },
+      },
+      {
+        id: 'hold',
+        label: 'Hold at the threshold',
+        detail: 'The door has waited. It can wait for you',
+        effect: { kind: 'dismiss' },
+      },
+    ],
+  }
+}
+
+/** Whether the run stands at its proven doorway: the last scene casts. */
+function atProvenGateway(state: GameState, systemId: string): boolean {
+  return (
+    systemId === state.mystery.gateway &&
+    state.ship.at === systemId &&
+    state.jumps.some((j) => j.correct)
+  )
+}
+
 /* ------------------------------------------------------------------------ */
 
 const SOCIAL_FAMILIES: Partial<Record<ClueSourceKind, SceneTemplate>> = {
@@ -432,6 +507,10 @@ function variantIndex(state: GameState, templateId: string, systemId: string, co
 export function castScene(state: GameState, systemId: string): SceneInstance | null {
   const system = state.galaxy.systems.find((s) => s.id === systemId)
   if (!system) return null
+
+  // The threshold outranks everything: once the Long Jump has proven the
+  // gateway, arriving there plays the finale, whatever else the system held.
+  if (atProvenGateway(state, systemId)) return gatewayScene(state, system)
 
   const clues = state.searched.includes(systemId) ? [] : cluesWaitingAt(state, systemId)
   if (clues.length === 0) {

@@ -48,12 +48,14 @@ export function JumpCeremony({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Success: the ending overlay owns the stage.
+  // Success: the ship arrives at the threshold and the gateway scene owns
+  // the stage (a run that ends some other way hands off to its ending).
+  const arrived = jumps[jumps.length - 1]?.correct === true
   useEffect(() => {
-    if (phase === 'result' && outcome !== 'seeking') onClose()
-  }, [phase, outcome, onClose])
+    if (phase === 'result' && (outcome !== 'seeking' || arrived)) onClose()
+  }, [phase, outcome, arrived, onClose])
 
-  if (phase === 'result' && outcome !== 'seeking') return null
+  if (phase === 'result' && (outcome !== 'seeking' || arrived)) return null
 
   const lastJump = jumps[jumps.length - 1]
   const failed = phase === 'result' && lastJump && !lastJump.correct

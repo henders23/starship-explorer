@@ -661,6 +661,25 @@ function sceneOption(state: GameState, optionId: string): Transition {
     return { state: closed, events }
   }
 
+  // The transit: only the gateway scene carries it, only at the threshold.
+  if (option.effect.kind === 'transit') {
+    if (scene.templateId !== 'gateway' || state.ship.at !== scene.at) return { state, events: [] }
+    return {
+      state: {
+        ...closed,
+        outcome: 'home',
+        log: appendLog(closed.log, {
+          kind: 'ending',
+          text:
+            `The order is given with the whole ship's company listening. The drive holds, the ` +
+            `light goes wrong, and then the stars ahead are stars we have names for. We are in ` +
+            `charted space. We are going home.`,
+        }),
+      },
+      events,
+    }
+  }
+
   if (option.effect.kind === 'recruit') {
     const specialist = state.recruits.sites[scene.at]
     if (!specialist) return { state: closed, events }
@@ -1415,26 +1434,38 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
   if (state.ship.fuel < LONG_JUMP_RESERVE) return { state, events: [] }
   // The transit takes all three tracks: the place, the engine, the shield.
   if (!jumpReady(state)) return { state, events: [] }
+  // The door, once found, stays found: the threshold scene owns the ending.
+  if (state.jumps.some((j) => j.correct)) return { state, events: [] }
 
   const correct = target === state.mystery.gateway
   const jumps = [...state.jumps, { target, correct }]
   const name = systemName(state, target)
 
   if (correct) {
-    return {
-      state: {
-        ...state,
-        jumps,
-        outcome: 'home',
-        log: appendLog(state.log, {
-          kind: 'ending',
-          text:
-            `${name}. The drive holds, the light goes wrong, and then the stars ahead are ` +
-            `stars we have names for. We are in charted space. We are going home.`,
-        }),
-      },
-      events: [{ type: 'jumpSucceeded', target }],
+    // Right — but the run ends at the doorway, not on a cut to black. The
+    // ship arrives at the threshold and the finale plays as a scene whose
+    // commit option performs the transit (R9; docs/specs/doorway-home.md).
+    const arrived: GameState = {
+      ...state,
+      jumps,
+      ship: { ...state.ship, at: target },
+      selected: target,
+      encounter: null,
+      log: appendLog(state.log, {
+        kind: 'jump',
+        text:
+          `${name}. The drive holds, the light goes wrong — and there it is in the forward ` +
+          `ports: the far mouth of the rift, standing open where the plot said it would be. ` +
+          `The ship holds at the threshold of the way home.`,
+      }),
     }
+    const events: GameEvent[] = [{ type: 'jumpSucceeded', target }]
+    const scene = castScene(arrived, target)
+    if (scene) {
+      events.push({ type: 'sceneOpened', at: target })
+      return { state: { ...arrived, encounter: scene }, events }
+    }
+    return { state: arrived, events }
   }
 
   // Wrong. The rift takes its price and throws the ship somewhere far from

@@ -115,7 +115,11 @@ describe('the gate', () => {
       tech: { researched: ['rift-drive', 'rift-shield'], active: null },
     }
     expect(jumpReady(ready)).toBe(true)
-    const home = run(ready, { type: 'plotTheJump', target: state.mystery.gateway })
+    // The correct jump arrives at the threshold; the transit ends the run.
+    const arrived = run(ready, { type: 'plotTheJump', target: state.mystery.gateway })
+    expect(arrived.outcome).toBe('seeking')
+    expect(arrived.encounter?.templateId).toBe('gateway')
+    const home = run(arrived, { type: 'sceneOption', option: 'commit' })
     expect(home.outcome).toBe('home')
   })
 

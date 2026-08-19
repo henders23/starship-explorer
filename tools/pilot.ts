@@ -181,6 +181,10 @@ function decideScene(state: GameState): Action {
   const scene = state.encounter!
   const usable = scene.options.filter((o) => !o.needs || fit(state, o.needs))
 
+  // The threshold: commit the transit and end the voyage.
+  const transit = usable.find((o) => o.effect.kind === 'transit')
+  if (transit) return { type: 'sceneOption', option: transit.id }
+
   const recruit = usable.find((o) => o.effect.kind === 'recruit')
   if (recruit && state.recruits.sites[scene.at]) return { type: 'sceneOption', option: recruit.id }
 

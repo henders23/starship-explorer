@@ -1,9 +1,9 @@
 {
   "seed": "golden-3",
-  "hash": "c8875c5d3e5b6afd",
+  "hash": "03ea4ca2427366ab",
   "outcome": "home",
   "day": 75,
-  "actionCount": 75,
+  "actionCount": 76,
   "cluesCollected": 15,
   "jumps": 1,
   "casualties": {
@@ -411,6 +411,10 @@
     {
       "type": "plotTheJump",
       "target": "sys-034"
+    },
+    {
+      "type": "sceneOption",
+      "option": "commit"
     }
   ]
 }
