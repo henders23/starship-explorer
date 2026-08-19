@@ -486,6 +486,13 @@ button:disabled {
 .lab-metric { display: flex; justify-content: space-between; padding: 7px 8px; background: #071014; }.lab-metric span { color: var(--color-ink-faint); font-size: 7px; text-transform: uppercase; }.lab-metric strong { color: var(--color-ink-dim); font-size: 8px; font-weight: 400; }.lab-metric.tone-red strong { color: var(--color-alarm); }.lab-metric.tone-cyan strong { color: var(--color-phosphor); }.lab-metric.tone-amber strong { color: var(--color-amber); }
 .scan-progress { margin: 12px 0; }.scan-progress > span { display: flex; justify-content: space-between; color: var(--color-ink-dim); font-size: 8px; }.scan-progress small { color: var(--color-phosphor); }.scan-progress > div { height: 3px; margin-top: 5px; background: #14242a; }.scan-progress i { display: block; height: 100%; background: var(--color-phosphor); box-shadow: 0 0 8px var(--color-phosphor); transition: width .3s; }
 .lab-log { min-height: 32px; color: var(--color-ink-faint); font-size: 8px; line-height: 1.5; }.lab-log span { color: var(--color-amber-dim); margin-right: 8px; }
+.lab-empty, .lab-idle { padding: 14px; color: var(--color-ink-faint); font-size: 9px; line-height: 1.7; }
+.lab-reading { margin: 4px 0 12px; }
+.lab-prose { margin: 0 0 8px; color: var(--color-ink); font-size: 10px; font-style: italic; line-height: 1.7; }
+.lab-constraint { margin: 0; color: var(--color-ink-faint); font-size: 8px; line-height: 1.6; }
+.lab-constraint strong { color: var(--color-amber); font-weight: 400; }
+.lab-blocked { margin: 8px 0 0; color: var(--color-alarm-dim); font-size: 8px; }
+.officer-warning { color: var(--color-alarm-dim) !important; font-style: normal !important; }
 .science-officer { position: absolute; z-index: 2; top: 24px; right: 25px; width: 290px; }.officer-profile { display: flex; gap: 10px; padding: 13px; }.officer-portrait { display: grid; place-items: center; width: 48px; height: 48px; overflow: hidden; color: var(--color-phosphor); border: 1px solid var(--color-phosphor-dim); background: radial-gradient(circle, #17333a, #071014); flex: none; }.officer-profile span:last-child { display: flex; flex-direction: column; justify-content: center; }.officer-profile strong { color: var(--color-ink); font-size: 9px; }.officer-profile small { color: var(--color-ink-faint); font-size: 7px; }
 .science-officer > p { margin: 0 13px 12px; color: var(--color-ink-dim); font-size: 8px; font-style: italic; line-height: 1.5; }.science-officer dl { margin: 0 13px 12px; }.science-officer dl div { display: flex; justify-content: space-between; padding: 5px 0; border-top: 1px solid var(--color-rule); font-size: 7px; }.science-officer dt { color: var(--color-ink-faint); }.science-officer dd { margin: 0; color: var(--color-phosphor); }
 

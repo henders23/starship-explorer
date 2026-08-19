@@ -167,7 +167,11 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
         <HubTask
           tone={unread > 0 ? 'cyan' : 'muted'}
           label="Process field samples"
-          detail={`${unread || 3} artefacts await science review`}
+          detail={
+            unread > 0
+              ? `${unread} sealed ${unread === 1 ? 'artefact awaits' : 'artefacts await'} science review`
+              : 'No sealed artefacts held'
+          }
           onClick={() => onNavigate('lab')}
         />
         <HubTask
