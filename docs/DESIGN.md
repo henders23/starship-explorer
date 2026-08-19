@@ -200,6 +200,15 @@ progress bar** — the candidate count is the progress bar, and it can go up
 when you doubt something. The plot screen also shows the technological track's
 state plainly: what is built, what is missing, where the trail points.
 
+The chart runs full bleed: nothing is docked beside it. The title block, the
+search and zoom controls, the hover readout and the legend float over the sky;
+a command rail along the foot carries the selected system, the candidates
+still standing and everything the ship can do about them; the evidence board
+rises over that rail on request and drops away again. The first time a captain
+takes the station, a one-slide briefing explains the marks, the movement keys
+and the rail — it is reachable afterwards from the "?" beside the zoom, and it
+teaches navigation only, never the answer.
+
 ### 5.5 Committing: the Long Jump
 
 Charging the jump costs a large fixed fuel reserve, and requires the rift

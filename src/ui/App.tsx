@@ -3,8 +3,7 @@ import { BriefingScreen } from './BriefingScreen.js'
 import { CombatOverlay } from './CombatOverlay.js'
 import { CrisisOverlay } from './CrisisOverlay.js'
 import { EncounterOverlay } from './EncounterOverlay.js'
-import { EvidenceBoard } from './EvidenceBoard.js'
-import { Inspector } from './Inspector.js'
+import { GalaxyDeck } from './GalaxyDeck.js'
 import { LabScreen } from './LabScreen.js'
 import { epilogueLines } from '../engine/state/epilogue.js'
 import { surgeForecast } from '../engine/state/reducer.js'
@@ -12,9 +11,8 @@ import { TruthReveal } from './TruthReveal.js'
 import { TECH_BY_ID } from '../engine/research/tech.js'
 import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
-import { StarMap } from './StarMap.js'
 import { StartScreen } from './StartScreen.js'
-import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
+import { useGame, useNavPlot } from './store.js'
 
 export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
 
@@ -174,27 +172,6 @@ export function App() {
   )
 }
 
-function GalaxyDeck() {
-  return (
-    <div className="flex h-full min-h-0 galaxy-deck">
-      <main className="border-rule min-w-0 flex-1 border-r">
-        <StarMap />
-      </main>
-      <aside className="galaxy-sidebar flex w-[372px] shrink-0 flex-col overflow-hidden">
-        <Section title="System">
-          <Inspector />
-        </Section>
-        <Section title="Candidates">
-          <CandidateList />
-        </Section>
-        <Section title="Evidence" grow>
-          <EvidenceBoard />
-        </Section>
-      </aside>
-    </div>
-  )
-}
-
 function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Screen) => void }) {
   const jumps = useGame((s) => s.state.jumps)
 
@@ -228,76 +205,6 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
         )}
       </div>
     </header>
-  )
-}
-
-function Section({
-  title,
-  children,
-  grow = false,
-}: {
-  title: string
-  children: React.ReactNode
-  /** A growing section fills the remaining height and owns its own scrolling. */
-  grow?: boolean
-}) {
-  return (
-    <section className={`border-rule flex min-h-0 flex-col border-b ${grow ? 'flex-1' : 'shrink-0'}`}>
-      <div className="label border-rule shrink-0 border-b px-4 py-1.5">{title}</div>
-      <div className="min-h-0 flex-1">{children}</div>
-    </section>
-  )
-}
-
-/**
- * The candidate list is the score. It replaces the progress bar the design
- * forbids: it goes down as evidence accumulates and back up when the player
- * withdraws trust, which is exactly the feedback a deduction needs.
- */
-function CandidateList() {
-  const index = useGalaxyIndex()
-  const dispatch = useDispatch()
-  const selected = useGame((s) => s.state.selected)
-  const { candidates, trusted, impossible } = useNavPlot()
-
-  if (impossible) {
-    return (
-      <div className="text-alarm px-4 py-3 text-[11px]">
-        No star fits. Something you trust is false.
-      </div>
-    )
-  }
-
-  if (trusted.length === 0) {
-    return (
-      <div className="text-ink-faint px-4 py-3 text-[11px]">
-        Trust an account to begin narrowing the field.
-      </div>
-    )
-  }
-
-  return (
-    <div className="px-4 py-2">
-      <div className="text-ink-dim mb-1.5 text-[11px]">
-        <span className="text-phosphor text-[14px]">{candidates.length}</span> consistent with{' '}
-        {trusted.length} trusted {trusted.length === 1 ? 'account' : 'accounts'}
-      </div>
-      {candidates.length <= 24 && (
-        <div className="flex flex-wrap gap-x-3 gap-y-0.5">
-          {candidates.map((id) => (
-            <button
-              key={id}
-              onClick={() => dispatch({ type: 'select', system: id })}
-              className={`text-[11px] ${
-                selected === id ? 'text-amber' : 'text-phosphor hover:text-amber'
-              }`}
-            >
-              {index.system(id).name}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
   )
 }
 

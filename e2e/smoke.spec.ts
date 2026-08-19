@@ -28,12 +28,15 @@ test('title → briefing → scene → collect', async ({ page }) => {
   await expect(page.getByRole('heading', { name: 'Starship Ithaca' })).toBeVisible()
   await expect(page.getByText('80/80', { exact: true })).toBeVisible()
 
-  // The chart: select the known first port of call and fly there.
+  // The chart: the briefing slide plays on the first visit, then the known
+  // first port of call is selected and flown to.
   await page.getByRole('button', { name: /Galaxy/ }).click()
-  await expect(page.getByRole('heading', { name: 'Galactic Navigation' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Reading the chart' })).toBeVisible()
+  await page.getByRole('button', { name: 'Take the chart' }).click()
+  await expect(page.getByRole('heading', { name: 'Galactic Chart' })).toBeVisible()
   // The star's hit area is an SVG dot; dispatch the click straight to it.
   await page.locator('[data-system="sys-014"]').dispatchEvent('click')
-  await page.getByRole('button', { name: /^Travel here/ }).click()
+  await page.getByRole('button', { name: /^Travel —/ }).click()
 
   // Arrival casts the scene. Play the beats out, then take the walk-in offer.
   const overlay = page.locator('.scene-overlay')
