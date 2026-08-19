@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "mystery": "tsx tools/mystery-cli.ts",
-    "golden:record": "tsx tools/record-golden.ts"
+    "golden:record": "tsx tools/record-golden.ts",
+    "test:e2e": "playwright test"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -20,6 +21,7 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@playwright/test": "^1.62.1",
     "@tailwindcss/vite": "^4.3.3",
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.7",
