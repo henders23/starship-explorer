@@ -17,6 +17,7 @@ import { placeSpecialists } from '../crew/specialists.js'
 import { FOCUS_LABELS, SKILL_MAX, xpToNextSkill } from '../crew/types.js'
 import { castScene } from '../encounters/templates.js'
 import { MAX_ESCORTS, MAX_HANDS, STARTING_POOLS, type AwayTeam, type Officer, type OfficerRole } from '../crew/types.js'
+import { castCrisis, crisisFires, shiftOdds } from '../missions/crisis.js'
 import {
   defaultLoadouts,
   GEAR_BY_ID,
@@ -72,6 +73,7 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
     ship: { at: puzzle.galaxy.start, fuel: FUEL_MAX, hull: HULL_MAX },
     ordnance: ORDNANCE_MAX,
     combat: null,
+    crisis: null,
     combats: 0,
     day: 0,
     driveScarred: false,
@@ -93,8 +95,8 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
         kind: 'arrival',
         text:
           `The anomaly closes behind us. Navigation reports we are at ${start.name}, ` +
-          `and that ${start.name} is on no chart aboard this ship. Nobody knows the way home. ` +
-          `Somebody out here does.`,
+          `and that ${start.name} is on no chart aboard this ship. Nobody aboard knows the way ` +
+          `home, so we start asking the people who might.`,
       },
     ],
   }
@@ -114,6 +116,14 @@ export function reduce(state: GameState, action: Action): Transition {
       default:
         return { state, events: [] }
     }
+  }
+
+  // A team standing at its mid-ground decision holds everything else: the
+  // ship does not fly, research does not start, scenes do not answer, until
+  // the captain makes the call.
+  if (state.crisis) {
+    if (action.type === 'crisisCall') return crisisCall(state, action.choice)
+    return { state, events: [] }
   }
 
   switch (action.type) {
@@ -147,11 +157,12 @@ export function reduce(state: GameState, action: Action): Transition {
       return file(state, action.clue, action.state)
     case 'plotTheJump':
       return plotTheJump(state, action.target)
-    // Combat actions only mean something while a contact is playing, and the
-    // guard above owns that path; here they are no-ops.
+    // Combat and crisis actions only mean something while their moment is
+    // playing, and the guards above own those paths; here they are no-ops.
     case 'combatContact':
     case 'combatToll':
     case 'combatResolve':
+    case 'crisisCall':
       return { state, events: [] }
   }
 }
@@ -328,7 +339,7 @@ function gainXp(
       events.push({ type: 'officerImproved', role: officer.role, name: officer.name, skill })
       log = appendLog(log, {
         kind: 'crew',
-        text: `${officer.name} has grown into the station — skill ${skill}. The ship is better for it.`,
+        text: `${officer.name} has grown into the station. Skill ${skill}.`,
       })
     }
     return { ...officer, skill, xp }
@@ -419,7 +430,7 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
           kind: 'travel',
           text:
             `You read them their own patrol schedule back over the wideband. A long pause, and ` +
-            `${combat.enemy.name} alters course away. Knowing things is a weapon that never needs reloading.`,
+            `${combat.enemy.name} alters course away.`,
         }),
       }
       return { state: endCombat(next, 'stood-down', events), events }
@@ -483,7 +494,7 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
       combat: { ...combat, phase: 'battle' },
       log: appendLog(state.log, {
         kind: 'travel',
-        text: `Guns run out, power to the mounts. The bridge goes quiet the way it does before weather.`,
+        text: `Guns run out, power to the mounts. The bridge goes very quiet.`,
       }),
     },
     events,
@@ -502,7 +513,7 @@ function combatToll(state: GameState, pay: boolean): Transition {
       ship: { ...state.ship, fuel: state.ship.fuel - combat.toll },
       log: appendLog(state.log, {
         kind: 'travel',
-        text: `${combat.toll} fuel crosses the gap in a drop pod, and ${combat.enemy.name} lets the lane open. Cheaper than the alternative.`,
+        text: `${combat.toll} fuel crosses the gap in a drop pod, and ${combat.enemy.name} lets the lane open.`,
       }),
     }
     return { state: endCombat(next, 'toll-paid', events), events }
@@ -552,9 +563,8 @@ function combatResolve(
         log: appendLog(state.log, {
           kind: 'ending',
           text:
-            `${combat.enemy.name} finds the reactor housing, and the Indefatigable comes apart ` +
-            `over ${systemName(state, combat.at)}. The plot on the Nav board goes with her. ` +
-            `Nobody is coming to read it.`,
+            `${combat.enemy.name} finds the reactor housing, and the Ithaca comes apart ` +
+            `over ${systemName(state, combat.at)}. The plot on the Nav board goes with her.`,
         }),
       },
       events,
@@ -578,7 +588,7 @@ function combatResolve(
         kind: 'travel',
         text:
           `${combat.enemy.name} comes apart under the last volley. The wreck gives up ` +
-          `${salvaged} fuel, and nothing else it knew.`,
+          `${salvaged} fuel and nothing else.`,
       }),
     }
     events.push({ type: 'fuelSalvaged', amount: salvaged })
@@ -593,8 +603,8 @@ function combatResolve(
       log: appendLog(next.log, {
         kind: 'travel',
         text:
-          `Hulled and listing, they strike their colours — to a captain who knows exactly whose ` +
-          `patrol they missed and why. ${tribute} fuel in tribute buys their withdrawal.`,
+          `Hulled and listing, they strike their colours. ${tribute} fuel in tribute buys their ` +
+          `withdrawal.`,
       }),
     }
     events.push({ type: 'fuelSalvaged', amount: tribute })
@@ -606,7 +616,7 @@ function combatResolve(
       ...next,
       log: appendLog(next.log, {
         kind: 'travel',
-        text: `Raiders fight for profit, and this stopped being profitable. They break and burn for the dark.`,
+        text: `Whatever they came for, it stopped being worth it. They break and burn for the dark.`,
       }),
     }
     return { state: endCombat(next, 'driven-off', events), events }
@@ -617,7 +627,7 @@ function combatResolve(
     ...next,
     log: appendLog(next.log, {
       kind: 'travel',
-      text: `The drive answers when it matters. The Indefatigable breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
+      text: `The drive answers. The Ithaca breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
     }),
   }
   return { state: endCombat(next, 'fled', events), events }
@@ -661,6 +671,25 @@ function sceneOption(state: GameState, optionId: string): Transition {
     return { state: closed, events }
   }
 
+  // The transit: only the gateway scene carries it, only at the threshold.
+  if (option.effect.kind === 'transit') {
+    if (scene.templateId !== 'gateway' || state.ship.at !== scene.at) return { state, events: [] }
+    return {
+      state: {
+        ...closed,
+        outcome: 'home',
+        log: appendLog(closed.log, {
+          kind: 'ending',
+          text:
+            `The order is given with the whole ship's company listening. The drive holds, the ` +
+            `light goes wrong, and then the stars ahead are ones we have names for. We are going ` +
+            `home.`,
+        }),
+      },
+      events,
+    }
+  }
+
   if (option.effect.kind === 'recruit') {
     const specialist = state.recruits.sites[scene.at]
     if (!specialist) return { state: closed, events }
@@ -673,7 +702,7 @@ function sceneOption(state: GameState, optionId: string): Transition {
         kind: 'crew',
         text:
           `${specialist.name} signs aboard as ship's ${FOCUS_LABELS[specialist.focus].toLowerCase()}. ` +
-          `A new face in the mess, and a better ship by morning.`,
+          `A new face in the mess by evening.`,
       }),
     }
     events.push({ type: 'specialistJoined', name: specialist.name, focus: specialist.focus })
@@ -990,8 +1019,8 @@ function declareIfStranded(
         kind: 'ending',
         text:
           `The tank will not carry us to any star on the chart, and there is nothing here to ` +
-          `scoop, drain or trade. The ship is sound. The crew are alive. Neither of those things ` +
-          `is going to change what this is. Entries in this log may become intermittent.`,
+          `scoop, drain or trade. The ship is sound and the crew are alive, and neither of those ` +
+          `facts helps. Entries in this log may become intermittent.`,
       }),
     },
     events: [...events, { type: 'strandedDeclared' }],
@@ -1123,10 +1152,7 @@ function runMission(
   if (!approach) return { state, events: [] }
   if (approach.needs && !team.officers.includes(approach.needs)) return { state, events: [] }
 
-  // One mission, one stream: every draw comes from a seed fixed by how many
-  // missions have gone before, so replays land the same way.
   const missionsRun = state.missionsRun + 1
-  const rng = createRng(`${state.seed}:mission:${missionsRun}:${systemId}`)
 
   let next: GameState = {
     ...state,
@@ -1139,11 +1165,86 @@ function runMission(
   if (next.outcome !== 'seeking') return { state: next, events: preEvents }
 
   const odds = approachOdds(approach, team, next.roster, next.loadouts)
+
+  // The complication (R9): some missions hit an authored decision on the
+  // ground. Its own stream, so firing one never disturbs the mission dice.
+  const crisisRng = createRng(`${state.seed}:crisis:${missionsRun}:${systemId}`)
+  if (crisisFires(crisisRng)) {
+    const crisis = castCrisis(systemId, systemName(next, systemId), site.type, team, approachId, odds)
+    return {
+      state: {
+        ...next,
+        crisis,
+        log: appendLog(next.log, {
+          kind: 'mission',
+          text:
+            `${systemName(next, systemId)} — ${site.label.toLowerCase()}: the team is on the ` +
+            `ground and it has stopped going to plan. They are holding for your call.`,
+        }),
+      },
+      events: [...preEvents, { type: 'crisisStruck', at: systemId }],
+    }
+  }
+
+  return resolveMission(next, systemId, site, team, odds, preEvents)
+}
+
+/**
+ * The captain's call at the mid-ground decision. The choice's shift is
+ * applied to the standing odds — the printed numbers are the rolled
+ * numbers — and the mission resolves down the same ladder it always had.
+ */
+function crisisCall(state: GameState, choiceId: string): Transition {
+  const crisis = state.crisis
+  if (!crisis || state.outcome !== 'seeking') return { state, events: [] }
+  const choice = crisis.choices.find((c) => c.id === choiceId)
+  if (!choice) return { state, events: [] }
+  if (
+    choice.needs &&
+    (!crisis.team.officers.includes(choice.needs) || !isFit(state.roster, choice.needs))
+  ) {
+    return { state, events: [] }
+  }
+
+  const { site } = sitePlan(state, crisis.at)
+  if (!site) return { state, events: [] }
+
+  const events: GameEvent[] = []
+  let next: GameState = {
+    ...state,
+    crisis: null,
+    log: appendLog(state.log, {
+      kind: 'mission',
+      text: `${systemName(state, crisis.at)}: the call goes down to the team — ${choice.label.toLowerCase()}.`,
+    }),
+  }
+  if (choice.days > 0) {
+    next = advanceTime(next, choice.days, events)
+    if (next.outcome !== 'seeking') return { state: next, events }
+  }
+
+  return resolveMission(next, crisis.at, site, crisis.team, shiftOdds(crisis.odds, choice.shift), events)
+}
+
+/**
+ * The roll and its consequences — shared by the straight mission and the
+ * one that stood at a crisis first. One stream per mission, seeded by the
+ * mission counter, so replays land the same way whichever path arrived.
+ */
+function resolveMission(
+  next: GameState,
+  systemId: SystemId,
+  site: Site,
+  team: AwayTeam,
+  odds: { clean: number; messy: number; disaster: number },
+  preEvents: GameEvent[],
+): Transition {
+  const rng = createRng(`${next.seed}:mission:${next.missionsRun}:${systemId}`)
   const roll = rng.next() * 100
   const outcome: 'clean' | 'messy' | 'disaster' =
     roll < odds.clean ? 'clean' : roll < odds.clean + odds.messy ? 'messy' : 'disaster'
 
-  const system = systemName(state, systemId)
+  const system = systemName(next, systemId)
   const events: GameEvent[] = [...preEvents, { type: 'missionResolved', at: systemId, outcome }]
 
   // The people who went down and did the job get better at it.
@@ -1172,6 +1273,7 @@ function runMission(
     ? { genericDeaths: 1 + (rng.chance(0.4) ? 1 : 0), officerInjury: 0.2, officerDeath: 0, captainDeath: 0 }
     : { genericDeaths: 2 + rng.int(2), officerInjury: 0.45, officerDeath: 0.25, captainDeath: 0.2 }
 
+  const before = next
   const applied = applyHarm(next, team, harm, rng, events)
   next = applied
 
@@ -1201,7 +1303,7 @@ function runMission(
       found,
       team.officers.includes('science') && isFit(next.roster, 'science'),
       `${system} — ${site.label.toLowerCase()}: the evidence is aboard, and it was paid for. ` +
-        casualtyLine(state, next),
+        casualtyLine(before, next),
     )
     return { state: collected.state, events: [...events, ...collected.events] }
   }
@@ -1216,7 +1318,7 @@ function runMission(
         kind: 'mission',
         text:
           `${system} — ${site.label.toLowerCase()}: it went wrong almost at once. The team pulled ` +
-          `out with nothing. ${casualtyLine(state, next)}`,
+          `out with nothing. ${casualtyLine(before, next)}`,
       }),
     },
     events,
@@ -1361,8 +1463,8 @@ function decode(state: GameState, clueId: ClueId): Transition {
     log: appendLog(state.log, {
       kind: 'crew',
       text: linguist
-        ? `${linguist.name} reads the artefact over a mug of tea and hands ${science.name} the translation before the watch changes. Another account, legible at once.`
-        : `${science.name} works the artefact over for a day until it gives. Another account, legible at last.`,
+        ? `${linguist.name} reads the artefact over a mug of tea and hands ${science.name} the translation before the watch changes. Another account, legible.`
+        : `${science.name} works at the artefact for a day before it opens up. Another account, legible.`,
     }),
   }
   // A linguist aboard does it in passing; otherwise it costs the bench a day.
@@ -1389,7 +1491,7 @@ function promote(state: GameState, role: Exclude<OfficerRole, 'captain'>): Trans
       kind: 'crew',
       text:
         `${replacement.name} steps up from the ranks to take the ${role} station. ` +
-        `Yesterday they were a number on a duty roster. Today the ship needs them to be more.`,
+        `They were a number on a duty roster yesterday. The ship needs more from them now.`,
     }),
   }
   return { state: next, events }
@@ -1415,26 +1517,38 @@ function plotTheJump(state: GameState, target: SystemId): Transition {
   if (state.ship.fuel < LONG_JUMP_RESERVE) return { state, events: [] }
   // The transit takes all three tracks: the place, the engine, the shield.
   if (!jumpReady(state)) return { state, events: [] }
+  // The door, once found, stays found: the threshold scene owns the ending.
+  if (state.jumps.some((j) => j.correct)) return { state, events: [] }
 
   const correct = target === state.mystery.gateway
   const jumps = [...state.jumps, { target, correct }]
   const name = systemName(state, target)
 
   if (correct) {
-    return {
-      state: {
-        ...state,
-        jumps,
-        outcome: 'home',
-        log: appendLog(state.log, {
-          kind: 'ending',
-          text:
-            `${name}. The drive holds, the light goes wrong, and then the stars ahead are ` +
-            `stars we have names for. We are in charted space. We are going home.`,
-        }),
-      },
-      events: [{ type: 'jumpSucceeded', target }],
+    // Right — but the run ends at the doorway, not on a cut to black. The
+    // ship arrives at the threshold and the finale plays as a scene whose
+    // commit option performs the transit (R9; docs/specs/doorway-home.md).
+    const arrived: GameState = {
+      ...state,
+      jumps,
+      ship: { ...state.ship, at: target },
+      selected: target,
+      encounter: null,
+      log: appendLog(state.log, {
+        kind: 'jump',
+        text:
+          `${name}. The drive holds, the light goes wrong — and there it is in the forward ` +
+          `ports: the far mouth of the rift, standing open where the plot said it would be. ` +
+          `The ship holds at the threshold of the way home.`,
+      }),
     }
+    const events: GameEvent[] = [{ type: 'jumpSucceeded', target }]
+    const scene = castScene(arrived, target)
+    if (scene) {
+      events.push({ type: 'sceneOpened', at: target })
+      return { state: { ...arrived, encounter: scene }, events }
+    }
+    return { state: arrived, events }
   }
 
   // Wrong. The rift takes its price and throws the ship somewhere far from

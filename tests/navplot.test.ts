@@ -83,6 +83,11 @@ function gatherEverything(from: GameState): GameState {
         approachesFor(site).find((a) => a.needs !== null && team.officers.includes(a.needs)) ??
         approachesFor(site).find((a) => a.needs === null)!
       current = run(current, { type: 'runMission', system, team, approach: approach.id })
+      // A mission can hold at its mid-ground decision; press on regardless.
+      if (current.crisis) {
+        const press = current.crisis.choices.find((c) => !c.needs)!
+        current = run(current, { type: 'crisisCall', choice: press.id })
+      }
     }
   }
   return current
@@ -238,13 +243,17 @@ describe('the deduction', () => {
 })
 
 describe('the Long Jump', () => {
-  it('ends the game when the player is right', () => {
+  it('arrives at the threshold when the player is right; the transit ends it', () => {
     const { state: after, events } = reduce(state, {
       type: 'plotTheJump',
       target: state.mystery.gateway,
     })
-    expect(after.outcome).toBe('home')
-    expect(events).toEqual([{ type: 'jumpSucceeded', target: state.mystery.gateway }])
+    expect(after.outcome).toBe('seeking')
+    expect(after.encounter?.templateId).toBe('gateway')
+    expect(events[0]).toEqual({ type: 'jumpSucceeded', target: state.mystery.gateway })
+
+    const home = run(after, { type: 'sceneOption', option: 'commit' })
+    expect(home.outcome).toBe('home')
   })
 
   it('is survivable when the player is wrong — the search stays open', () => {
@@ -258,11 +267,17 @@ describe('the Long Jump', () => {
     // And a second attempt is still possible once the tank allows it.
     const refuelled: GameState = { ...after, ship: { ...after.ship, fuel: 60 } }
     const again = reduce(refuelled, { type: 'plotTheJump', target: after.mystery.gateway })
-    expect(again.state.outcome).toBe('home')
+    expect(again.state.encounter?.templateId).toBe('gateway')
+    const home = run(again.state, { type: 'sceneOption', option: 'commit' })
+    expect(home.outcome).toBe('home')
   })
 
   it('accepts no further orders once the ship is home', () => {
-    const home = run(state, { type: 'plotTheJump', target: state.mystery.gateway })
+    const home = run(
+      state,
+      { type: 'plotTheJump', target: state.mystery.gateway },
+      { type: 'sceneOption', option: 'commit' },
+    )
     const after = run(home, { type: 'plotTheJump', target: state.mystery.decoy })
     expect(after.jumps).toHaveLength(1)
   })

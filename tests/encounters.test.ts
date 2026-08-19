@@ -62,6 +62,45 @@ describe('casting', () => {
   })
 })
 
+describe('scene pool depth (R9)', () => {
+  it('a run repeats no scene text while a family has variants to spare', () => {
+    // Across seeds: group each run's clue systems by the family they cast;
+    // within a family, systems must play pairwise-different opening beats
+    // whenever the pool is deep enough to allow it.
+    for (const seed of ['pool-1', 'pool-2', 'pool-3', 'pool-4']) {
+      const state = newGame(seed)
+      const byFamily = new Map<string, string[]>()
+      const systems = new Set(state.mystery.clues.map((c) => c.source.at))
+
+      for (const system of systems) {
+        const scene = castScene(state, system)
+        if (!scene) continue
+        const text = scene.beats.map((b) => b.text).join('\n')
+        const seen = byFamily.get(scene.templateId) ?? []
+        byFamily.set(scene.templateId, [...seen, text])
+      }
+
+      for (const [family, texts] of byFamily) {
+        const distinct = new Set(texts)
+        // The rotation cycles, so a family can only repeat once it has more
+        // systems than variants — and every family carries at least three.
+        expect(distinct.size, `${seed}/${family}`).toBeGreaterThanOrEqual(Math.min(texts.length, 3))
+      }
+    }
+  })
+
+  it('reopening the same scene later plays the same variant', () => {
+    const state = newGame(SEED)
+    const system = socialSystem(state)
+    const first = castScene(state, system)!
+    // Collecting elsewhere must not reshuffle this system's conversation.
+    const otherClue = state.mystery.clues.find((c) => c.source.at !== system)!
+    const progressed: GameState = { ...state, collected: [otherClue.id] }
+    const second = castScene(progressed, system)!
+    expect(second.beats).toEqual(first.beats)
+  })
+})
+
 describe('arrival', () => {
   it('opens the scene when the ship reaches a system with content', () => {
     const state = newGame(SEED)

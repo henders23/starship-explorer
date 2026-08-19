@@ -30,22 +30,22 @@ const BEATS: Beat[] = [
   {
     speaker: null,
     text: () =>
-      'Ship’s log, day one. The jump anomaly has closed behind the Indefatigable. The stars outside the viewports match nothing in the catalogue.',
+      'Ship’s log, day one. The anomaly closed behind the Ithaca four hours ago. The stars outside the viewports do not match anything in the catalogue.',
   },
   {
     speaker: 'science',
     text: () =>
-      'That was no lane transit, Captain. The rift carried us clean off the charts — I can’t match a single constellation. We are a very long way from home.',
+      'That was not a lane transit, Captain. Whatever the rift did, it put us somewhere off the charts entirely. I have run the constellations twice and I cannot match one of them. We are a long way from home.',
   },
   {
     speaker: 'security',
     text: () =>
-      'Boards are clean. No pursuit, no contacts. Whatever threw us here didn’t follow us through.',
+      'Boards are clean. No pursuit, nothing on any band. Nothing came through behind us.',
   },
   {
     speaker: 'medical',
     text: () =>
-      'Sickbay reports bruises and one cracked rib. Twenty-four souls aboard, all accounted for. Shaken, but standing.',
+      'Sickbay has bruises and one cracked rib. Twenty-four aboard, all accounted for.',
   },
   {
     speaker: 'captain',
@@ -54,42 +54,42 @@ const BEATS: Beat[] = [
   {
     speaker: 'science',
     text: () =>
-      'An uncharted sector, some ninety stars. A rift like the one that took us has a far end — somewhere out there is the mouth that leads home. The catalogue can’t tell us which star hides it. But somebody out here will know pieces of it.',
+      'We are in an uncharted sector, about ninety stars. A rift like the one that took us has a far end, so there is a mouth out there somewhere that leads back. The catalogue cannot tell us which star it sits behind. But people out here will have seen pieces of it.',
   },
   {
     speaker: 'security',
     text: () =>
-      'Then we go and take those pieces. Ruins, derelicts, traders, prisoners — whoever holds them. My teams go down armed, Captain, and I pick who walks into what. Composition sets the odds.',
+      'Then we go and get those pieces. Ruins, derelicts, traders, whoever is holding them. My teams go down armed, Captain, and I pick who walks into what. Who you send changes the odds.',
   },
   {
     speaker: 'science',
     text: (n) =>
-      `And whatever ${n.security} carries back, I read. Artefacts come to the lab sealed — without me at the bench they are just heavy souvenirs. Bring me anything with writing on it.`,
+      `And whatever ${n.security} brings back, I read. Artefacts come up sealed and they stay sealed until somebody works them at the bench. Bring me anything with writing on it.`,
   },
   {
     speaker: 'medical',
     text: () =>
-      'A word before anyone gets heroic: if they come back on stretchers, they are mine for days, not hours. The medbay runs on the calendar, and so should your plans.',
+      'One thing before anyone gets heroic. If they come back on stretchers I have them for days at a time, and I cannot rush that. Build it into your planning.',
   },
   {
     speaker: 'medical',
     text: () =>
-      'And the rift itself is not done with us. Engineering says it surges — the light goes wrong and something aboard breaks, or someone does. When it happens, my medbay fills. Plan for that too.',
+      'And the rift is not finished with us. Engineering says it surges. The light goes wrong, and something aboard breaks, or somebody does. When that happens my medbay fills up. Plan for it.',
   },
   {
     speaker: 'science',
     text: () =>
-      'One more thing, and it matters most: some of what we are told out here will be wrong, or worded to mislead. Every account goes on the plot, but trust is a decision, Captain — not a feeling. The chart will show you which stars survive what you choose to believe.',
+      'One last thing, Captain, and I think it is the one that matters. Some of what we are told out here will be wrong, and some of it will be worded to mislead us. Every account goes on the plot either way. But you have to decide which ones we believe, and the chart only narrows once you do.',
   },
   {
     speaker: 'security',
     text: () =>
-      'Engineering reads eighty in the tank. Every lane burns it, and there are no depots out here — gas giants can refill us, if we find them and can spare the days.',
+      'Engineering reads eighty in the tank. Every lane burns some of it and there are no depots out here. Gas giants can refill us, if we find them and can spare the days.',
   },
   {
     speaker: 'captain',
     text: () =>
-      'So that’s the shape of it. We gather every account we can, we decide which to believe, and the plot narrows the field. When it narrows far enough, we burn the reserve on one long jump. We only get to be sure once.',
+      'All right. We collect every account we can, we decide which ones to believe, and the plot narrows the field. When it is narrow enough we burn the reserve on one long jump. There will not be much left over for a second guess.',
   },
   {
     speaker: 'captain',
@@ -145,7 +145,7 @@ export function BriefingScreen({ onComplete }: { onComplete: () => void }) {
       <div className="briefing-veil" aria-hidden="true" />
 
       <div className="briefing-header">
-        <div className="eyebrow">ISS Indefatigable · bridge · day 1</div>
+        <div className="eyebrow">ISS Ithaca · bridge · day 1</div>
         <h2>All hands to the bridge</h2>
       </div>
 

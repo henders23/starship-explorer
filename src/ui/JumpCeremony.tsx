@@ -35,7 +35,7 @@ export function JumpCeremony({
       return 'The plot names one star, and this is it. The whole ship’s company is on the bridge to watch.'
     if (candidates.length <= 3)
       return `The plot still admits ${candidates.length} stars. Someone exhales, slowly, as the drive charges.`
-    return `The plot still admits ${candidates.length} stars. The ship jumps on your conviction, not its arithmetic.`
+    return `The plot still admits ${candidates.length} stars. That is a wide field to jump on, and the drive is charging anyway.`
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -48,12 +48,14 @@ export function JumpCeremony({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  // Success: the ending overlay owns the stage.
+  // Success: the ship arrives at the threshold and the gateway scene owns
+  // the stage (a run that ends some other way hands off to its ending).
+  const arrived = jumps[jumps.length - 1]?.correct === true
   useEffect(() => {
-    if (phase === 'result' && outcome !== 'seeking') onClose()
-  }, [phase, outcome, onClose])
+    if (phase === 'result' && (outcome !== 'seeking' || arrived)) onClose()
+  }, [phase, outcome, arrived, onClose])
 
-  if (phase === 'result' && outcome !== 'seeking') return null
+  if (phase === 'result' && (outcome !== 'seeking' || arrived)) return null
 
   const lastJump = jumps[jumps.length - 1]
   const failed = phase === 'result' && lastJump && !lastJump.correct

@@ -1,4 +1,4 @@
-# Starship Explorer — Build Roadmap
+# Starship Ithaca — Build Roadmap
 
 Ordering principle: **the scenes and the mystery are the game.** The deduction
 engine is built and proven; the R-series turns the game dialogue-first and

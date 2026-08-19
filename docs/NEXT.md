@@ -57,43 +57,53 @@ layout, nobody has played a full run end-to-end, and the finish line is unrun.
 
 ## 3. Next steps
 
-### R8 — Ship it properly
+### R8 — Ship it properly — **DONE (19 Aug)**
 
 *Goal: the released thing is the real thing, and the repo can't drift again.*
 
-- **Production cutover.** Point production at the current game and verify the
-  live URL by hand. Retire or fast-forward `main` — one branch of record.
-- **Settle the Ithaca branch.** Harvest three ideas as specs, then archive it:
-  officers manning battle stations, campaign-conditional endings, and the
-  *Doorway Home* contested-gate finale. Specs, not merges — the branches have
-  incompatible engines.
-- **Save versioning policy.** Saves currently fail-safe to a fresh game on
-  schema change. Version stamp + stated policy before players have long runs
-  to lose.
-- **The golden-replay harness.** Promised in M0, still absent: seed + recorded
-  action log asserting a final state hash in CI — before balancing changes
-  numbers.
-- **One Playwright smoke flow in CI** (title → briefing → scene → collect).
+- ~~**Production cutover.**~~ Done: `main` fast-forwarded, production READY.
+- ~~**Settle the Ithaca branch.**~~ Done: the three ideas live as real specs —
+  `docs/specs/battle-stations.md`, `docs/specs/campaign-endings.md`,
+  `docs/specs/doorway-home.md` — adapted to this engine. The branch itself
+  still needs its one-click deletion in the GitHub UI.
+- ~~**Save versioning policy.**~~ Done: versioned envelope (`src/ui/save.ts`),
+  migration chain, archive-not-delete on mismatch, legacy adoption, tests.
+- ~~**The golden-replay harness.**~~ Done: three complete pilot-driven runs
+  (`tests/fixtures/golden/`), replayed by final-state hash in the suite;
+  `npm run golden:record` regenerates deliberately (`tools/pilot.ts` plays,
+  `tools/record-golden.ts` records).
+- ~~**One Playwright smoke flow in CI.**~~ Done: `.github/workflows/ci.yml`
+  runs typecheck, the full suite (golden replays included), and the
+  title → briefing → scene → collect browser walk (`e2e/smoke.spec.ts`).
 
 **Done when:** the public URL serves the current game, CI replays a golden
-run, and one branch is the branch.
+run, and one branch is the branch. *All true as of 19 Aug; branch-of-record
+note: `main` is current — changing the repo's default branch to `main` is
+still one click in the GitHub UI.*
 
 ### R9 — The content milestone
 
 *Goal: a full run never shows the player the same scene twice, and the ending
 is the best scene in the game.*
 
-- **Scene pool depth**: 3+ beat variants per template family, region flavour.
-- **Mid-mission choice nodes**: one authored decision inside away missions
-  with printed odds, riding the existing harm ladder.
-- **The finale**: an arrival scene at the gateway threshold, and an optional
-  contested transit (from the Ithaca spec) — fought, or passed bloodlessly
-  with the right intelligence. The Long Jump stays the commit; the doorway
-  becomes a place.
-- **Combat presentation depth**: per-class enemy room layouts, hi-res exports
-  of favourite catalog ships, a tier-3 flagship class.
-- **Loss epilogues**: name what was lost with the same care the home ending
-  names survivors.
+- ~~**Scene pool depth**~~ Done 19 Aug: 3–4 beat variants per family with
+  region flavour, and variant *rotation* — a run repeats no scene text until
+  a family outgrows its pool (pinned by the encounters suite).
+- ~~**Mid-mission choice nodes**~~ Done 19 Aug: the crisis — some missions
+  hold at an authored complication per site family, odds printed exactly as
+  rolled, riding the harm ladder; saves resume mid-crisis (schema v3).
+- **The finale**: ~~an arrival scene at the gateway threshold~~ done 19 Aug —
+  the correct Long Jump arrives at the threshold and the transit is the
+  scene's commit option. Remaining: the optional contested transit (per
+  `docs/specs/doorway-home.md`), which wants the campaign-endings flags
+  groundwork first.
+- **Combat presentation depth**: ~~per-class enemy room layouts~~ and ~~a
+  tier-3 flagship class~~ done 19 Aug (seven interior plans, the Ashen
+  Sovereign at surge ≥ 4). Remaining: hi-res exports of favourite catalog
+  ships — an art task, not a code one.
+- ~~**Loss epilogues**~~ Done 19 Aug: the epilogue rulebook
+  (`src/engine/state/epilogue.ts`) shows every ending the lines the run
+  earned, and the loss screens name the dead.
 
 **Done when:** a complete playthrough contains no repeated scene text and the
 gateway arrival is a scene, not a screen-swap.

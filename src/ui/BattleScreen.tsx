@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useReducer, useRef } from 'react'
 import { battleParams, YIELD_HULL_FRACTION, RAIDER_BREAK_FRACTION, type BattleParams } from '../engine/combat/combat.js'
 import { enemyClass } from '../engine/combat/combat.js'
-import type { ShipClass } from '../engine/combat/ships.js'
+import { ENEMY_LAYOUTS, type EnemyRoomKey, type ShipClass } from '../engine/combat/ships.js'
 import { GalaxyIndex } from '../engine/worldgen/index-galaxy.js'
 import { useDispatch, useGame } from './store.js'
 
@@ -100,11 +100,13 @@ const PROOMS: Record<string, { x: number; y: number; w: number; h: number; label
   helm: { x: 76, y: 36, w: 13, h: 24, label: 'HELM' },
 }
 
-const EROOMS: Record<string, { x: number; y: number; w: number; h: number; label: string }> = {
-  helm: { x: 30, y: 14, w: 40, h: 10, label: 'HELM' },
-  weapons: { x: 26, y: 32, w: 48, h: 12, label: 'WEAPONS' },
-  shields: { x: 26, y: 50, w: 48, h: 12, label: 'SHIELDS' },
-  engines: { x: 28, y: 70, w: 44, h: 13, label: 'ENGINES' },
+/** Enemy compartment geometry comes from the class's layout (R9): each
+ * archetype arranges its interior differently, and the flagship most of all. */
+const EROOM_LABELS: Record<EnemyRoomKey, string> = {
+  helm: 'HELM',
+  weapons: 'WEAPONS',
+  shields: 'SHIELDS',
+  engines: 'ENGINES',
 }
 
 function buildSim(params: BattleParams, cls: ShipClass): Sim {
@@ -152,10 +154,10 @@ function buildSim(params: BattleParams, cls: ShipClass): Sim {
       repairTimer: 0,
       evade: cls.evade,
       sys: {
-        helm: { hp: 2, max: 2, ionUntil: 0 },
-        weapons: { hp: 4, max: 4, ionUntil: 0 },
-        shields: { hp: 4, max: 4, ionUntil: 0 },
-        engines: { hp: 3, max: 3, ionUntil: 0 },
+        helm: { hp: cls.rooms.helm, max: cls.rooms.helm, ionUntil: 0 },
+        weapons: { hp: cls.rooms.weapons, max: cls.rooms.weapons, ionUntil: 0 },
+        shields: { hp: cls.rooms.shields, max: cls.rooms.shields, ionUntil: 0 },
+        engines: { hp: cls.rooms.engines, max: cls.rooms.engines, ionUntil: 0 },
       },
       guns: cls.guns.map((g) => ({ ...g, charge: 0.15 })),
     },
@@ -265,7 +267,7 @@ export function BattleScreen() {
     if (st.craft <= 0) return
     st.craft--
     const e = st.enemy
-    const targets = Object.keys(EROOMS), target = targets[Math.floor(Math.random() * targets.length)]!
+    const targets = Object.keys(st.enemy.sys), target = targets[Math.floor(Math.random() * targets.length)]!
     const from = pt('proom-launch'), to = pt('eroom-' + target)
     const eng = eff(e.sys.engines!, now)
     const evade = Math.max(0, (eng > 0 ? e.evade + eng * 2 : 0) - params.accuracy)
@@ -552,7 +554,8 @@ export function BattleScreen() {
           <div style={{ position: 'absolute', right: 130, bottom: 40, width: 380, height: 620 }}>
             <img src={cls.sprite} style={{ position: 'absolute', inset: 0, width: '100%', height: '100%', objectFit: 'contain', mixBlendMode: 'screen', filter: 'drop-shadow(0 8px 22px rgba(0,0,0,.6))' }} draggable={false} />
             <div className="shield-bubble" style={{ inset: '-3% -8%', borderColor: `rgba(255,140,90,${st.enemy.shieldLayers >= 2 ? 0.75 : st.enemy.shieldLayers === 1 ? 0.42 : 0})`, background: st.enemy.shieldLayers > 0 ? 'radial-gradient(ellipse, transparent 62%, rgba(255,140,90,.12) 100%)' : 'none' }} />
-            {Object.entries(EROOMS).map(([id, r]) => {
+            {Object.entries(ENEMY_LAYOUTS[cls.layout]).map(([id, box]) => {
+              const r = { ...box, label: EROOM_LABELS[id as EnemyRoomKey] }
               const sys = st.enemy.sys[id]!
               const fl = (st.flash['e-' + id] || 0) > now
               const ionised = now < sys.ionUntil
