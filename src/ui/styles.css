@@ -208,6 +208,25 @@ button:disabled {
 }
 .start-seed input:focus { border-color: var(--color-amber-dim); outline: none; }
 .start-seed input::placeholder { color: var(--color-ink-faint); }
+.start-seed small { color: var(--color-ink-faint); font-size: 9px; letter-spacing: .04em; }
+
+/* Voyage length — the short sky is the first-run mode */
+.start-length { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 16px; }
+.start-length-option {
+  padding: 7px 12px;
+  border: 1px solid var(--color-rule);
+  background: rgb(3 8 10 / .55);
+  color: var(--color-ink-faint);
+  font-size: 10px;
+  letter-spacing: .08em;
+  cursor: pointer;
+}
+.start-length-option:hover { border-color: var(--color-ink-dim); color: var(--color-ink-dim); }
+.start-length-option.is-chosen {
+  border-color: var(--color-amber-dim);
+  color: var(--color-amber);
+  background: rgb(28 20 8 / .5);
+}
 
 /* Opening briefing — the crew talk the situation through on the bridge */
 .briefing-screen { position: relative; height: 100%; overflow: hidden; background: #010507; cursor: pointer; }

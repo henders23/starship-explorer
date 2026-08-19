@@ -13,8 +13,10 @@ import { expect, test } from '@playwright/test'
 test('title → briefing → scene → collect', async ({ page }) => {
   await page.goto('/')
 
-  // Title: name the sky, take command.
+  // Title: name the sky — the golden seed is a full-sector galaxy, and a
+  // seed names its sky together with the voyage length — and take command.
   await expect(page.getByRole('heading', { name: /starship/i })).toBeVisible()
+  await page.getByRole('radio', { name: /Full sector/ }).click()
   await page.getByRole('textbox').fill('golden-1')
   await page.getByRole('button', { name: /take command|begin a new voyage/i }).click()
 

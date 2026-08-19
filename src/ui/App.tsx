@@ -7,6 +7,7 @@ import { EvidenceBoard } from './EvidenceBoard.js'
 import { Inspector } from './Inspector.js'
 import { LabScreen } from './LabScreen.js'
 import { epilogueLines } from '../engine/state/epilogue.js'
+import { voyageLengthOf, type VoyageLength } from '../engine/state/modes.js'
 import { surgeForecast } from '../engine/state/reducer.js'
 import { TruthReveal } from './TruthReveal.js'
 import { TECH_BY_ID } from '../engine/research/tech.js'
@@ -56,10 +57,10 @@ export function App() {
     void ambient.play().catch(() => {})
   }
 
-  const begin = (seed?: string) => {
+  const begin = (seed: string | undefined, length: VoyageLength) => {
     startAmbience()
     // A named seed replays a known galaxy; a blank one rolls a fresh sky.
-    restart(seed || `voyager-${Date.now().toString(36)}`)
+    restart(seed || `voyager-${Date.now().toString(36)}`, length)
     setPhase('briefing')
   }
 
@@ -394,6 +395,7 @@ function TheCost() {
 function Ending() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
+  const length = useGame((s) => voyageLengthOf(s.state.galaxy))
   const jumps = useGame((s) => s.state.jumps)
   const roster = useGame((s) => s.state.roster)
   const pools = useGame((s) => s.state.pools)
@@ -444,7 +446,7 @@ function Ending() {
         <VoyageEpilogue />
         <TruthReveal />
         <button
-          onClick={() => restart(`${seed}-again`)}
+          onClick={() => restart(`${seed}-again`, length)}
           className="border-amber-dim text-amber hover:bg-amber-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
@@ -458,6 +460,7 @@ function Ending() {
 function StrandedEnding() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
+  const length = useGame((s) => voyageLengthOf(s.state.galaxy))
   const at = useGame((s) => s.state.ship.at)
   const name = useGame((s) => s.state.galaxy.systems.find((x) => x.id === at)?.name ?? at)
 
@@ -476,7 +479,7 @@ function StrandedEnding() {
         <VoyageEpilogue />
         <TruthReveal />
         <button
-          onClick={() => restart(`${seed}-again`)}
+          onClick={() => restart(`${seed}-again`, length)}
           className="border-rule text-ink-dim hover:border-amber-dim hover:text-amber border px-3 py-1.5 text-[11px]"
         >
           Another galaxy
@@ -490,6 +493,7 @@ function StrandedEnding() {
 function DestroyedEnding() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
+  const length = useGame((s) => voyageLengthOf(s.state.galaxy))
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
@@ -505,7 +509,7 @@ function DestroyedEnding() {
         <VoyageEpilogue />
         <TruthReveal />
         <button
-          onClick={() => restart(`${seed}-again`)}
+          onClick={() => restart(`${seed}-again`, length)}
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another ship, another galaxy
@@ -519,6 +523,7 @@ function DestroyedEnding() {
 function LostEnding() {
   const restart = useGame((s) => s.restart)
   const seed = useGame((s) => s.state.seed)
+  const length = useGame((s) => voyageLengthOf(s.state.galaxy))
 
   return (
     <div className="fixed inset-0 z-40 grid place-items-center bg-black/90 px-6">
@@ -534,7 +539,7 @@ function LostEnding() {
         <VoyageEpilogue />
         <TruthReveal />
         <button
-          onClick={() => restart(`${seed}-again`)}
+          onClick={() => restart(`${seed}-again`, length)}
           className="border-alarm-dim text-alarm hover:bg-alarm-dim/15 border px-3 py-1.5 text-[11px]"
         >
           Another captain, another galaxy

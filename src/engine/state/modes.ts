@@ -31,3 +31,9 @@ export const VOYAGE_LABELS: Record<VoyageLength, string> = {
   short: 'Short voyage — a nearer sky, a first command',
   standard: 'Full sector — the whole ninety-star hunt',
 }
+
+/** Which length a running galaxy was cast at, judged by its size — so
+ * "another galaxy" after an ending deals the same kind of sky. */
+export function voyageLengthOf(galaxy: { systems: unknown[] }): VoyageLength {
+  return galaxy.systems.length <= 64 ? 'short' : 'standard'
+}

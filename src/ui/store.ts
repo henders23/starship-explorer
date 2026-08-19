@@ -6,6 +6,7 @@ import { evidenceSites, heldClues, newGame, reduce, usableClues } from '../engin
 import type { Action, GameEvent, GameState } from '../engine/state/types.js'
 import { GalaxyIndex } from '../engine/worldgen/index-galaxy.js'
 import type { SystemId } from '../engine/worldgen/types.js'
+import { VOYAGE_OPTIONS, type VoyageLength } from '../engine/state/modes.js'
 import { hasSave as checkSave, loadSave, persist } from './save.js'
 
 /**
@@ -17,7 +18,7 @@ interface Store {
   state: GameState
   lastEvents: GameEvent[]
   dispatch: (action: Action) => void
-  restart: (seed: string) => void
+  restart: (seed: string, length?: VoyageLength) => void
 }
 
 const DEFAULT_SEED = 'voyager'
@@ -41,8 +42,8 @@ export const useGame = create<Store>((set, get) => ({
     persist(state, window.localStorage)
     set({ state, lastEvents: events })
   },
-  restart: (seed) => {
-    const state = newGame(seed)
+  restart: (seed, length = 'standard') => {
+    const state = newGame(seed, VOYAGE_OPTIONS[length])
     persist(state, window.localStorage)
     set({ state, lastEvents: [] })
   },
