@@ -1,13 +1,16 @@
 import { describe, expect, it } from 'vitest'
 import {
+  battleParams,
   buildContact,
   contactChance,
   CONTACT_GRACE_DAYS,
+  enemyClass,
   hasIntelOn,
-  playerDamage,
+  ORDNANCE_MAX,
   TOLL_FUEL,
+  type CombatEnemy,
 } from '../src/engine/combat/combat.js'
-import type { CombatState } from '../src/engine/combat/combat.js'
+import { classPool, SHIP_BY_ID, SHIP_CLASSES } from '../src/engine/combat/ships.js'
 import { createRng } from '../src/engine/rng/prng.js'
 import { newGame, reduce, reduceAll } from '../src/engine/state/reducer.js'
 import type { Action, GameState } from '../src/engine/state/types.js'
@@ -17,17 +20,61 @@ const SEED = 'combat-tests'
 
 const run = (from: GameState, ...actions: Action[]) => reduceAll(from, actions).state
 
-/** A hand-built interception, for testing resolution without travel RNG. */
-function inCombat(state: GameState, overrides?: Partial<CombatState['enemy']>): GameState {
+/** A hand-built interception at the ship's position, for testing resolution. */
+function inCombat(state: GameState, enemy?: Partial<CombatEnemy>): GameState {
   const index = new GalaxyIndex(state.galaxy)
   const rng = createRng('test-contact')
-  const enemy = { ...buildContact(rng, state, state.ship.at, index), ...overrides }
+  const built = buildContact(rng, state, state.ship.at, index)
   return {
     ...state,
     combats: state.combats + 1,
-    combat: { at: state.ship.at, enemy, phase: 'contact', round: 0, toll: TOLL_FUEL },
+    combat: { at: state.ship.at, enemy: { ...built, ...enemy }, phase: 'contact', toll: TOLL_FUEL },
   }
 }
+
+/** Same, already at battle stations. */
+function inBattle(state: GameState, enemy?: Partial<CombatEnemy>): GameState {
+  const s = inCombat(state, enemy)
+  return { ...s, combat: { ...s.combat!, phase: 'battle' } }
+}
+
+describe('the catalog', () => {
+  it('every class has art, guns, and a sane statline', () => {
+    for (const cls of SHIP_CLASSES) {
+      expect(cls.sprite).toMatch(/^\/assets\/ships\/enemy-\d\d\.png$/)
+      expect(cls.guns.length).toBeGreaterThan(0)
+      expect(cls.hull).toBeGreaterThan(0)
+      expect(cls.shields).toBeGreaterThanOrEqual(0)
+      expect(cls.shields).toBeLessThanOrEqual(2)
+    }
+  })
+
+  it('every archetype fields tier-1 ships, and tier 2 only under escalation', () => {
+    for (const archetype of ['raider', 'militant-patrol', 'mercantile-combine', 'xenophobic-polity', 'scavenger-clan', 'monastic-order'] as const) {
+      const early = classPool(archetype, 1)
+      expect(early.length).toBeGreaterThan(0)
+      expect(early.every((s) => s.tier === 1)).toBe(true)
+      expect(classPool(archetype, 2).length).toBeGreaterThanOrEqual(early.length)
+    }
+  })
+
+  it('contacts pick a class deterministically and name faction ships properly', () => {
+    const state = newGame(SEED)
+    const index = new GalaxyIndex(state.galaxy)
+    const factionSystem = index.systems.find((s) => s.faction !== null)!
+    const a = buildContact(createRng('x'), state, factionSystem.id, index)
+    const b = buildContact(createRng('x'), state, factionSystem.id, index)
+    expect(a).toEqual(b)
+    expect(a.faction).toBe(factionSystem.faction)
+    expect(enemyClass(a)).toBe(SHIP_BY_ID[a.classId])
+    expect(a.name).toContain(' of ')
+
+    const wild = index.systems.find((s) => s.faction === null)!
+    const raider = buildContact(createRng('x'), state, wild.id, index)
+    expect(raider.faction).toBeNull()
+    expect(enemyClass(raider).tier).toBe(1)
+  })
+})
 
 describe('contacts', () => {
   it('holds fire through the grace days and in the quiet regions', () => {
@@ -39,7 +86,6 @@ describe('contacts', () => {
     const later: GameState = { ...state, day: 20 }
     expect(contactChance(later, 'shallows')).toBe(0)
     expect(contactChance(later, 'rift-margin')).toBeGreaterThan(0)
-    // The rift escalates space too.
     const surged: GameState = { ...later, surges: 3 }
     expect(contactChance(surged, 'cinder-belt')).toBeGreaterThan(contactChance(later, 'cinder-belt'))
   })
@@ -52,86 +98,100 @@ describe('contacts', () => {
     expect(reduce(state, { type: 'consult' }).state).toBe(state)
     expect(reduce(state, { type: 'plotTheJump', target: state.mystery.gateway }).state).toBe(state)
   })
-})
 
-describe('resolution', () => {
-  it('is deterministic: the same fight fought the same way lands the same way', () => {
+  it('engage goes to battle stations; toll can be paid or refused into battle', () => {
     const state = inCombat(newGame(SEED))
-    const actions: Action[] = [
-      { type: 'combatContact', choice: 'engage' },
-      { type: 'combatRound', power: 'guns', intent: 'fire' },
-      { type: 'combatRound', power: 'shields', intent: 'fire' },
-    ]
-    const a = reduceAll(state, actions)
-    const b = reduceAll(state, actions)
-    expect(a.state).toEqual(b.state)
-    expect(a.events).toEqual(b.events)
-  })
-
-  it('fights to the wreck: volleys land, shields halve, destruction salvages', () => {
-    const base = newGame(SEED)
-    const state = inCombat(base, { hull: 10, hullMax: 40, guns: 6 })
     const engaged = run(state, { type: 'combatContact', choice: 'engage' })
+    expect(engaged.combat?.phase).toBe('battle')
 
-    const volley = playerDamage(engaged, engaged.roster)
-    expect(volley).toBeGreaterThanOrEqual(8)
-
-    const won = run(engaged, { type: 'combatRound', power: 'guns', intent: 'fire' })
-    expect(won.combat).toBeNull()
-    expect(won.ship.fuel).toBeGreaterThan(Math.min(engaged.ship.fuel, 72)) // wreck salvage
-    expect(won.log.some((l) => l.text.includes('comes apart'))).toBe(true)
-  })
-
-  it('shields halve the answering volley', () => {
-    const base = newGame(SEED)
-    const tough = inCombat(base, { hull: 500, hullMax: 500, guns: 10 })
-    const engaged = run(tough, { type: 'combatContact', choice: 'engage' })
-
-    const exposed = run(engaged, { type: 'combatRound', power: 'guns', intent: 'fire' })
-    const covered = run(engaged, { type: 'combatRound', power: 'shields', intent: 'fire' })
-    expect(100 - exposed.ship.hull).toBe(10)
-    expect(100 - covered.ship.hull).toBe(5)
-  })
-
-  it('can end the run: a hulled ship is lost with all hands', () => {
-    const base = newGame(SEED)
-    const doomed: GameState = {
-      ...inCombat(base, { hull: 500, hullMax: 500, guns: 60 }),
-      ship: { ...base.ship, hull: 20 },
-    }
-    const engaged = run(doomed, { type: 'combatContact', choice: 'engage' })
-    const after = run(engaged, { type: 'combatRound', power: 'guns', intent: 'fire' })
-    expect(after.outcome).toBe('destroyed')
-    expect(after.combat).toBeNull()
-    expect(after.log[after.log.length - 1]!.kind).toBe('ending')
-    // A destroyed ship accepts no further orders.
-    expect(reduce(after, { type: 'consult' }).state).toBe(after)
-  })
-
-  it('paying the toll costs fuel and ends it; an empty tank cannot pay', () => {
-    const base = newGame(SEED)
-    const state: GameState = {
-      ...inCombat(base),
-      combat: { ...inCombat(base).combat!, phase: 'toll' },
-    }
-    const paid = run(state, { type: 'combatToll', pay: true })
+    const atToll: GameState = { ...state, combat: { ...state.combat!, phase: 'toll' } }
+    const paid = run(atToll, { type: 'combatToll', pay: true })
     expect(paid.combat).toBeNull()
-    expect(paid.ship.fuel).toBe(base.ship.fuel - TOLL_FUEL)
+    expect(paid.ship.fuel).toBe(state.ship.fuel - TOLL_FUEL)
+    const refused = run(atToll, { type: 'combatToll', pay: false })
+    expect(refused.combat?.phase).toBe('battle')
 
-    const broke: GameState = { ...state, ship: { ...state.ship, fuel: TOLL_FUEL } }
+    const broke: GameState = { ...atToll, ship: { ...atToll.ship, fuel: TOLL_FUEL } }
     expect(reduce(broke, { type: 'combatToll', pay: true }).state).toBe(broke)
   })
 })
 
+describe('battle parameters', () => {
+  it('derive weapons from research, pace from crew, ammo from the magazine', () => {
+    const base = newGame(SEED)
+    const index = new GalaxyIndex(base.galaxy)
+    const plain = battleParams(base, index)
+    expect(plain.hull).toBe(100)
+    expect(plain.missiles).toBe(ORDNANCE_MAX)
+    expect(plain.hasIon).toBe(false)
+    expect(plain.hasBeam).toBe(false)
+
+    const armed: GameState = {
+      ...base,
+      tech: { researched: ['fire-control', 'ion-disruptor', 'focus-beam'], active: null },
+      recruits: { sites: {}, aboard: [{ name: 'T', focus: 'gunnery' }] },
+    }
+    const kitted = battleParams(armed, index)
+    expect(kitted.hasIon).toBe(true)
+    expect(kitted.hasBeam).toBe(true)
+    expect(kitted.chargeMult).toBeCloseTo(1.35)
+  })
+})
+
+describe('battle resolution', () => {
+  it('victory persists the hull and the magazine, and pays salvage', () => {
+    const state = inBattle({ ...newGame(SEED), ship: { ...newGame(SEED).ship, fuel: 50 } })
+    const { state: after, events } = reduce(state, {
+      type: 'combatResolve', result: 'victory', hullLeft: 61, missilesLeft: 4,
+    })
+    expect(after.combat).toBeNull()
+    expect(after.ship.hull).toBe(61)
+    expect(after.ordnance).toBe(4)
+    expect(after.ship.fuel).toBe(58)
+    expect(events.some((e) => e.type === 'combatResolved' && e.result === 'destroyed-them')).toBe(true)
+    // Gunnery experience for a fight fought and won.
+    expect(after.roster.find((o) => o.role === 'security')!.xp).toBeGreaterThan(0)
+  })
+
+  it('defeat is the end of everything', () => {
+    const state = inBattle(newGame(SEED))
+    const after = run(state, { type: 'combatResolve', result: 'defeat', hullLeft: 0, missilesLeft: 2 })
+    expect(after.outcome).toBe('destroyed')
+    expect(after.ship.hull).toBe(0)
+    expect(after.log[after.log.length - 1]!.kind).toBe('ending')
+    expect(reduce(after, { type: 'consult' }).state).toBe(after)
+  })
+
+  it('clamps whatever the sim reports', () => {
+    const state = inBattle(newGame(SEED))
+    const after = run(state, { type: 'combatResolve', result: 'fled', hullLeft: 900, missilesLeft: 99 })
+    expect(after.ship.hull).toBe(100)
+    expect(after.ordnance).toBe(ORDNANCE_MAX)
+  })
+
+  it('a yield without intelligence settles as a plain victory', () => {
+    const base = newGame(SEED)
+    const state = inBattle(base, { faction: 'made-up-faction' })
+    const { events } = reduce(state, {
+      type: 'combatResolve', result: 'yielded', hullLeft: 80, missilesLeft: 5,
+    })
+    expect(events.some((e) => e.type === 'combatResolved' && e.result === 'destroyed-them')).toBe(true)
+  })
+
+  it('resolve is refused outside the battle phase', () => {
+    const state = inCombat(newGame(SEED))
+    expect(
+      reduce(state, { type: 'combatResolve', result: 'victory', hullLeft: 80, missilesLeft: 5 }).state,
+    ).toBe(state)
+  })
+})
+
 describe('intelligence', () => {
-  /** A state holding collected evidence from inside the enemy's space. */
   function informed(base: GameState): { state: GameState; faction: string } | null {
     const index = new GalaxyIndex(base.galaxy)
     for (const clue of base.mystery.clues) {
       const faction = index.system(clue.source.at).faction
-      if (faction) {
-        return { state: { ...base, collected: [clue.id] }, faction }
-      }
+      if (faction) return { state: { ...base, collected: [clue.id] }, faction }
     }
     return null
   }
@@ -150,29 +210,39 @@ describe('intelligence', () => {
     const base = newGame(SEED)
     const found = informed(base)
     if (!found) return
-    const state = inCombat(found.state, { faction: found.faction } as never)
+    const state = inCombat(found.state, { faction: found.faction })
     const after = run(state, { type: 'combatContact', choice: 'hail' })
     expect(after.combat).toBeNull()
     expect(after.ship.hull).toBe(100)
     expect(after.log.some((l) => l.text.includes('alters course away'))).toBe(true)
   })
 
-  it('a hurt patrol yields to the informed', () => {
+  it('a legal yield pays tribute and grants gunnery experience', () => {
     const base = newGame(SEED)
     const found = informed(base)
     if (!found) return
-    const state = inCombat(found.state, {
-      faction: found.faction,
-      hull: 12,
-      hullMax: 100,
-      guns: 6,
-    } as never)
-    const engaged = run(state, { type: 'combatContact', choice: 'engage' })
-    const after = run(engaged, { type: 'combatRound', power: 'guns', intent: 'fire' })
+    const state = inBattle({ ...found.state, ship: { ...found.state.ship, fuel: 40 } }, { faction: found.faction })
+    const { state: after, events } = reduce(state, {
+      type: 'combatResolve', result: 'yielded', hullLeft: 70, missilesLeft: 8,
+    })
     expect(after.combat).toBeNull()
-    expect(
-      after.log.some((l) => l.text.includes('strike their colours')) ||
-        after.log.some((l) => l.text.includes('comes apart')),
-    ).toBe(true)
+    expect(after.ship.fuel).toBe(48)
+    expect(events.some((e) => e.type === 'combatResolved' && e.result === 'yielded')).toBe(true)
+  })
+})
+
+describe('the yard', () => {
+  it('restocks the magazine with the refit', () => {
+    const base = newGame(SEED)
+    const index = new GalaxyIndex(base.galaxy)
+    const yard = index.systems.find((s) => s.faction !== null)!
+    const spent: GameState = {
+      ...base,
+      ship: { at: yard.id, fuel: 60, hull: 55 },
+      ordnance: 2,
+    }
+    const after = run(spent, { type: 'refit' })
+    expect(after.ship.hull).toBe(100)
+    expect(after.ordnance).toBe(ORDNANCE_MAX)
   })
 })

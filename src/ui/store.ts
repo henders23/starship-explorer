@@ -39,7 +39,8 @@ function loadSave(): GameState | null {
       !parsed.tech ||
       !parsed.recruits ||
       !parsed.parts ||
-      typeof parsed.ship?.hull !== 'number'
+      typeof parsed.ship?.hull !== 'number' ||
+      typeof parsed.ordnance !== 'number'
     ) {
       return null
     }

@@ -1,9 +1,10 @@
 import { describe, expect, it } from 'vitest'
-import { playerDamage } from '../src/engine/combat/combat.js'
+import { battleParams } from '../src/engine/combat/combat.js'
 import { placeSpecialists } from '../src/engine/crew/specialists.js'
 import { xpToNextSkill, type Specialist } from '../src/engine/crew/types.js'
 import { newGame, reduceAll } from '../src/engine/state/reducer.js'
 import type { Action, GameState } from '../src/engine/state/types.js'
+import { GalaxyIndex } from '../src/engine/worldgen/index-galaxy.js'
 
 const SEED = 'growth-tests'
 
@@ -103,8 +104,11 @@ describe('specialists', () => {
       recruits: { sites: {}, aboard: [{ name: 'Test Person', focus }] },
     })
 
-    // Gunner: +3 volley.
-    expect(playerDamage(aboard('gunnery'), base.roster)).toBe(playerDamage(base, base.roster) + 3)
+    // Gunner: weapons cycle faster.
+    const index = new GalaxyIndex(base.galaxy)
+    expect(battleParams(aboard('gunnery'), index).chargeMult).toBeCloseTo(
+      battleParams(base, index).chargeMult + 0.15,
+    )
 
     // Researcher: projects start a day shorter.
     const quick = run(aboard('research'), { type: 'startResearch', tech: 'comms-1' })
