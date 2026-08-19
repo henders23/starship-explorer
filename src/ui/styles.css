@@ -852,7 +852,7 @@ button:disabled {
 }
 .rail-region { color: var(--color-phosphor-dim); font-size: 10px; letter-spacing: .16em; text-transform: uppercase; }
 .rail-blurb { display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; overflow: hidden; margin: 5px 0 0; color: #a9b8bf; font-size: 11px; line-height: 1.55; }
-.rail-meta { margin-top: 4px; color: var(--color-ink-faint); font-size: 10px; letter-spacing: .04em; }
+.rail-meta { margin-top: 4px; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: var(--color-ink-faint); font-size: 10px; letter-spacing: .04em; }
 .rail-states { display: flex; flex-wrap: wrap; gap: 5px 20px; margin-top: 8px; font-size: 10px; letter-spacing: .1em; text-transform: uppercase; }
 .rail-candidates { display: flex; flex: 1; flex-direction: column; overflow: hidden; }
 .rail-cell-head { display: flex; justify-content: space-between; gap: 10px; flex: none; color: var(--color-ink-faint); font-size: 9px; letter-spacing: .2em; text-transform: uppercase; white-space: nowrap; }
