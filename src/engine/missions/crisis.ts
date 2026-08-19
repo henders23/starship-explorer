@@ -73,14 +73,14 @@ const CRISES: Record<SiteType, CrisisSpec> = {
       {
         id: 'lines',
         label: 'Rig lines and take the long way round',
-        detail: 'slow, sure, and a day the mission did not budget',
+        detail: 'slow and sure, and a day the mission did not budget',
         shift: { clean: 8, disaster: -6 },
         days: 1,
       },
       {
         id: 'press',
         label: 'Press on across the flexing deck',
-        detail: 'the deck already knows how this goes',
+        detail: 'and hope it holds under the last man',
         shift: { clean: 0, disaster: 0 },
         days: 0,
       },
@@ -89,8 +89,7 @@ const CRISES: Record<SiteType, CrisisSpec> = {
   ruins: {
     text: (system) =>
       `A gallery roof lets go somewhere behind the team, and the dust does not settle. The ` +
-      `inner chamber at ${system} is moving — old stone renegotiating its arrangements, with ` +
-      `the team inside the negotiation.`,
+      `inner chamber at ${system} is still shifting, and the team is inside it.`,
     choices: [
       {
         id: 'read',
@@ -110,7 +109,7 @@ const CRISES: Record<SiteType, CrisisSpec> = {
       {
         id: 'grab',
         label: 'Take what is nearest and go',
-        detail: 'speed against stone, and stone is patient',
+        detail: 'fast, and hope the roof waits',
         shift: { clean: 0, disaster: 0 },
         days: 0,
       },
@@ -118,14 +117,14 @@ const CRISES: Record<SiteType, CrisisSpec> = {
   },
   holdout: {
     text: (system) =>
-      `It goes wrong at the barricade. One of ${system}'s holdouts — young, exhausted, ` +
-      `weapon up — starts shouting, and on both sides of the wire every other answer is rising ` +
-      `to meet it.`,
+      `It goes wrong at the barricade. One of ${system}'s holdouts, young and exhausted and ` +
+      `with a weapon up, starts shouting, and voices on both sides of the wire start rising to ` +
+      `meet it.`,
     choices: [
       {
         id: 'doctor',
         label: 'Send the doctor forward, hands empty',
-        detail: 'the one uniform nobody out here shoots at',
+        detail: 'unarmed, and visibly a doctor',
         needs: 'medical',
         shift: { clean: 12, disaster: -8 },
         days: 0,
@@ -133,14 +132,14 @@ const CRISES: Record<SiteType, CrisisSpec> = {
       {
         id: 'back',
         label: 'Pull back and let them cool',
-        detail: 'a day lost to patience, which is cheaper than the alternative',
+        detail: 'a day lost, and nobody gets shot for it',
         shift: { clean: 8, disaster: -6 },
         days: 1,
       },
       {
         id: 'shout',
         label: 'Shout them down before it spreads',
-        detail: 'louder, first, and hope it lands as command not threat',
+        detail: 'and hope it reads as an order, not a threat',
         shift: { clean: 0, disaster: 0 },
         days: 0,
       },
@@ -149,13 +148,12 @@ const CRISES: Record<SiteType, CrisisSpec> = {
   'listening-post': {
     text: (system) =>
       `A relay wakes under the floor plates of ${system}'s station: a rhythmic pulse in ` +
-      `nobody's language, quickening. The post has noticed its visitors, and it is deciding ` +
-      `something about them.`,
+      `nobody's language, and it is quickening. The post has noticed its visitors.`,
     choices: [
       {
         id: 'decode',
-        label: 'Read the trigger logic before it reads you',
-        detail: 'the science officer argues with the countdown',
+        label: 'Read the trigger logic before it finishes',
+        detail: 'the science officer works it while the pulse runs',
         needs: 'science',
         shift: { clean: 12, disaster: -8 },
         days: 0,
@@ -163,14 +161,14 @@ const CRISES: Record<SiteType, CrisisSpec> = {
       {
         id: 'cutpower',
         label: 'Cut power at the mast and wait it out',
-        detail: 'a cold day outside while the station forgets',
+        detail: 'a cold day outside while the station settles',
         shift: { clean: 8, disaster: -6 },
         days: 1,
       },
       {
         id: 'yank',
         label: 'Pull the core before it decides',
-        detail: 'beat the pulse to its own conclusion',
+        detail: 'out before the pulse finishes, one way or the other',
         shift: { clean: 0, disaster: 0 },
         days: 0,
       },

@@ -1,4 +1,4 @@
-# Starship Explorer
+# Starship Ithaca
 
 A narrative space adventure in the spirit of *Starship Traveller* (Fighting
 Fantasy #4) — but instead of a branching paragraph book, an open, seeded galaxy.

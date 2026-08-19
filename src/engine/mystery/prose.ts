@@ -25,9 +25,9 @@ export const SOURCE_PROFILES: SourceProfile[] = [
     label: 'Crew recollection',
     reliability: 0.8,
     templates: [
-      'She turns from the console before she has quite decided to speak. "Captain — I served a survey tour out this way, years back. If I have it right, the anomaly you want {claim}."',
-      '"You will want to hear this from me rather than the log," he says. "Everything I was ever taught says the gate {claim}."',
-      'He is quiet for a long moment. "My first captain chased this same ghost. Her working assumption was that it {claim}. She never got to test it."',
+      'A voice from the console, before its owner has quite decided to speak. "Captain, I served a survey tour out this way, years back. If I have it right, the anomaly you want {claim}."',
+      '"You will want to hear this from me rather than off the log," the officer says. "Everything I was ever taught says the gate {claim}."',
+      'The officer is quiet for a long moment. "My first captain chased this same ghost. The working assumption was that it {claim}. She never got to test it."',
     ],
     attributions: [
       'recalled by a member of the bridge crew',
@@ -70,9 +70,9 @@ export const SOURCE_PROFILES: SourceProfile[] = [
     label: 'Translated inscription',
     reliability: 0.78,
     templates: [
-      'Your xenolinguist works through the night. By morning she has it: the inscription describes a passage that {claim}.',
+      'Your xenolinguist works through the night. By morning the sense of it is clear: the inscription describes a passage that {claim}.',
       'The carving is older than your species. Rendered into something you can read, it says: the door {claim}.',
-      'Translation is imperfect and she says so twice. The sense of it is that the way through {claim}.',
+      'The translation is imperfect, and your xenolinguist says so twice. What it comes to is that the way through {claim}.',
     ],
     attributions: [
       'translated from an inscription in planetary ruins',

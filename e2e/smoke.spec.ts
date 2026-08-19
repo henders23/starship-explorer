@@ -25,7 +25,7 @@ test('title → briefing → scene → collect', async ({ page }) => {
   await page.getByRole('button', { name: 'Skip briefing' }).click()
 
   // Aboard: the command bar is up, day zero, full tank.
-  await expect(page.getByRole('heading', { name: 'Starship Explorer' })).toBeVisible()
+  await expect(page.getByRole('heading', { name: 'Starship Ithaca' })).toBeVisible()
   await expect(page.getByText('80/80', { exact: true })).toBeVisible()
 
   // The chart: select the known first port of call and fly there.

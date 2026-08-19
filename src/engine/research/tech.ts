@@ -54,7 +54,7 @@ export const TECH_TREE: TechNode[] = [
     days: 6,
     requires: ['comms-1'],
     pitch:
-      '“The ruin scripts are older and stranger — the first matrix only circles them. Six more days, and inscriptions start meaning things.”',
+      '“The ruin scripts are older and stranger, and the first matrix only circles them. Six more days and the inscriptions start to mean something.”',
     effect: 'Ruin inscriptions become decodable',
   },
   {
@@ -63,7 +63,7 @@ export const TECH_TREE: TechNode[] = [
     days: 4,
     requires: [],
     pitch:
-      '“The rift is not random, Captain — it builds. Let me instrument the hull and I will tell you when the next surge is coming, to the day.”',
+      '“There is a pattern under the surges, Captain. They build. Let me instrument the hull and I will tell you when the next one is coming, to the day.”',
     effect: 'The next Rift Surge is forecast on the bridge',
   },
   {
@@ -90,7 +90,7 @@ export const TECH_TREE: TechNode[] = [
     days: 5,
     requires: [],
     pitch:
-      '“Half these patrol hulls are shield and swagger. An ion projector strips the shield and leaves the swagger — no hull damage, no bodies, just a ship that suddenly cannot do anything about you.”',
+      '“Half these patrol hulls are mostly shield. An ion projector strips that off and leaves the rest of them intact: no hull damage, no bodies, and nothing they can do about us.”',
     effect: 'Adds the ion disruptor: strips shields and disables systems',
   },
   {
@@ -99,7 +99,7 @@ export const TECH_TREE: TechNode[] = [
     days: 6,
     requires: ['fire-control'],
     pitch:
-      '“With the fire control re-laid I can hold a coherent beam on one compartment long enough to cut into it. It will not touch a raised shield — but against bare hull it is surgery.”',
+      '“With the fire control re-laid I can hold a coherent beam on one compartment long enough to cut into it. It will not touch a raised shield, but on bare hull it goes straight through.”',
     effect: 'Adds the focus beam: heavy precise damage, blocked by shields',
   },
   {
@@ -119,7 +119,7 @@ export const TECH_TREE: TechNode[] = [
     requires: [],
     component: 'shield',
     pitch:
-      '“The anomaly took the hull apart at the seams on the way in, and we were lucky. Going back through unshielded is not a plan, it is a eulogy. Two lattice segments, and I can build the real thing.”',
+      '“The anomaly took the hull apart at the seams on the way in, and we were lucky. Going back through unshielded would kill everyone aboard. Two lattice segments, and I can build the real thing.”',
     effect: 'Required for the Long Jump · needs 2 shield lattice segments',
   },
 ]

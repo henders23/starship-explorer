@@ -17,7 +17,7 @@ const RULES: EpilogueRule[] = [
   // — The people —
   (s) =>
     s.casualties.officers.length === 0 && s.casualties.generics === 0 && s.day > 0
-      ? 'Nobody died out here. Whatever else this log records, let it record that first.'
+      ? 'Nobody died out here. Not one name on the casualty page.'
       : null,
   (s) => {
     const stepped = s.roster.filter((o) => o.origin === 'promoted' && o.status !== 'dead')
@@ -25,49 +25,49 @@ const RULES: EpilogueRule[] = [
     const names = stepped.map((o) => o.name).join(' and ')
     return `${names} ${stepped.length === 1 ? 'was' : 'were'} a number on a duty roster when the voyage began, and ${
       stepped.length === 1 ? 'holds' : 'hold'
-    } a department at the end of it. Ships make people the way people make ships.`
+    } a department at the end of it.`
   },
   (s) => {
     if (s.recruits.aboard.length === 0) return null
     const names = s.recruits.aboard
       .map((r) => `${r.name} (${FOCUS_LABELS[r.focus].toLowerCase()})`)
       .join(', ')
-    return `Strangers signed aboard at strange docksides and made the ship better than her plans: ${names}.`
+    return `Signed on at docksides a long way from anywhere, and the ship was better for all of them: ${names}.`
   },
 
   // — The voyage —
   (s) =>
     s.collected.length > 0 && s.collected.length === s.mystery.clues.length
-      ? `Every account of the anomaly this sky held — all ${s.collected.length} of them — ended up on the plot. Nothing out here knew something the ship did not go and hear.`
+      ? `Every account of the anomaly this sky held, all ${s.collected.length} of them, ended up on the plot.`
       : null,
   (s) =>
     s.undecoded.length > 0
-      ? `${s.undecoded.length === 1 ? 'One recovered artefact was' : `${s.undecoded.length} recovered artefacts were`} never read. The sky keeps a few of its accounts.`
+      ? `${s.undecoded.length === 1 ? 'One recovered artefact was' : `${s.undecoded.length} recovered artefacts were`} never read. They are still crated in the hold.`
       : null,
   (s) => {
     const failed = s.jumps.filter((j) => !j.correct).length
     if (failed === 0) return null
     return failed === 1
-      ? 'The reserve burned once on a star that held nothing. The plot was wrong before it was right, and the ship survived learning it.'
-      : `${failed} times the reserve burned on stars that held nothing. The ship kept plotting.`
+      ? 'The reserve burned once on a star that held nothing. The ship survived the mistake and went back to work.'
+      : `${failed} times the reserve burned on stars that held nothing, and the plot was redrawn after every one of them.`
   },
 
   // — The sky —
   (s) =>
     s.surges >= 3
-      ? `The Rift surged ${s.surges} times, each worse than the last. It never stopped the work; it only priced it.`
+      ? `The Rift surged ${s.surges} times, each worse than the last, and the medbay filled up after every one.`
       : null,
   (s) =>
     s.driveScarred
-      ? 'The drive never sounded quite the same after the rift finished with it. Ships remember too.'
+      ? 'The drive never sounded quite the same after the rift finished with it.'
       : null,
   (s) =>
     s.combats === 0 && s.day >= 20
-      ? 'In all those days under a hostile sky, no interceptor ever closed to weapons range. Quiet lanes are read, not found.'
+      ? 'In all those days under a hostile sky, no interceptor ever closed to weapons range. Somebody read the lanes right.'
       : null,
   (s) =>
     s.combats >= 3 && s.ship.hull >= 100 && s.outcome !== 'destroyed'
-      ? `${s.combats} interceptions, and the hull reads whole at the end of it. Knowing things is a weapon that never needs reloading.`
+      ? `${s.combats} interceptions, and the hull still reads whole at the end of it.`
       : null,
 ]
 

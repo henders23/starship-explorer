@@ -20,9 +20,9 @@ export function StartScreen({
       <div className="start-veil" aria-hidden="true" />
       <div className="start-copy">
         <h1>
-          Starship <em>Explorer</em>
+          Starship <em>Ithaca</em>
         </h1>
-        <p>Bring you and your crew home</p>
+        <p>Sail your crew home</p>
         <div className="start-actions">
           {resumable && (
             <button className="start-begin" onClick={onResume}>

@@ -1,6 +1,6 @@
 # The mystery and the Nav Plot (Milestone 2)
 
-The deduction puzzle is the spine of Starship Explorer, so it is the first thing
+The deduction puzzle is the spine of Starship Ithaca, so it is the first thing
 built — generator, solvability proof, and the screen the player reasons on.
 The game is winnable end to end: gather evidence, work out who is lying, commit.
 

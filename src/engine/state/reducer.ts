@@ -95,8 +95,8 @@ export function newGame(seed: string, options?: Partial<MysteryOptions>): GameSt
         kind: 'arrival',
         text:
           `The anomaly closes behind us. Navigation reports we are at ${start.name}, ` +
-          `and that ${start.name} is on no chart aboard this ship. Nobody knows the way home. ` +
-          `Somebody out here does.`,
+          `and that ${start.name} is on no chart aboard this ship. Nobody aboard knows the way ` +
+          `home, so we start asking the people who might.`,
       },
     ],
   }
@@ -339,7 +339,7 @@ function gainXp(
       events.push({ type: 'officerImproved', role: officer.role, name: officer.name, skill })
       log = appendLog(log, {
         kind: 'crew',
-        text: `${officer.name} has grown into the station — skill ${skill}. The ship is better for it.`,
+        text: `${officer.name} has grown into the station. Skill ${skill}.`,
       })
     }
     return { ...officer, skill, xp }
@@ -430,7 +430,7 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
           kind: 'travel',
           text:
             `You read them their own patrol schedule back over the wideband. A long pause, and ` +
-            `${combat.enemy.name} alters course away. Knowing things is a weapon that never needs reloading.`,
+            `${combat.enemy.name} alters course away.`,
         }),
       }
       return { state: endCombat(next, 'stood-down', events), events }
@@ -494,7 +494,7 @@ function combatContact(state: GameState, choice: 'hail' | 'evade' | 'engage'): T
       combat: { ...combat, phase: 'battle' },
       log: appendLog(state.log, {
         kind: 'travel',
-        text: `Guns run out, power to the mounts. The bridge goes quiet the way it does before weather.`,
+        text: `Guns run out, power to the mounts. The bridge goes very quiet.`,
       }),
     },
     events,
@@ -513,7 +513,7 @@ function combatToll(state: GameState, pay: boolean): Transition {
       ship: { ...state.ship, fuel: state.ship.fuel - combat.toll },
       log: appendLog(state.log, {
         kind: 'travel',
-        text: `${combat.toll} fuel crosses the gap in a drop pod, and ${combat.enemy.name} lets the lane open. Cheaper than the alternative.`,
+        text: `${combat.toll} fuel crosses the gap in a drop pod, and ${combat.enemy.name} lets the lane open.`,
       }),
     }
     return { state: endCombat(next, 'toll-paid', events), events }
@@ -563,9 +563,8 @@ function combatResolve(
         log: appendLog(state.log, {
           kind: 'ending',
           text:
-            `${combat.enemy.name} finds the reactor housing, and the Indefatigable comes apart ` +
-            `over ${systemName(state, combat.at)}. The plot on the Nav board goes with her. ` +
-            `Nobody is coming to read it.`,
+            `${combat.enemy.name} finds the reactor housing, and the Ithaca comes apart ` +
+            `over ${systemName(state, combat.at)}. The plot on the Nav board goes with her.`,
         }),
       },
       events,
@@ -589,7 +588,7 @@ function combatResolve(
         kind: 'travel',
         text:
           `${combat.enemy.name} comes apart under the last volley. The wreck gives up ` +
-          `${salvaged} fuel, and nothing else it knew.`,
+          `${salvaged} fuel and nothing else.`,
       }),
     }
     events.push({ type: 'fuelSalvaged', amount: salvaged })
@@ -604,8 +603,8 @@ function combatResolve(
       log: appendLog(next.log, {
         kind: 'travel',
         text:
-          `Hulled and listing, they strike their colours — to a captain who knows exactly whose ` +
-          `patrol they missed and why. ${tribute} fuel in tribute buys their withdrawal.`,
+          `Hulled and listing, they strike their colours. ${tribute} fuel in tribute buys their ` +
+          `withdrawal.`,
       }),
     }
     events.push({ type: 'fuelSalvaged', amount: tribute })
@@ -617,7 +616,7 @@ function combatResolve(
       ...next,
       log: appendLog(next.log, {
         kind: 'travel',
-        text: `Raiders fight for profit, and this stopped being profitable. They break and burn for the dark.`,
+        text: `Whatever they came for, it stopped being worth it. They break and burn for the dark.`,
       }),
     }
     return { state: endCombat(next, 'driven-off', events), events }
@@ -628,7 +627,7 @@ function combatResolve(
     ...next,
     log: appendLog(next.log, {
       kind: 'travel',
-      text: `The drive answers when it matters. The Indefatigable breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
+      text: `The drive answers. The Ithaca breaks the lock and runs, and ${combat.enemy.name} does not follow.`,
     }),
   }
   return { state: endCombat(next, 'fled', events), events }
@@ -683,8 +682,8 @@ function sceneOption(state: GameState, optionId: string): Transition {
           kind: 'ending',
           text:
             `The order is given with the whole ship's company listening. The drive holds, the ` +
-            `light goes wrong, and then the stars ahead are stars we have names for. We are in ` +
-            `charted space. We are going home.`,
+            `light goes wrong, and then the stars ahead are ones we have names for. We are going ` +
+            `home.`,
         }),
       },
       events,
@@ -703,7 +702,7 @@ function sceneOption(state: GameState, optionId: string): Transition {
         kind: 'crew',
         text:
           `${specialist.name} signs aboard as ship's ${FOCUS_LABELS[specialist.focus].toLowerCase()}. ` +
-          `A new face in the mess, and a better ship by morning.`,
+          `A new face in the mess by evening.`,
       }),
     }
     events.push({ type: 'specialistJoined', name: specialist.name, focus: specialist.focus })
@@ -1020,8 +1019,8 @@ function declareIfStranded(
         kind: 'ending',
         text:
           `The tank will not carry us to any star on the chart, and there is nothing here to ` +
-          `scoop, drain or trade. The ship is sound. The crew are alive. Neither of those things ` +
-          `is going to change what this is. Entries in this log may become intermittent.`,
+          `scoop, drain or trade. The ship is sound and the crew are alive, and neither of those ` +
+          `facts helps. Entries in this log may become intermittent.`,
       }),
     },
     events: [...events, { type: 'strandedDeclared' }],
@@ -1464,8 +1463,8 @@ function decode(state: GameState, clueId: ClueId): Transition {
     log: appendLog(state.log, {
       kind: 'crew',
       text: linguist
-        ? `${linguist.name} reads the artefact over a mug of tea and hands ${science.name} the translation before the watch changes. Another account, legible at once.`
-        : `${science.name} works the artefact over for a day until it gives. Another account, legible at last.`,
+        ? `${linguist.name} reads the artefact over a mug of tea and hands ${science.name} the translation before the watch changes. Another account, legible.`
+        : `${science.name} works at the artefact for a day before it opens up. Another account, legible.`,
     }),
   }
   // A linguist aboard does it in passing; otherwise it costs the bench a day.
@@ -1492,7 +1491,7 @@ function promote(state: GameState, role: Exclude<OfficerRole, 'captain'>): Trans
       kind: 'crew',
       text:
         `${replacement.name} steps up from the ranks to take the ${role} station. ` +
-        `Yesterday they were a number on a duty roster. Today the ship needs them to be more.`,
+        `They were a number on a duty roster yesterday. The ship needs more from them now.`,
     }),
   }
   return { state: next, events }

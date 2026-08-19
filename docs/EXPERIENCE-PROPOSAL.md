@@ -3,7 +3,7 @@
 The map mock-up deliberately borrows only the reference's **visual grammar**—a luminous
 lane network, deep-space backdrop, framed instrument panels, and immediately legible
 points of interest. Its factions, war state, missions, system classifications, and lore
-were not copied. The chart remains a view of Starship Explorer's generated galaxy and
+were not copied. The chart remains a view of Starship Ithaca's generated galaxy and
 its evidence-driven journey home.
 
 ## First-session experience
