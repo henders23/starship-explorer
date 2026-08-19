@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { routeTo } from '../engine/travel/travel.js'
 import type { StarSystem, SystemId } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
@@ -30,6 +30,10 @@ export function StarMap() {
   const [hovered, setHovered] = useState<SystemId | null>(null)
   const [zoom, setZoom] = useState(1.35)
   const [pan, setPan] = useState({ x: -90, y: -35 })
+  const [showLanes, setShowLanes] = useState(true)
+  const [showRegions, setShowRegions] = useState(true)
+  const [showLabels, setShowLabels] = useState(false)
+  const [query, setQuery] = useState('')
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
 
   const { viewBox, project } = useMemo(() => {
@@ -80,6 +84,33 @@ export function StarMap() {
     setZoom((value) => Math.min(3.2, Math.max(0.85, value + (event.deltaY < 0 ? 0.14 : -0.14))))
   }
 
+  const resetView = () => {
+    setZoom(1.35)
+    setPan({ x: -90, y: -35 })
+  }
+
+  const findSystem = (event: React.FormEvent) => {
+    event.preventDefault()
+    const match = index.systems.find((system) =>
+      system.name.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase()),
+    )
+    if (!match) return
+    dispatch({ type: 'select', system: match.id })
+    setHovered(match.id)
+    setZoom((value) => Math.max(value, 1.75))
+  }
+
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      if (event.target instanceof HTMLInputElement) return
+      if (event.key === '+' || event.key === '=') setZoom((value) => Math.min(3.2, value + 0.2))
+      if (event.key === '-') setZoom((value) => Math.max(0.85, value - 0.2))
+      if (event.key === '0') resetView()
+    }
+    window.addEventListener('keydown', onKey)
+    return () => window.removeEventListener('keydown', onKey)
+  }, [])
+
   return (
     <div
       className="star-map relative h-full w-full overflow-hidden"
@@ -97,6 +128,7 @@ export function StarMap() {
     >
       <div className="nebula nebula-one" aria-hidden="true" />
       <div className="nebula nebula-two" aria-hidden="true" />
+      <div className="galactic-core" aria-hidden="true"><i /><i /><i /></div>
       <svg
         viewBox={viewBox}
         className="galaxy-canvas"
@@ -112,7 +144,7 @@ export function StarMap() {
           <radialGradient id="region-haze"><stop offset="0" stopColor="#164e63" stopOpacity=".24" /><stop offset="1" stopColor="#02060a" stopOpacity="0" /></radialGradient>
         </defs>
 
-        {regionLabels.map(({ region, x, y }) => (
+        {showRegions && regionLabels.map(({ region, x, y }) => (
           <g key={region} opacity={0.38}>
             <ellipse cx={x} cy={y} rx={150} ry={105} fill="url(#region-haze)" />
             <text x={x} y={y} textAnchor="middle" className="sector-label">
@@ -121,13 +153,13 @@ export function StarMap() {
           </g>
         ))}
 
-        <g stroke="var(--color-rule)" strokeWidth={0.8}>
+        {showLanes && <g stroke="var(--color-rule)" strokeWidth={0.8}>
           {index.galaxy.lanes.map(([a, b]) => {
             const from = project(index.system(a))
             const to = project(index.system(b))
             return <line key={`${a}-${b}`} x1={from.x} y1={from.y} x2={to.x} y2={to.y} className="jump-lane" />
           })}
-        </g>
+        </g>}
 
         {route && route.path.length > 1 && (
           <polyline
@@ -141,6 +173,7 @@ export function StarMap() {
             stroke="var(--color-amber-dim)"
             strokeWidth={1.4}
             strokeDasharray="4 3"
+            className="plotted-route"
           />
         )}
 
@@ -171,6 +204,17 @@ export function StarMap() {
               onMouseLeave={() => setHovered(null)}
               onClick={() => dispatch({ type: 'select', system: system.id })}
               className="cursor-pointer"
+              role="button"
+              tabIndex={0}
+              aria-label={`${system.name}, ${REGION_NAMES[system.region]}`}
+              onFocus={() => setHovered(system.id)}
+              onBlur={() => setHovered(null)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  dispatch({ type: 'select', system: system.id })
+                }
+              }}
             >
               {/* Generous invisible hit area — the dots are deliberately small. */}
               <circle cx={x} cy={y} r={11} fill="transparent" />
@@ -243,6 +287,7 @@ export function StarMap() {
                   stars at once makes the chart unreadable. */}
               {(isHovered ||
                 isSelected ||
+                showLabels ||
                 (isCandidate && anyTrusted && candidateSet.size <= 12)) && (
                 <text
                   x={x + 9}
@@ -278,7 +323,28 @@ export function StarMap() {
         <button onClick={() => setZoom((value) => Math.min(3.2, value + 0.2))} aria-label="Zoom in">+</button>
         <span>{Math.round(zoom * 100)}%</span>
         <button onClick={() => setZoom((value) => Math.max(0.85, value - 0.2))} aria-label="Zoom out">−</button>
-        <button onClick={() => { setZoom(1.35); setPan({ x: -90, y: -35 }) }} aria-label="Reset map view">⌖</button>
+        <button onClick={resetView} aria-label="Reset map view">⌖</button>
+      </div>
+
+      <div className="map-ui map-tools absolute top-5">
+        <form onSubmit={findSystem} className="map-search">
+          <span aria-hidden="true">⌕</span>
+          <input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Find system"
+            aria-label="Find a star system"
+            list="system-names"
+          />
+          <datalist id="system-names">
+            {index.systems.map((system) => <option key={system.id} value={system.name} />)}
+          </datalist>
+        </form>
+        <div className="map-layers" aria-label="Map layers">
+          <button className={showLanes ? 'is-on' : ''} onClick={() => setShowLanes((value) => !value)}>Routes</button>
+          <button className={showRegions ? 'is-on' : ''} onClick={() => setShowRegions((value) => !value)}>Regions</button>
+          <button className={showLabels ? 'is-on' : ''} onClick={() => setShowLabels((value) => !value)}>Names</button>
+        </div>
       </div>
 
       <Legend
@@ -293,6 +359,7 @@ export function StarMap() {
       </div>
 
       {hovered && hovered !== selected && <Readout system={index.system(hovered)} />}
+      <div className="map-frame" aria-hidden="true" />
     </div>
   )
 }
