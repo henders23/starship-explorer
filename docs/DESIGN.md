@@ -205,14 +205,33 @@ progress bar** — the candidate count is the progress bar, and it can go up
 when you doubt something. The plot screen also shows the technological track's
 state plainly: what is built, what is missing, where the trail points.
 
-The chart runs full bleed: nothing is docked beside it. The title block, the
-search and zoom controls, the hover readout and the legend float over the sky;
-a command rail along the foot carries the selected system, the candidates
-still standing and everything the ship can do about them; the evidence board
-rises over that rail on request and drops away again. The first time a captain
-takes the station, a one-slide briefing explains the marks, the movement keys
-and the rail — it is reachable afterwards from the "?" beside the zoom, and it
-teaches navigation only, never the answer.
+The chart runs full bleed: nothing takes a column out of the sky permanently.
+It is drawn outward from the galactic core, so the voyage reads **left to
+right** — the Shallows the ship arrived in at the left edge, the Rift Margin
+at the right, and the ship starting near the left with the frontier ahead of
+it. Because the sector is wider across its arc than it is deep, the chart's
+two axes are drawn to different scales: it is a projection that preserves
+ordering, neighbours and lane topology, and every cost it implies is quoted in
+jumps and fuel rather than left to the eye.
+
+Stars are hexagonal glyphs. Amber is the deduction — a star still consistent
+with everything trusted, breathing on a slow pulse so the remaining field can
+be found without reading a name; nothing is amber until something has actually
+been ruled out. Blue is the ship and the course it would fly, cyan is evidence
+still waiting to be collected, red is a star the reserve was already bet on,
+and everything else is catalogue grey. Stars the tank can no longer reach fade
+out of the field.
+
+The title block, the search and zoom controls and the legend float over the
+sky. The **inspector** docks to the right on selection: the star's catalogue
+entry, its standing in the plot, any account that came from it, what the trip
+costs, and every order the ship can carry out there — travel, respond, scoop,
+refit, and the Long Jump. The **plot bar** along the foot is the score: the
+stars still standing, listed and clickable, and the state of the technological
+track. The evidence board rises over that bar on request and drops away again.
+The first time a captain takes the station, a one-slide briefing explains the
+layout, the marks and the movement keys — it is reachable afterwards from the
+"?" beside the zoom, and it teaches navigation only, never the answer.
 
 ### 5.5 Committing: the Long Jump
 

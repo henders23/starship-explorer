@@ -1,15 +1,37 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { travelCost } from '../engine/state/reducer.js'
-import { routeTo } from '../engine/travel/travel.js'
+import { costsFrom, routeTo } from '../engine/travel/travel.js'
 import type { StarSystem, SystemId } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
 
-const PADDING = 60
+/**
+ * The chart's own coordinate frame. Deliberately landscape: the voyage reads
+ * left to right, out of the core and toward the Rift Margin, so the axis the
+ * player is actually travelling along gets the long side of the screen.
+ */
+const FRAME_WIDTH = 1440
+const FRAME_HEIGHT = 820
+/**
+ * Margins inside that frame. The right one is wide on purpose: the inspector
+ * docks there, and on a chart that runs left to right the far end is the end
+ * the player is aiming at — it must not spend the whole game under a panel.
+ */
+const MARGIN = { left: 78, right: 372, top: 76, bottom: 84 }
 
 /** How far the legend floats above the deck floor, with and without the drawer. */
-const LEGEND_ABOVE_RAIL = 186
-const LEGEND_ABOVE_DRAWER = 396
+const LEGEND_ABOVE_RAIL = 96
+const LEGEND_ABOVE_DRAWER = 306
+
+/** Point set for a flat-topped-on-its-side hexagon — the system glyph. */
+function hexPoints(x: number, y: number, r: number): string {
+  const points: string[] = []
+  for (let i = 0; i < 6; i++) {
+    const a = (Math.PI / 180) * (60 * i - 90)
+    points.push(`${(x + r * Math.cos(a)).toFixed(1)},${(y + r * Math.sin(a)).toFixed(1)}`)
+  }
+  return points.join(' ')
+}
 
 /**
  * The chart, full bleed. Its job is to answer one question at a glance —
@@ -22,9 +44,9 @@ const LEGEND_ABOVE_DRAWER = 396
  * deduction, so this data has to be catalogued even for systems never visited.
  * M1's fog of war hides what is *happening* at a system, not what it is.
  *
- * The chart owns the whole deck now: the HUD floats over it and the command
- * rail is docked along the bottom, so nothing but the sky sits between the
- * player and the stars they are ruling out.
+ * The chart owns the whole deck: the HUD floats over it, the inspector docks
+ * to its right and the plot bar along its foot, so nothing but the sky sits
+ * between the player and the stars they are ruling out.
  */
 export function StarMap({
   evidenceOpen = false,
@@ -40,6 +62,7 @@ export function StarMap({
   const searched = useGame((s) => s.state.searched)
   const jumps = useGame((s) => s.state.jumps)
   const ship = useGame((s) => s.state.ship)
+  const gameState = useGame((s) => s.state)
   const recruitSites = useGame((s) => s.state.recruits.sites)
   const { candidateSet, sites, clues, trusted } = useNavPlot()
   const [hovered, setHovered] = useState<SystemId | null>(null)
@@ -47,32 +70,67 @@ export function StarMap({
   const [pan, setPan] = useState({ x: 0, y: 0 })
   const [query, setQuery] = useState('')
   const drag = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null)
+  const dragged = useRef(false)
 
-  const { viewBox, project } = useMemo(() => {
+  /**
+   * Galactic coordinates onto the chart frame.
+   *
+   * `x` in the engine is distance out from the galactic core, and that is the
+   * axis the voyage runs along — the Shallows where the ship arrived sit at
+   * the near edge, the Rift Margin at the far one. So it becomes the screen's
+   * horizontal, and the ship starts near the left with the frontier ahead of
+   * it. `y`, the sideways spread across the sector's arc, runs down the frame.
+   *
+   * The two axes are normalised independently. The sector is roughly 600 ly
+   * deep and 950 ly wide, so mapping it to a landscape frame stretches the
+   * radial axis by around two and a half. The chart is therefore a projection,
+   * not a scale drawing: it preserves ordering, neighbours and lane topology,
+   * and never asks the player to judge a distance by eye. Every cost the game
+   * quotes is in lanes and fuel, printed in words on the inspector.
+   */
+  const project = useMemo(() => {
     const xs = index.systems.map((s) => s.x)
     const ys = index.systems.map((s) => s.y)
-    const maxX = Math.max(...xs)
+    const minX = Math.min(...xs)
     const minY = Math.min(...ys)
-    const width = Math.max(...ys) - minY + PADDING * 2
-    const height = maxX - Math.min(...xs) + PADDING * 2
-    return {
-      viewBox: `0 0 ${width} ${height}`,
-      // Quarter-turned from raw galactic coordinates: the core sits at the
-      // origin, so putting it at the bottom of the frame lets the chart's
-      // light come up off the core the way it does out of a window.
-      project: (s: StarSystem) => ({ x: s.y - minY + PADDING, y: maxX - s.x + PADDING }),
-    }
+    const spanX = Math.max(...xs) - minX || 1
+    const spanY = Math.max(...ys) - minY || 1
+    const innerW = FRAME_WIDTH - MARGIN.left - MARGIN.right
+    const innerH = FRAME_HEIGHT - MARGIN.top - MARGIN.bottom
+    return (s: StarSystem) => ({
+      x: MARGIN.left + ((s.x - minX) / spanX) * innerW,
+      y: MARGIN.top + ((s.y - minY) / spanY) * innerH,
+    })
   }, [index])
 
   const failedJumps = new Set(jumps.filter((j) => !j.correct).map((j) => j.target))
+  // Before anything is ruled out every star is "still possible", which is no
+  // information at all — so the chart stays catalogue-grey until the plot has
+  // actually narrowed, and amber then means something the moment it appears.
   const anyTrusted = candidateSet.size < index.systems.length
 
+  // Two ranges, drawn differently because they answer different questions.
+  // The ring is the next hop — the stars one lane out, where the ship can go
+  // without threading a route. Affordability is the other: fuel is the master
+  // clock, so anything the tank can no longer reach fades off the chart
+  // instead of quietly failing when the player finally clicks it.
+  const nextHop = useMemo(() => new Set(index.neighbours(ship.at)), [index, ship.at])
+  const affordable = useMemo(() => {
+    const set = new Set<SystemId>()
+    for (const [id, cost] of costsFrom(index, ship.at)) {
+      if (travelCost(gameState, cost) <= ship.fuel) set.add(id)
+    }
+    return set
+  }, [index, ship.at, ship.fuel, gameState])
+
   // The plotted course to whatever is selected, drawn on the chart so the
-  // player sees what a trip costs before the rail says it in words.
+  // player sees what a trip costs before the inspector says it in words.
   const route = useMemo(() => {
     if (!selected || selected === ship.at) return null
     return routeTo(index, ship.at, selected)
   }, [index, ship.at, selected])
+
+  const routeSet = useMemo(() => new Set(route?.path ?? []), [route])
 
   // Region names drawn at the centroid of each region's actual systems — the
   // chart names the places the engine knows, because the accounts name them
@@ -81,13 +139,16 @@ export function StarMap({
     const groups = new Map<string, { x: number; y: number; n: number }>()
     for (const system of index.systems) {
       const p = project(system)
-      const group = groups.get(system.region) ?? { x: 0, y: 0, n: 0 }
-      groups.set(system.region, { x: group.x + p.x, y: group.y + p.y, n: group.n + 1 })
+      const g = groups.get(system.region) ?? { x: 0, y: 0, n: 0 }
+      groups.set(system.region, { x: g.x + p.x, y: g.y + p.y, n: g.n + 1 })
     }
-    return [...groups.entries()].map(([region, { x, y, n }]) => ({
+    // Watermarked at the centroid and drawn first, so the names sit behind
+    // the lanes and glyphs. Clamped into the drawable area: the outer regions
+    // would otherwise be titled underneath the inspector.
+    return [...groups.entries()].map(([region, g]) => ({
       region: region as keyof typeof REGION_NAMES,
-      x: x / n,
-      y: y / n,
+      x: Math.min(FRAME_WIDTH - MARGIN.right - 90, Math.max(MARGIN.left + 90, g.x / g.n)),
+      y: Math.min(FRAME_HEIGHT - MARGIN.bottom, Math.max(MARGIN.top, g.y / g.n)),
     }))
   }, [index, project])
 
@@ -164,6 +225,8 @@ export function StarMap({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selected, index])
 
+  const shipPoint = project(index.system(ship.at))
+
   return (
     <div
       className="star-map absolute inset-0 overflow-hidden"
@@ -171,18 +234,30 @@ export function StarMap({
       onPointerDown={(event) => {
         if ((event.target as Element).closest('.map-ui')) return
         drag.current = { x: event.clientX, y: event.clientY, panX: pan.x, panY: pan.y }
+        dragged.current = false
         event.currentTarget.setPointerCapture(event.pointerId)
       }}
       onPointerMove={(event) => {
         if (!drag.current) return
-        setPan({ x: drag.current.panX + event.clientX - drag.current.x, y: drag.current.panY + event.clientY - drag.current.y })
+        const dx = event.clientX - drag.current.x
+        const dy = event.clientY - drag.current.y
+        if (Math.abs(dx) + Math.abs(dy) > 4) dragged.current = true
+        setPan({ x: drag.current.panX + dx, y: drag.current.panY + dy })
       }}
-      onPointerUp={() => { drag.current = null }}
+      onPointerUp={() => {
+        drag.current = null
+        // Let the click that ends a drag fall on the floor: dragging the sky
+        // across a star should not select the star it passed under.
+        setTimeout(() => {
+          dragged.current = false
+        }, 0)
+      }}
     >
       <div className="core-glow" aria-hidden="true" />
       <div className="star-dust" aria-hidden="true" />
+      <div className="chart-scanlines" aria-hidden="true" />
       <svg
-        viewBox={viewBox}
+        viewBox={`0 0 ${FRAME_WIDTH} ${FRAME_HEIGHT}`}
         className="galaxy-canvas"
         style={{ transform: `translate3d(${pan.x}px, ${pan.y}px, 0) scale(${zoom})` }}
         role="img"
@@ -190,7 +265,7 @@ export function StarMap({
       >
         <defs>
           <filter id="star-glow" x="-300%" y="-300%" width="600%" height="600%">
-            <feGaussianBlur stdDeviation="2.2" result="blur" />
+            <feGaussianBlur stdDeviation="2.4" result="blur" />
             <feMerge><feMergeNode in="blur" /><feMergeNode in="SourceGraphic" /></feMerge>
           </filter>
         </defs>
@@ -205,7 +280,7 @@ export function StarMap({
           {index.galaxy.lanes.map(([a, b]) => {
             const from = project(index.system(a))
             const to = project(index.system(b))
-            const lit = hovered === a || hovered === b
+            const lit = hovered === a || hovered === b || ship.at === a || ship.at === b
             return (
               <line
                 key={`${a}-${b}`}
@@ -228,8 +303,8 @@ export function StarMap({
               })
               .join(' ')}
             fill="none"
-            stroke="var(--color-amber)"
-            strokeWidth={1.5}
+            stroke="var(--color-course)"
+            strokeWidth={1.6}
             strokeDasharray="6 4"
             className="plotted-route"
           />
@@ -237,20 +312,27 @@ export function StarMap({
 
         {index.systems.map((system) => {
           const { x, y } = project(system)
-          const isCandidate = candidateSet.has(system.id)
+          const isCandidate = anyTrusted && candidateSet.has(system.id)
           const isSelected = selected === system.id
           const isHovered = hovered === system.id
+          const isShip = ship.at === system.id
           const hasEvidence = sites.has(system.id)
           const wasSearched = searched.includes(system.id)
           const failed = failedJumps.has(system.id)
+          const onRoute = routeSet.has(system.id)
 
           // Eliminated stars stay on the chart — knowing what you have ruled
           // out is half of knowing anything.
-          const colour = failed
-            ? 'var(--color-alarm-dim)'
-            : isCandidate
-              ? 'var(--color-phosphor)'
-              : 'var(--color-ink-faint)'
+          const colour = isShip
+            ? 'var(--color-course)'
+            : failed
+              ? 'var(--color-alarm)'
+              : isCandidate
+                ? 'var(--color-amber)'
+                : 'var(--color-chart-dim)'
+          const r = isShip || isCandidate ? 11.5 : 8.5
+          const lit = isShip || isCandidate || isSelected || isHovered
+          const beyondTank = !affordable.has(system.id)
 
           return (
             <g
@@ -258,7 +340,10 @@ export function StarMap({
               data-system={system.id}
               onMouseEnter={() => setHovered(system.id)}
               onMouseLeave={() => setHovered(null)}
-              onClick={() => dispatch({ type: 'select', system: system.id })}
+              onClick={() => {
+                if (dragged.current) return
+                dispatch({ type: 'select', system: system.id })
+              }}
               className="cursor-pointer"
               role="button"
               tabIndex={0}
@@ -272,20 +357,27 @@ export function StarMap({
                 }
               }}
             >
-              {/* Generous invisible hit area — the dots are deliberately small. */}
-              <circle cx={x} cy={y} r={15} fill="transparent" />
+              {/* Generous invisible hit area — the glyphs are small. */}
+              <circle cx={x} cy={y} r={20} fill="transparent" />
 
-              {/* The selection is a reticle, not a highlight: the chart is an
-                  instrument and the ship is aimed with it. */}
-              {isSelected && (
-                <>
-                  <circle cx={x} cy={y} r={14} fill="none" stroke="var(--color-amber)" strokeWidth={0.9} opacity={0.9} />
-                  <path
-                    d={`M ${x} ${y - 18} L ${x} ${y - 13} M ${x} ${y + 13} L ${x} ${y + 18} M ${x - 18} ${y} L ${x - 13} ${y} M ${x + 13} ${y} L ${x + 18} ${y}`}
-                    stroke="var(--color-amber)"
-                    strokeWidth={1.1}
-                  />
-                </>
+              {/* A candidate breathes. With ninety stars catalogued, the ones
+                  still standing have to be findable from across the room. */}
+              {isCandidate && !isShip && (
+                <circle cx={x} cy={y} r={21} fill="var(--color-amber)" className="star-halo" />
+              )}
+
+              {/* One lane out: where the ship can go next. */}
+              {nextHop.has(system.id) && (
+                <circle
+                  cx={x}
+                  cy={y}
+                  r={r + 7}
+                  fill="none"
+                  stroke="var(--color-reach)"
+                  strokeWidth={0.8}
+                  strokeDasharray="3 4"
+                  opacity={0.7}
+                />
               )}
 
               {hasEvidence && (
@@ -293,86 +385,85 @@ export function StarMap({
                   className="site-ring"
                   cx={x}
                   cy={y}
-                  r={11}
+                  r={r + 4}
                   fill="none"
-                  stroke="var(--color-amber)"
-                  strokeWidth={0.9}
+                  stroke="var(--color-phosphor)"
+                  strokeWidth={1}
                   strokeDasharray="2.5 3"
                 />
               )}
 
-              <circle
-                cx={x}
-                cy={y}
-                r={isCandidate ? 7.5 : 5}
-                fill="none"
+              <polygon
+                points={hexPoints(x, y, r)}
+                fill="rgb(4 10 16 / .92)"
                 stroke={colour}
-                strokeWidth={isCandidate ? 1.1 : 0.8}
-                opacity={isCandidate ? 0.95 : isHovered || isSelected ? 0.8 : 0.4}
+                strokeWidth={isSelected ? 1.8 : 1.4}
+                opacity={beyondTank ? 0.28 : lit ? 1 : 0.55}
+                filter={lit ? 'url(#star-glow)' : undefined}
               />
+              <circle cx={x} cy={y} r={isCandidate || isShip ? 3.6 : 2.4} fill={colour} opacity={beyondTank ? 0.3 : lit ? 1 : 0.7} />
 
               {recruitSites[system.id] && (
                 <rect
                   x={x - 3}
-                  y={y - 3}
+                  y={y - r - 9}
                   width={6}
                   height={6}
                   fill="none"
                   stroke="var(--color-phosphor)"
                   strokeWidth={1}
-                  transform={`rotate(45 ${x} ${y})`}
+                  transform={`rotate(45 ${x} ${y - r - 6})`}
                 />
               )}
 
               {failed && (
                 <path
-                  d={`M ${x - 4} ${y - 4} L ${x + 4} ${y + 4} M ${x + 4} ${y - 4} L ${x - 4} ${y + 4}`}
-                  stroke="var(--color-alarm-dim)"
-                  strokeWidth={1.1}
+                  d={`M ${x - 5} ${y - 5} L ${x + 5} ${y + 5} M ${x + 5} ${y - 5} L ${x - 5} ${y + 5}`}
+                  stroke="var(--color-alarm)"
+                  strokeWidth={1.2}
                 />
               )}
 
               {wasSearched && !hasEvidence && (
-                <circle cx={x} cy={y} r={9.5} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.5} opacity={0.55} />
+                <circle cx={x} cy={y} r={r + 4} fill="none" stroke="var(--color-chart-dim)" strokeWidth={0.5} opacity={0.5} />
               )}
 
-              <circle
-                cx={x}
-                cy={y}
-                r={isCandidate ? 3.4 : isHovered || isSelected ? 2.8 : 2}
-                fill={colour}
-                filter={isCandidate || isSelected || isHovered ? 'url(#star-glow)' : undefined}
-              />
-
-              {ship.at === system.id && (
-                <path
-                  d={`M ${x} ${y - 13} L ${x + 9} ${y} L ${x} ${y + 13} L ${x - 9} ${y} Z`}
-                  fill="none"
-                  stroke="var(--color-amber)"
-                  strokeWidth={1.4}
-                />
+              {/* The selection is a reticle, not a highlight: the chart is an
+                  instrument and the ship is aimed with it. */}
+              {isSelected && (
+                <>
+                  <circle cx={x} cy={y} r={20} fill="none" stroke="var(--color-reticle)" strokeWidth={0.9} opacity={0.9} />
+                  <path
+                    d={`M ${x} ${y - 25} L ${x} ${y - 19} M ${x} ${y + 19} L ${x} ${y + 25} M ${x - 25} ${y} L ${x - 19} ${y} M ${x + 19} ${y} L ${x + 25} ${y}`}
+                    stroke="var(--color-reticle)"
+                    strokeWidth={1.1}
+                  />
+                </>
               )}
 
               {/* Label only what matters: candidates when the field is small,
-                  the landmarks the accounts name, plus whatever the player is
-                  pointing at. Labelling ninety stars at once makes the chart
-                  unreadable. */}
+                  the landmarks the accounts name, the contacts still waiting,
+                  plus whatever the player is pointing at. Labelling ninety
+                  stars at once makes the chart unreadable. */}
               {(isHovered ||
                 isSelected ||
+                onRoute ||
+                hasEvidence ||
                 system.landmark ||
                 (isCandidate && anyTrusted && candidateSet.size <= 12)) && (
                 <text
-                  x={x + 11}
-                  y={y + 3.5}
-                  fontSize={9}
-                  fill={
+                  x={x}
+                  y={y + r + 15}
+                  textAnchor="middle"
+                  className={`star-label ${
                     isSelected
-                      ? 'var(--color-amber)'
+                      ? 'is-selected'
                       : isCandidate
-                        ? '#bdeeea'
-                        : 'var(--color-ink-dim)'
-                  }
-                  className="star-label pointer-events-none select-none"
+                        ? 'is-candidate'
+                        : isHovered || isShip || hasEvidence || onRoute
+                          ? ''
+                          : 'is-quiet'
+                  }`}
                 >
                   {system.name}
                 </text>
@@ -380,27 +471,40 @@ export function StarMap({
             </g>
           )
         })}
+
+        {/* The Ithaca, drawn last so nothing crowds it. */}
+        <g transform={`translate(${shipPoint.x}, ${shipPoint.y})`} className="pointer-events-none">
+          <circle r={19} fill="none" stroke="var(--color-course)" strokeWidth={1.2} className="ship-ping" />
+          <circle r={19} fill="none" stroke="var(--color-course)" strokeWidth={1.2} className="ship-ping is-late" />
+          <path
+            d="M 0 -30 L 5 -19 L 0 -23 L -5 -19 Z"
+            fill="var(--color-reticle)"
+            stroke="var(--color-course)"
+            strokeWidth={1}
+            filter="url(#star-glow)"
+          />
+          <text x={0} y={-37} textAnchor="middle" className="ship-label">ITHACA</text>
+        </g>
       </svg>
 
-      <div className="map-ui map-heading pointer-events-none absolute top-6 left-7 flex flex-wrap items-center gap-x-5 gap-y-3">
-        <div className="map-title">
-          <h2>Galactic Chart</h2>
-        </div>
+      <div className="map-ui map-heading pointer-events-none absolute top-6 left-7">
+        <h2>Galactic Chart</h2>
         <div className="map-tally">
-          <div>
-            {anyTrusted ? (
-              <>
-                <span className="text-phosphor text-[15px]">{candidateSet.size}</span> of{' '}
-                {index.systems.length} consistent
-              </>
-            ) : (
-              <>{index.systems.length} stars catalogued — nothing ruled out yet</>
-            )}
-          </div>
-          <div>
-            {clues.length} {clues.length === 1 ? 'account' : 'accounts'} · {trusted.length} trusted ·{' '}
-            {sites.size} {sites.size === 1 ? 'site' : 'sites'} unsearched
-          </div>
+          {anyTrusted ? (
+            <>
+              <span className="text-phosphor">{candidateSet.size}</span> of {index.systems.length}{' '}
+              stars still possible
+            </>
+          ) : (
+            <>{index.systems.length} stars catalogued · nothing ruled out yet</>
+          )}
+          {' · '}
+          {clues.length} {clues.length === 1 ? 'account' : 'accounts'}, {trusted.length} trusted
+          {' · '}
+          {sites.size} {sites.size === 1 ? 'site' : 'sites'} unsearched
+        </div>
+        <div className="map-hint">
+          the core lies to the left, the Rift Margin ahead · scroll to zoom · drag to pan
         </div>
       </div>
 
@@ -429,92 +533,43 @@ export function StarMap({
         </div>
       </div>
 
-      {hovered && hovered !== selected && <Readout id={hovered} />}
-
       <Legend bottom={evidenceOpen ? LEGEND_ABOVE_DRAWER : LEGEND_ABOVE_RAIL} />
-    </div>
-  )
-}
-
-/**
- * The hover card. It answers the two questions a pointed-at star raises —
- * is it still possible, and what does getting there cost — without the
- * player having to select it and lose the star they were comparing against.
- */
-function Readout({ id }: { id: SystemId }) {
-  const index = useGalaxyIndex()
-  const state = useGame((s) => s.state)
-  const ship = useGame((s) => s.state.ship)
-  const searched = useGame((s) => s.state.searched)
-  const jumps = useGame((s) => s.state.jumps)
-  const recruitSites = useGame((s) => s.state.recruits.sites)
-  const { candidateSet, sites } = useNavPlot()
-  const system = index.system(id)
-  const here = ship.at === id
-  const route = here ? null : routeTo(index, ship.at, id)
-  const hasEvidence = sites.has(id)
-
-  const standing = jumps.some((j) => j.target === id && !j.correct)
-    ? 'jump attempted'
-    : candidateSet.has(id)
-      ? 'consistent'
-      : 'ruled out'
-
-  return (
-    <div className="map-ui map-readout pointer-events-none absolute right-7">
-      <div className="readout-name">{system.name}</div>
-      <div className="readout-region">{REGION_NAMES[system.region]}</div>
-      <div className="readout-line">
-        <span>{standing}</span>
-        <span>
-          {here
-            ? 'ship is here'
-            : route
-              ? `${route.path.length - 1} ${route.path.length - 1 === 1 ? 'jump' : 'jumps'} · ${travelCost(state, route.cost)} fuel`
-              : 'no lane route'}
-        </span>
-      </div>
-      <div className={`readout-site ${hasEvidence ? 'is-live' : ''}`}>
-        {hasEvidence
-          ? 'Evidence, unsearched'
-          : recruitSites[id]
-            ? 'Specialist for hire'
-            : searched.includes(id)
-              ? 'Searched — nothing further'
-              : 'No contact reported'}
-      </div>
     </div>
   )
 }
 
 function Legend({ bottom }: { bottom: number }) {
   return (
-    <div className="map-ui map-legend pointer-events-none absolute right-7" style={{ bottom }}>
+    <div className="map-ui map-legend pointer-events-none absolute left-7" style={{ bottom }}>
       <span>
-        <svg width={12} height={12} aria-hidden="true">
-          <circle cx={6} cy={6} r={4.6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} />
-          <circle cx={6} cy={6} r={1.8} fill="var(--color-phosphor)" />
+        <svg width={14} height={14} aria-hidden="true">
+          <polygon points={hexPoints(7, 7, 5.6)} fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
         </svg>
-        consistent
+        still possible
       </span>
       <span>
-        <svg width={12} height={12} aria-hidden="true">
-          <circle cx={6} cy={6} r={3.4} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.9} />
-          <circle cx={6} cy={6} r={1.3} fill="var(--color-ink-faint)" />
+        <svg width={14} height={14} aria-hidden="true">
+          <polygon points={hexPoints(7, 7, 4.4)} fill="none" stroke="var(--color-chart-dim)" strokeWidth={1} />
         </svg>
         ruled out
       </span>
       <span>
         <svg width={14} height={14} aria-hidden="true">
-          <circle cx={7} cy={7} r={5.6} fill="none" stroke="var(--color-amber)" strokeWidth={0.9} strokeDasharray="2.5 3" />
+          <polygon points={hexPoints(7, 7, 5.6)} fill="none" stroke="var(--color-course)" strokeWidth={1.2} />
+        </svg>
+        the Ithaca
+      </span>
+      <span>
+        <svg width={16} height={16} aria-hidden="true">
+          <circle cx={8} cy={8} r={6.4} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} strokeDasharray="2.5 3" />
         </svg>
         evidence
       </span>
       <span>
-        <svg width={14} height={14} aria-hidden="true">
-          <circle cx={7} cy={7} r={5.6} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.5} />
+        <svg width={16} height={16} aria-hidden="true">
+          <circle cx={8} cy={8} r={6.4} fill="none" stroke="var(--color-reach)" strokeWidth={0.9} strokeDasharray="3 4" />
         </svg>
-        searched
+        one lane out
       </span>
       <span>
         <svg width={14} height={14} aria-hidden="true">
@@ -524,9 +579,9 @@ function Legend({ bottom }: { bottom: number }) {
       </span>
       <span>
         <svg width={14} height={14} aria-hidden="true">
-          <path d="M 7 1.5 L 12.5 7 L 7 12.5 L 1.5 7 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.1} />
+          <path d="M 3 3 L 11 11 M 11 3 L 3 11" stroke="var(--color-alarm)" strokeWidth={1.2} />
         </svg>
-        the Ithaca
+        jump attempted
       </span>
     </div>
   )

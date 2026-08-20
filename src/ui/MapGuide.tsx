@@ -5,8 +5,8 @@
  * It exists because the chart is the one screen the game never explains in
  * dialogue — the crew brief you on the mission, not on how to read an
  * instrument they assume you have used all your life. This is that
- * assumption, written down: what the marks mean, how to move, what the rail
- * does. It teaches navigation only. Nothing here is a hint about the answer.
+ * assumption, written down: how the chart is laid out, what the marks mean,
+ * how to move. It teaches navigation only — nothing here hints at the answer.
  */
 const GUIDE_KEY = 'starship-explorer-map-guide-seen'
 
@@ -37,7 +37,11 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
         <h2 id="map-guide-title">Reading the chart</h2>
         <p className="guide-lede">
           Ninety stars, and exactly one of them is the way home. The chart does not know which —
-          it only shows you which ones your accounts still allow.
+          it only shows you which ones your accounts still allow. It is drawn outward from the
+          galactic core: the Shallows where the anomaly dropped you lie at the left edge, the
+          Rift Margin at the right, and the voyage reads across the screen. Because the sector is
+          wider across than it is deep, the two axes are drawn to different scales — trust the
+          jumps and fuel the inspector quotes, never the distance your eye measures.
         </p>
 
         <div className="guide-columns">
@@ -46,27 +50,40 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
             <ul>
               <li>
                 <GuideMark>
-                  <circle cx={9} cy={9} r={5.6} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} />
-                  <circle cx={9} cy={9} r={2.2} fill="var(--color-phosphor)" />
+                  <polygon points={hex(9, 9, 6.4)} fill="none" stroke="var(--color-amber)" strokeWidth={1.3} />
+                  <circle cx={9} cy={9} r={2.2} fill="var(--color-amber)" />
                 </GuideMark>
                 <span>
-                  <strong>Consistent</strong> — still fits every account you trust.
+                  <strong>Still possible</strong> — fits every account you trust, and pulses so the
+                  field that is left can be found without reading a name. Nothing is amber until
+                  you have trusted something: before that, every star is possible.
                 </span>
               </li>
               <li>
                 <GuideMark>
-                  <circle cx={9} cy={9} r={4} fill="none" stroke="var(--color-ink-faint)" strokeWidth={0.9} />
-                  <circle cx={9} cy={9} r={1.6} fill="var(--color-ink-faint)" />
+                  <polygon points={hex(9, 9, 5)} fill="none" stroke="var(--color-chart-dim)" strokeWidth={1} />
+                  <circle cx={9} cy={9} r={1.6} fill="var(--color-chart-dim)" />
                 </GuideMark>
                 <span>
                   <strong>Ruled out</strong> — kept on the chart, because knowing what you have
-                  eliminated is half of knowing anything.
+                  eliminated is half of knowing anything. Stars the tank can no longer reach fade
+                  further still.
                 </span>
               </li>
               <li>
                 <GuideMark>
-                  <circle cx={9} cy={9} r={6.5} fill="none" stroke="var(--color-amber)" strokeWidth={0.9} strokeDasharray="2.5 3" />
-                  <circle cx={9} cy={9} r={2} fill="var(--color-amber)" />
+                  <polygon points={hex(9, 9, 6.4)} fill="none" stroke="var(--color-course)" strokeWidth={1.3} />
+                  <circle cx={9} cy={9} r={2.2} fill="var(--color-course)" />
+                </GuideMark>
+                <span>
+                  <strong>The Ithaca</strong> — where you are, pinging. Lanes run between stars;
+                  fuel is spent by the lane, and the dashed rings are the stars one lane out.
+                </span>
+              </li>
+              <li>
+                <GuideMark>
+                  <circle cx={9} cy={9} r={7} fill="none" stroke="var(--color-phosphor)" strokeWidth={1} strokeDasharray="2.5 3" />
+                  <circle cx={9} cy={9} r={2} fill="var(--color-phosphor)" />
                 </GuideMark>
                 <span>
                   <strong>Evidence</strong> — something waits there. Fly to it and respond to
@@ -83,11 +100,11 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
               </li>
               <li>
                 <GuideMark>
-                  <path d="M 9 2 L 15 9 L 9 16 L 3 9 Z" fill="none" stroke="var(--color-amber)" strokeWidth={1.2} />
+                  <path d="M 4 4 L 14 14 M 14 4 L 4 14" stroke="var(--color-alarm)" strokeWidth={1.3} />
                 </GuideMark>
                 <span>
-                  <strong>The Ithaca</strong> — where you are. Lanes run between stars; fuel is
-                  spent by the lane.
+                  <strong>Jump attempted</strong> — you bet the reserve on this star and the
+                  anomaly was not there.
                 </span>
               </li>
             </ul>
@@ -108,18 +125,17 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
           </section>
 
           <section>
-            <h3>The rail below</h3>
+            <h3>The panel and the bar</h3>
             <p>
-              The <strong>left</strong> reads out the selected star: its catalogue entry, whether
-              your plot still allows it, and whether anything waits there.
+              Click a star and the <strong>inspector</strong> opens on the right: its catalogue
+              entry, where it stands in your plot, what anything waiting there is, what the trip
+              costs — and every order the ship can carry out from travelling the lanes to
+              committing the Long Jump.
             </p>
             <p>
-              The <strong>middle</strong> lists the stars still standing. Every name on it is a
-              chip you can click to fly the selection straight there.
-            </p>
-            <p>
-              The <strong>right</strong> is what the ship can do: travel the lanes, answer a
-              contact, or — once the drive and the shield are built — commit the Long Jump.
+              The <strong>plot bar</strong> along the foot is the score. It counts the stars still
+              standing and lists them; every name on it is a chip you can click to fly the
+              selection straight there.
             </p>
             <p>
               <strong>Evidence</strong> raises the drawer of accounts. Trust one and the field
@@ -135,6 +151,14 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
       </div>
     </div>
   )
+}
+
+/** The system glyph, at legend size. */
+function hex(x: number, y: number, r: number): string {
+  return Array.from({ length: 6 }, (_, i) => {
+    const a = (Math.PI / 180) * (60 * i - 90)
+    return `${(x + r * Math.cos(a)).toFixed(1)},${(y + r * Math.sin(a)).toFixed(1)}`
+  }).join(' ')
 }
 
 function GuideMark({ children }: { children: React.ReactNode }) {
