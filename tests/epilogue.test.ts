@@ -63,7 +63,7 @@ describe('the rulebook', () => {
 describe('a finished run', () => {
   it('the golden runs come home with an epilogue worth reading', () => {
     const fixture = JSON.parse(
-      readFileSync(join(import.meta.dirname, 'fixtures', 'golden', 'golden-1.json'), 'utf8'),
+      readFileSync(join(import.meta.dirname, 'fixtures', 'golden', 'golden-2.json'), 'utf8'),
     ) as { seed: string; actions: Action[] }
     const { state } = reduceAll(newGame(fixture.seed), fixture.actions)
     expect(state.outcome).toBe('home')

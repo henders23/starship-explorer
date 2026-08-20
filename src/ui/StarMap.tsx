@@ -73,7 +73,7 @@ export function StarMap({
   const dragged = useRef(false)
 
   /**
-   * Galactic coordinates onto the chart frame.
+   * Galactic coordinates onto the chart frame, at true scale.
    *
    * `x` in the engine is distance out from the galactic core, and that is the
    * axis the voyage runs along — the Shallows where the ship arrived sit at
@@ -81,12 +81,11 @@ export function StarMap({
    * horizontal, and the ship starts near the left with the frontier ahead of
    * it. `y`, the sideways spread across the sector's arc, runs down the frame.
    *
-   * The two axes are normalised independently. The sector is roughly 600 ly
-   * deep and 950 ly wide, so mapping it to a landscape frame stretches the
-   * radial axis by around two and a half. The chart is therefore a projection,
-   * not a scale drawing: it preserves ordering, neighbours and lane topology,
-   * and never asks the player to judge a distance by eye. Every cost the game
-   * quotes is in lanes and fuel, printed in words on the inspector.
+   * The sector is generated as a long, shallow wedge (worldgen holds it at
+   * roughly three parts across to two deep) precisely so that this can be one
+   * scale factor on both axes. A light year is the same length whichever way
+   * it is drawn: a lane that looks twice as long as another is twice as long,
+   * and the chart can be read as a map rather than as a diagram.
    */
   const project = useMemo(() => {
     const xs = index.systems.map((s) => s.x)
@@ -97,9 +96,13 @@ export function StarMap({
     const spanY = Math.max(...ys) - minY || 1
     const innerW = FRAME_WIDTH - MARGIN.left - MARGIN.right
     const innerH = FRAME_HEIGHT - MARGIN.top - MARGIN.bottom
+    const scale = Math.min(innerW / spanX, innerH / spanY)
+    // Centred in whichever direction the wedge does not fill.
+    const offsetX = MARGIN.left + (innerW - spanX * scale) / 2
+    const offsetY = MARGIN.top + (innerH - spanY * scale) / 2
     return (s: StarSystem) => ({
-      x: MARGIN.left + ((s.x - minX) / spanX) * innerW,
-      y: MARGIN.top + ((s.y - minY) / spanY) * innerH,
+      x: offsetX + (s.x - minX) * scale,
+      y: offsetY + (s.y - minY) * scale,
     })
   }, [index])
 

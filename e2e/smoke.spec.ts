@@ -2,12 +2,12 @@ import { expect, test } from '@playwright/test'
 
 /**
  * The R8 smoke flow: title → briefing → scene → collect, on the known seed
- * `golden-1`. The same seed's full run is pinned by the golden-replay suite;
+ * `golden-2`. The same seed's full run is pinned by the golden-replay suite;
  * here the browser only proves the UI wires those actions up: the seed entry
  * starts the right galaxy, the briefing plays, travel fires a scene, and a
  * scene option actually collects.
  *
- * From the golden-1 fixture: travelling to sys-014 on day 0 casts a scene
+ * From the golden-2 fixture: travelling to sys-084 on day 0 casts a scene
  * with a priced walk-in collect option ("pay").
  */
 test('title → briefing → scene → collect', async ({ page }) => {
@@ -15,7 +15,7 @@ test('title → briefing → scene → collect', async ({ page }) => {
 
   // Title: name the sky, take command.
   await expect(page.getByRole('heading', { name: /starship/i })).toBeVisible()
-  await page.getByRole('textbox').fill('golden-1')
+  await page.getByRole('textbox').fill('golden-2')
   await page.getByRole('button', { name: /take command|begin a new voyage/i }).click()
 
   // Intro comic: the aperture test that stranded the ship. Play a couple of
@@ -36,13 +36,14 @@ test('title → briefing → scene → collect', async ({ page }) => {
   await expect(page.getByText('80/80', { exact: true })).toBeVisible()
 
   // The chart: the briefing slide plays on the first visit, then the known
-  // first port of call is selected and flown to.
+  // first port of call is selected and flown to. The chart runs left to right
+  // now, but the star is still reached by id rather than by coordinate.
   await page.getByRole('button', { name: /Galaxy/ }).click()
   await expect(page.getByRole('heading', { name: 'Reading the chart' })).toBeVisible()
   await page.getByRole('button', { name: 'Take the chart' }).click()
   await expect(page.getByRole('heading', { name: 'Galactic Chart' })).toBeVisible()
   // The star's hit area is an SVG dot; dispatch the click straight to it.
-  await page.locator('[data-system="sys-014"]').dispatchEvent('click')
+  await page.locator('[data-system="sys-084"]').dispatchEvent('click')
   await page.getByRole('button', { name: /^Travel —/ }).click()
 
   // Arrival casts the scene. Play the beats out, then take the walk-in offer.

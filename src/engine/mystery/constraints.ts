@@ -7,9 +7,13 @@ import type { Constraint } from './types.js'
  * Dead zones around a reference system, so that "coreward of X" never turns on
  * a difference of half a light year. A clue the player cannot act on
  * confidently is a bug, not a subtlety.
+ *
+ * Both are a shade under six per cent of the sector's own span — roughly 1000
+ * ly of radial band and half a radian of arc — so that reshaping the sector
+ * keeps direction clues cutting the same proportion of the sky.
  */
-const RADIAL_MARGIN = 35
-const ANGULAR_MARGIN = 0.035
+const RADIAL_MARGIN = 57
+const ANGULAR_MARGIN = 0.016
 
 export function satisfies(
   constraint: Constraint,

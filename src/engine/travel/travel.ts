@@ -17,11 +17,19 @@ export const LONG_JUMP_RESERVE = 30
 /** A clean or costly sweep of a derelict drains its tanks too. */
 export const DERELICT_FUEL_SALVAGE = 8
 
-/** Lane cost by length. The +2 floor keeps even short hops from being free. */
+/**
+ * Lane cost by length. The floor of 2 keeps even short hops from being free.
+ *
+ * The divisor is the exchange rate between light years and the tank, and it
+ * is set against the shape of the sector: when the sector was reshaped into a
+ * long wedge the crossing grew by about sixty per cent in jumps, so the rate
+ * eased from 22 to 33 to keep a voyage across it costing what it always did.
+ * Long lanes still cost disproportionately more than short ones.
+ */
 export function laneCost(index: GalaxyIndex, a: SystemId, b: SystemId): number {
   const from = index.system(a)
   const to = index.system(b)
-  return Math.max(2, Math.ceil(Math.hypot(from.x - to.x, from.y - to.y) / 22))
+  return Math.max(2, Math.ceil(Math.hypot(from.x - to.x, from.y - to.y) / 33))
 }
 
 export interface Route {

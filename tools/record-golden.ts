@@ -18,7 +18,7 @@ import { pilotRun } from './pilot.js'
 
 const FIXTURE_DIR = join(import.meta.dirname, '..', 'tests', 'fixtures', 'golden')
 /** The standard set: seeds known to complete. --scan finds replacements. */
-const STANDARD_SEEDS = ['golden-1', 'golden-2', 'golden-3']
+const STANDARD_SEEDS = ['golden-2', 'golden-4', 'golden-5']
 
 const args = process.argv.slice(2)
 const scanIndex = args.indexOf('--scan')
