@@ -1,14 +1,15 @@
 import { useEffect, useState } from 'react'
-import { CommandRail } from './CommandRail.js'
+import { PlotBar } from './PlotBar.js'
 import { EvidenceDrawer } from './EvidenceDrawer.js'
 import { guideSeen, MapGuide, markGuideSeen } from './MapGuide.js'
 import { StarMap } from './StarMap.js'
+import { SystemPanel } from './SystemPanel.js'
 
 /**
- * The Galaxy station: the chart, full bleed, with the command rail docked
- * along its foot and the evidence drawer rising over it on request. Nothing
- * is docked to the side any more — the sky is the screen, and everything
- * else floats on top of it or lifts off it.
+ * The Galaxy station: the chart, full bleed, with the inspector docked to its
+ * right, the plot bar along its foot and the evidence drawer rising over that
+ * on request. Nothing takes a column out of the sky permanently — the chart is
+ * the screen, and everything else floats on top of it or lifts off it.
  */
 export function GalaxyDeck() {
   const [evidenceOpen, setEvidenceOpen] = useState(false)
@@ -33,8 +34,9 @@ export function GalaxyDeck() {
   return (
     <div className="galaxy-deck relative h-full min-h-0 overflow-hidden">
       <StarMap evidenceOpen={evidenceOpen} onOpenGuide={() => setGuideOpen(true)} />
+      <SystemPanel />
       {evidenceOpen && <EvidenceDrawer onClose={() => setEvidenceOpen(false)} />}
-      <CommandRail
+      <PlotBar
         evidenceOpen={evidenceOpen}
         onToggleEvidence={() => setEvidenceOpen((open) => !open)}
       />

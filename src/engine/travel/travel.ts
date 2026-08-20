@@ -72,6 +72,37 @@ export function routeTo(index: GalaxyIndex, from: SystemId, to: SystemId): Route
   return { path, cost: dist.get(to)! }
 }
 
+/**
+ * Cheapest fuel cost from one system to every system it can reach. The same
+ * Dijkstra as `routeTo`, run once and kept — the chart needs the whole field
+ * at once to show which stars the tank can still reach, and ninety separate
+ * route plots per render is ninety times the work for the same answer.
+ */
+export function costsFrom(index: GalaxyIndex, from: SystemId): Map<SystemId, number> {
+  const dist = new Map<SystemId, number>([[from, 0]])
+  const done = new Set<SystemId>()
+
+  while (true) {
+    let current: SystemId | null = null
+    let best = Infinity
+    for (const [id, d] of dist) {
+      if (done.has(id)) continue
+      if (d < best || (d === best && current !== null && id < current)) {
+        best = d
+        current = id
+      }
+    }
+    if (current === null) return dist
+    done.add(current)
+
+    for (const neighbour of index.neighbours(current)) {
+      if (done.has(neighbour)) continue
+      const candidate = best + laneCost(index, current, neighbour)
+      if (candidate < (dist.get(neighbour) ?? Infinity)) dist.set(neighbour, candidate)
+    }
+  }
+}
+
 /** Gas giants are the pumps of this galaxy: free fuel, if you can get there. */
 export function canScoop(index: GalaxyIndex, at: SystemId): boolean {
   return index.system(at).features.includes('gas-giant')
