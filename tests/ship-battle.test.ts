@@ -1,0 +1,162 @@
+import { describe, it, expect } from 'vitest'
+import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom } from '../src/engine/exploration/ship-battle.js'
+import type { BattleUpgrades, ShipBattle, ShipOrder } from '../src/engine/exploration/ship-battle.js'
+import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
+import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
+import { loadExploration, saveExploration, EXPLORATION_SAVE_KEY } from '../src/ui/exploration-save.js'
+import type { Campaign } from '../src/engine/exploration/campaign.js'
+import { escortContact, runEscort, shipApply } from '../tools/ship-walkthrough.js'
+
+const base: BattleUpgrades = { fireControl: false, ion: false, beam: false, layered: false, adaptive: false, translated: false, contextual: false, countermeasures: false }
+const battle = (upgrades: Partial<BattleUpgrades> = {}, cls = 'carrion-jack') => reduceShipBattle(createShipBattle('ship-test', 'station', SHIP_BY_ID[cls]!, 100, 100, { ...base, ...upgrades }), { type: 'engage' })
+function apply(b: ShipBattle, a: ShipOrder) { expect(shipOrderLock(b, a)).toBeNull(); return reduceShipBattle(b, a) }
+function mem() { let raw: string | null = null; return { getItem: () => raw, setItem: (_: string, s: string) => { raw = s }, removeItem: () => { raw = null } } }
+function replay(s: Campaign) { const storage = mem(); saveExploration(s, storage); expect(loadExploration(storage)).toEqual({ campaign: s, error: null }) }
+
+describe('deterministic ship simulation', () => {
+  it('keeps orders immutable and reproduces tick batches, shots and room damage', () => {
+    const b = battle(), copy = structuredClone(b)
+    const batched = apply(b, { type: 'advance', seconds: 5 })
+    let steps = b; for (let i = 0; i < 5; i++) steps = apply(steps, { type: 'advance', seconds: 1 })
+    expect(batched).toEqual(steps); expect(b).toEqual(copy)
+    expect(reduceShipBattle(b, { type: 'advance', seconds: 5 })).toEqual(batched)
+    let x = b, y = structuredClone(b)
+    for (let i = 0; i < 8; i++) { x = apply(x, { type: 'advance', seconds: 5 }); y = apply(y, { type: 'advance', seconds: 5 }) }
+    expect(x).toEqual(y); expect(x.shots).toBeGreaterThan(0)
+  })
+  it('enforces the reactor budget, hardware limits, modes and ammo', () => {
+    let b = battle({ ion: true, beam: true })
+    b = apply(b, { type: 'weapon', index: 1, mode: 'hold' })
+    expect(shipOrderLock(b, { type: 'weapon', index: 2, mode: 'auto' })).toContain('Allocate')
+    expect(shipOrderLock(b, { type: 'power', system: 'weapons', amount: 1 })).toContain('Switch off')
+    b = apply(b, { type: 'power', system: 'weapons', amount: 4 }); expect(assignedPower(b)).toBe(8)
+    expect(reduceShipBattle(b, { type: 'power', system: 'engines', amount: 3 })).toBe(b)
+    expect(reduceShipBattle(b, { type: 'power', system: 'shields', amount: 4 })).toBe(b)
+    expect(reduceShipBattle(b, { type: 'fire', index: 0 })).toBe(b)
+    b.missiles = 0; b.weapons[1]!.charge = 13
+    expect(reduceShipBattle(b, { type: 'fire', index: 1 })).toBe(b)
+    for (const a of [null, { type: 'advance', seconds: -1 }, { type: 'advance', seconds: 1.2 }, { type: 'advance', seconds: 6 }, { type: 'power', system: 'hull', amount: 9 }, { type: 'target', index: 0, room: 'bad' }, { type: 'fire', index: 0.5 }]) expect(reduceShipBattle(b, a as ShipOrder)).toBe(b)
+  })
+  it('applies actual researched weapon and shield improvements', () => {
+    const normal = apply(battle(), { type: 'advance', seconds: 5 })
+    const fast = apply(battle({ fireControl: true }), { type: 'advance', seconds: 5 })
+    expect(fast.weapons[0]!.charge).toBeCloseTo(normal.weapons[0]!.charge * 1.1)
+    let layered = apply(battle({ layered: true }), { type: 'power', system: 'shields', amount: 4 })
+    expect(shieldCapacity(layered)).toBe(2)
+    layered.shield = 0; layered = apply(layered, { type: 'advance', seconds: 4 }); expect(layered.shield).toBe(1)
+    const regular = battle({ layered: true }), adaptive = battle({ layered: true, adaptive: true })
+    for (const b of [regular, adaptive]) { b.power.shields = 4; b.shield = 0; b.weapons[0]!.mode = 'off'; b.enemy.rooms.weapons.hp = 0 }
+    let a = apply(adaptive, { type: 'advance', seconds: 5 }), r = apply(regular, { type: 'advance', seconds: 5 })
+    a = apply(a, { type: 'advance', seconds: 2 }); r = apply(r, { type: 'advance', seconds: 2 })
+    expect(a.shield).toBe(2); expect(r.shield).toBe(1)
+  })
+  it('blocks beams with shields, bypasses shields with missiles, and ionises compartments', () => {
+    let b = battle({ ion: true, beam: true })
+    b.power.weapons = 4; b.weapons[0]!.mode = 'off'; b.weapons[1]!.mode = 'hold'; b.weapons[1]!.charge = 13
+    b.enemy.rooms.helm.hp = 0 // eliminate evade to isolate weapon rules
+    const hull = b.enemy.hull
+    b = apply(b, { type: 'fire', index: 1 }); expect(b.enemy.hull).toBe(hull - 2); expect(b.enemy.shield).toBe(1); expect(b.missiles).toBe(3)
+    b.weapons[3]!.mode = 'hold'; b.weapons[3]!.charge = 15
+    b = apply(b, { type: 'fire', index: 3 }); expect(b.enemy.hull).toBe(hull - 2)
+    b.weapons[3]!.mode = 'off'; b.weapons[2]!.mode = 'hold'; b.weapons[2]!.charge = 7
+    b = apply(b, { type: 'fire', index: 2 }); expect(b.enemy.shield).toBe(0); expect(enemyShieldCapacity(b)).toBe(0)
+    b.weapons[2]!.charge = 7; b.weapons[2]!.target = 'weapons'
+    b = apply(b, { type: 'fire', index: 2 }); expect(effectiveRoom(b, 'enemy', 'weapons')).toBe(0)
+    b.weapons[3]!.mode = 'hold'; b.weapons[3]!.charge = 15
+    b = apply(b, { type: 'fire', index: 3 }); expect(b.enemy.hull).toBe(hull - 5)
+  })
+  it('repairs selected compartments and requires working engines for retreat', () => {
+    let b = battle(); b.rooms.engines.hp = 0
+    b = apply(b, { type: 'retreat', active: true })
+    b = apply(b, { type: 'advance', seconds: 5 }); expect(b.escapeWork).toBe(0)
+    b = apply(b, { type: 'repair', room: 'engines' })
+    b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 1 })
+    expect(b.rooms.engines.hp).toBeGreaterThan(0)
+    for (let i = 0; i < 20 && b.phase === 'battle'; i++) b = apply(b, { type: 'advance', seconds: 5 })
+    expect(b.result).toBe('fled')
+    expect(reduceShipBattle(b, { type: 'advance', seconds: 1 })).toBe(b)
+  })
+  it('permits translated surrender only at the advertised hull threshold', () => {
+    let b = battle({ contextual: true }); expect(surrenderAvailable(b)).toBe(false)
+    b.enemy.hull = 5; expect(surrenderAvailable(b)).toBe(true)
+    b = apply(b, { type: 'accept-surrender' }); expect(b.result).toBe('yielded')
+    const noLanguage = battle(); noLanguage.enemy.hull = 1
+    expect(reduceShipBattle(noLanguage, { type: 'accept-surrender' })).toBe(noLanguage)
+  })
+})
+
+describe('escort campaign integration', () => {
+  it('completes twenty legal seeded escorts with persistent, single-payment reports and replay', () => {
+    for (let i = 0; i < 20; i++) {
+      const r = runEscort(`escort-sweep-${i}`)
+      expect(r.report.shipBattle!.result).toBe('victory'); expect(r.final.hull).toBe(r.report.shipBattle!.hull)
+      expect(r.final.exploration.materials).toBe(r.contact.exploration.materials + 12)
+      expect(r.final.exploration.credits).toBe(r.contact.exploration.credits + 35)
+      expect(r.final.day).toBe(r.contact.day + 1); expect(r.final.escortCompleted).toContain(r.contact.shipBattle!.locationId)
+      expect(reduceCampaign(r.final, { type: 'ship-debrief' })).toBe(r.final)
+      expect(reduceCampaign(r.final, { type: 'escort', locationId: r.contact.shipBattle!.locationId })).toBe(r.final)
+      replay(r.battle); replay(r.nearEnd); replay(r.report); replay(r.final)
+    }
+  })
+  it('blocks other gameplay during contact and battle, including forged outcome reports', () => {
+    const s = escortContact('escort-lock')
+    for (const a of [{ type: 'rest-team' }, { type: 'ship-debrief' }, { type: 'return-home' }, { type: 'research', project: 'spectrometry' }, { type: 'combatResolve', outcome: 'victory' }] as const) expect(reduceCampaign(s, a as never)).toBe(s)
+    expect(reduceCampaign(createCampaign('no-contact'), { type: 'ship-order', order: { type: 'engage' } }).shipBattle).toBeNull()
+  })
+  it('charges passage exactly once and keeps refusal cost-free', () => {
+    let s = escortContact('paid-escort')
+    const credits = s.exploration.credits
+    s = shipApply(s, { type: 'ship-order', order: { type: 'hail' } })
+    s = shipApply(s, { type: 'ship-order', order: { type: 'pay' } }); expect(s.exploration.credits).toBe(credits - 15)
+    expect(reduceCampaign(s, { type: 'ship-order', order: { type: 'pay' } })).toBe(s)
+    replay(s); s = shipApply(s, { type: 'ship-debrief' }); expect(s.exploration.credits).toBe(credits + 3)
+    let declined = escortContact('declined-escort'), day = declined.day
+    declined = shipApply(declined, { type: 'ship-order', order: { type: 'cancel' } })
+    declined = shipApply(declined, { type: 'ship-debrief' }); expect(declined.day).toBe(day); expect(declined.escortCompleted).toEqual([])
+  })
+  it('uses fitted weapons, researched shields and translation without mandatory combat', () => {
+    let s = createCampaign('ship-upgrades')
+    s = { ...s, research: { ...s.research, completed: ['ion-projector', 'layered-shields', 'fire-control', 'contextual-translation', 'trade-language'] }, built: ['ion-projector'] }
+    const station = s.world.locations.find((l) => l.systemId === s.at && l.kind === 'station')!
+    s = shipApply(s, { type: 'investigate', locationId: station.id })
+    let stored = shipApply(s, { type: 'escort', locationId: station.id }); expect(stored.shipBattle!.weapons).toHaveLength(2)
+    s = shipApply(s, { type: 'equip', blueprint: 'ion-projector' }); s = shipApply(s, { type: 'escort', locationId: station.id })
+    expect(s.shipBattle!.weapons).toHaveLength(3); expect(s.shipBattle!.upgrades.layered).toBe(true)
+    s = shipApply(s, { type: 'ship-order', order: { type: 'hail' } }); expect(s.shipBattle!.toll).toBe(8)
+    s = shipApply(s, { type: 'ship-order', order: { type: 'negotiate' } }); expect(s.shipBattle!.result).toBe('negotiated')
+    expect(s.exploration.credits).toBe(stored.exploration.credits)
+  })
+  it('makes evasion deterministic across reload and supports both outcomes', () => {
+    const results = new Set<string>()
+    for (let i = 0; i < 30; i++) {
+      const s = escortContact(`evade-${i}`), next = shipApply(s, { type: 'ship-order', order: { type: 'evade' } })
+      expect(next).toEqual(reduceCampaign(s, { type: 'ship-order', order: { type: 'evade' } })); results.add(next.shipBattle!.phase)
+      replay(next)
+    }
+    expect(results).toEqual(new Set(['battle', 'report']))
+  })
+  it('keeps disabled ships recoverable with honest hull and bounded recovery costs', () => {
+    let s = escortContact('disabled-escort')
+    s = { ...s, hull: 2, shipBattle: { ...s.shipBattle!, hull: 2 } }
+    s = shipApply(s, { type: 'ship-order', order: { type: 'engage' } })
+    s = shipApply(s, { type: 'ship-order', order: { type: 'weapon', index: 0, mode: 'off' } })
+    s = shipApply(s, { type: 'ship-order', order: { type: 'power', system: 'shields', amount: 0 } })
+    for (let i = 0; i < 30 && s.shipBattle!.phase === 'battle'; i++) s = shipApply(s, { type: 'ship-order', order: { type: 'advance', seconds: 5 } })
+    expect(s.shipBattle!.result).toBe('disabled'); expect(s.hull).toBe(1)
+    const station = s.shipBattle!.locationId, day = s.day
+    s = { ...s, exploration: { ...s.exploration, credits: 0, materials: 0 } }
+    s = shipApply(s, { type: 'ship-debrief' }); expect(s.day).toBe(day + 3); expect(s.exploration.credits).toBe(0); expect(s.exploration.materials).toBe(0)
+    expect(s.outcome).toBe('exploring'); expect(actionLock(s, { type: 'escort', locationId: station })).toContain('Repair')
+    s = shipApply(s, { type: 'service', locationId: station, service: 'contract' })
+    s = shipApply(s, { type: 'service', locationId: station, service: 'repair' }); expect(s.hull).toBe(21)
+  })
+  it('loads v3 saves without changing prior balances or actions and rejects new orders in old envelopes', () => {
+    const storage = mem(), initial = createCampaign('old-boarding-era')
+    const raw = JSON.stringify({ version: 3, ruleset: initial.ruleset, seed: initial.seed, legacyActions: null, actions: [] })
+    storage.setItem(EXPLORATION_SAVE_KEY, raw)
+    expect(loadExploration(storage)).toEqual({ campaign: initial, error: null }); expect(storage.getItem()).toBe(raw)
+    const newer = escortContact('newer'); saveExploration(newer, storage)
+    const tampered = JSON.parse(storage.getItem()!); tampered.version = 3; storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(tampered))
+    expect(loadExploration(storage).error).toBeTruthy()
+  })
+})

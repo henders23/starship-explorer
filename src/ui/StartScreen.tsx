@@ -50,7 +50,7 @@ export function StartScreen({
         </label>
         <div className="start-exploration">
           <span className="exp-eyebrow">NEW / EXPLORATION PREVIEW</span>
-          <p>Explore strange systems, lead boarding teams, research ship upgrades and build a Return Drive. Your exploration voyage has its own save.</p>
+          <p>Explore strange systems, lead boarding teams and defend survey ships while you build a Return Drive. Your exploration voyage has its own save.</p>
           {explorationSaved && <button className="exp-button primary" onClick={() => onExplore(undefined, true)}>Resume exploration</button>}
           <button className="exp-button" onClick={() => {
             if ((explorationSaved || explorationError) && !window.confirm('Replace the exploration preview save with a new voyage? Your original campaign is unaffected.')) return

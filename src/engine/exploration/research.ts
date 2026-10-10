@@ -20,7 +20,6 @@ export interface ResearchProject {
   blueprint?: Blueprint
   future?: string
 }
-const combat = 'Available when ship combat is connected to exploration'
 const tactical = 'Available when tactical weapon and gadget loadouts are implemented'
 export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'drive-diagnostics': { name: 'Drive Diagnostics', branch: 'Propulsion', days: 4, requires: [],
@@ -42,19 +41,19 @@ export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'fuel-recycling': { name: 'Emergency Fuel Recycling', branch: 'Propulsion', days: 6, requires: [],
     effect: 'Fit a recycler to convert 3 materials into 15 fuel in one day, anywhere.', blueprint: { materials: 10, credits: 25, slot: 'utility' } },
   'fire-control': { name: 'Fire Control Algorithms', branch: 'Weapons', days: 4, requires: [],
-    effect: 'Charge standard ship weapons 10% faster and unlock improved ground optics.', future: combat },
+    effect: 'Ship weapons charge 10% faster during escort battles.' },
   'ion-projector': { name: 'Ion Projector', branch: 'Weapons', days: 6, requires: ['fire-control'],
-    effect: 'Strip shields and temporarily disable enemy systems.', blueprint: { materials: 18, credits: 50, slot: 'utility' }, future: combat },
+    effect: 'Strip shields and temporarily disable enemy systems.', blueprint: { materials: 18, credits: 50, slot: 'utility' } },
   'focus-beam': { name: 'Focus Beam', branch: 'Weapons', days: 7, requires: ['fire-control'],
-    effect: 'Precision damage to exposed hull systems; cannot penetrate shields.', blueprint: { materials: 24, credits: 70, slot: 'utility' }, future: combat },
+    effect: 'Precision damage to exposed hull systems; cannot penetrate shields.', blueprint: { materials: 24, credits: 70, slot: 'utility' } },
   'plasma-ballistics': { name: 'Alien Plasma Ballistics', branch: 'Weapons', days: 8, requires: ['fire-control'],
     effect: 'Unlock ground weapons effective against heavy armour.', future: tactical },
   'composite-hull': { name: 'Composite Hull', branch: 'Defence', days: 4, requires: [],
     effect: 'Fit reinforced plating: maximum hull rises to 120 and current hull gains 20.', blueprint: { materials: 18, credits: 45, slot: 'hull' } },
   'layered-shields': { name: 'Layered Shielding', branch: 'Defence', days: 6, requires: ['composite-hull'],
-    effect: 'Add another ship shield layer.', future: combat },
+    effect: 'Unlock a second ship shield layer; allocate four shield power in battle.' },
   'adaptive-shields': { name: 'Adaptive Shield Matrix', branch: 'Defence', days: 7, requires: ['layered-shields'],
-    effect: 'Improve shield recovery by 20%.', future: combat },
+    effect: 'Improve shield recovery by 20%.' },
   'personal-shields': { name: 'Personal Shield Emitters', branch: 'Defence', days: 6, requires: ['composite-hull'],
     effect: 'Unlock a protective shield in an operative’s gadget slot.', future: tactical },
   spectrometry: { name: 'Planetary Spectrometry', branch: 'Sensors', days: 4, requires: [],
@@ -70,7 +69,7 @@ export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'contextual-translation': { name: 'Contextual Translation', branch: 'Communications', days: 6, requires: ['trade-language'],
     effect: 'Purchase scientific records from contacted stations as an alternative to recovering discoveries.' },
   countermeasures: { name: 'Electronic Countermeasures', branch: 'Communications', days: 6, requires: ['trade-language'],
-    effect: 'Fit a signal spoofer: rapid recovery at ruins and derelicts takes no hull damage.', blueprint: { materials: 15, credits: 40, slot: 'utility' } },
+    effect: 'Fit a signal spoofer: rapid recovery at ruins and derelicts takes no hull damage; escort evasion rises to 85% and battle evasion gains 10 points.', blueprint: { materials: 15, credits: 40, slot: 'utility' } },
   'relay-network': { name: 'Diplomatic Relay Network', branch: 'Communications', days: 7, requires: ['contextual-translation'],
     effect: 'Buy scientific records from known stations remotely. Physical cargo and repairs still need a local berth.' },
   'trauma-protocols': { name: 'Trauma Protocols', branch: 'Applied science', days: 4, requires: [],

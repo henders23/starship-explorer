@@ -357,3 +357,90 @@ The existing Return Drive voyage simulations and original campaign remain regres
 This establishes a playable recovery-mission slice, not full tactical campaign balance.
 Broader mission stories and map variety, progression/loadouts, faction consequences and
 ship-combat integration remain the next areas of work.
+
+
+## 17. Ship escort and combat increment (October 2026)
+
+Contacted stations now offer one optional survey escort each. Reviewing an escort
+shows the specific hostile class, hull, shields and weapons; the captain can decline
+without cost. There are no new automatic travel interceptions or compulsory battles.
+The tender provides a credible reason for the encounter and a way to tow the Ithaca
+back if it becomes disabled. Faction standing and multi-system faction stories are
+still separate, unfinished work.
+
+### Contact and battle rules
+
+- Hail reveals a 15-credit transit demand (8 with Trade-Language Translation).
+  Contextual Translation opens a no-payment agreement after hailing. Negotiated
+  passage pays 6 materials and 18 credits, so the quoted toll remains affordable.
+- Evade with the tender: 65% success, or 85% with fitted Electronic Countermeasures.
+  Failure starts battle. The seeded result is unchanged by reload or cancelling and
+  reopening the same station’s contact.
+- Battle starts **paused**. Resume for one-second simulation ticks, pause at any
+  point, or manually advance one second. Hiding the tab pauses; loading a saved
+  battle always opens paused, with no offline time or reset of hull/charge/RNG.
+- Eight reactor units, shared among shields, engines and weapons. Shield layers
+  require two power each; engines improve evasion and charge escape; active weapons
+  must fit within allocated weapon power. Switching a weapon off discards its charge.
+- Pulse lasers fire two 1-damage shots; missiles deal 2 damage and bypass shields;
+  ion shots strip a shield or disable an exposed compartment for six seconds;
+  beams deal 3 damage, ignore evasion and cannot penetrate any remaining shield.
+  The station lends four missiles per escort. Ordnance is consumed tactically and
+  returned after the encounter, not added to the strategic resource economy.
+- Retain the existing ship artwork, class catalogue and hostile compartment layouts.
+  Own and enemy helm, weapons, shields and engines can be targeted/damaged. Weapon
+  damage slows charging, shield damage limits layers, and disabled helm/engines
+  remove evasion. Repair crews restore one chosen compartment point per six seconds;
+  battle repairs never restore strategic hull. Enemies charge weapons, choose targets
+  and repair compartments through the deterministic simulation.
+- A retreat needs ten units of engine charge (ten seconds at two effective power).
+  Disabled or unpowered engines cannot charge; damage already taken persists.
+  Contextual Translation allows accepting surrender at or below 30% enemy hull;
+  the interface pauses when that offer first becomes available.
+
+The existing v1 UI-owned combat simulation stays untouched. V2 uses the separate pure
+`exploration/ship-battle.ts` reducer. Configuration, targets, manual fire and clock
+advancement are accepted campaign actions; the UI cannot submit a fabricated victory
+or hull total. Pause is a UI clock control, not a source of unsaved simulation state.
+The battle report itself is saved before rewards are acknowledged.
+
+### Research and campaign consequences
+
+Five previously locked projects are usable: Fire Control (+10% charging rate), Ion
+Projector and Focus Beam (research, construct, then fit), Layered Shielding (second
+layer with four power) and Adaptive Shield Matrix (+20% shield recovery work).
+Electronic Countermeasures also add 10 percentage points of battle evasion alongside
+their existing expedition protection. The catalogue now has **27 usable projects**;
+Plasma Ballistics and Personal Shield Emitters still await operative weapon/gadget
+loadouts. No unimplemented ground-optics bonus is claimed by Fire Control.
+
+Victory awards 12 materials and 35 credits. Negotiated passage, successful evasion or
+accepted surrender awards 6 materials and 18 credits. A completed station escort cannot
+pay again; retreat and disabling leave the job available. Successful/retreated missions
+advance one campaign day when the report is acknowledged. Declining advances none.
+
+At the last hull point the Ithaca becomes disabled rather than exploding. The tender
+provides emergency tow: three days, up to 8 materials and 20 credits lost from existing
+stores, **hull remains at 1**. Renewable station work can fund repairs even at zero
+supplies. No reward is paid for disabling or fleeing. Existing exploration, boarding,
+research and Return Drive routes remain available after the encounter. The ending
+acknowledges completed survey escorts.
+
+### Saves and validation
+
+Envelope **version 4** adds escort actions and empty escort state to older campaigns.
+Previously accepted version-2/3 actions retain their semantics; older envelopes reject
+new escort orders and newly unlocked research nodes. Version-1 preview replay remains
+frozen. Existing boarding saves replay unchanged, including active missions and reports.
+
+`npm run ship:simulate -- 20` completes twenty seeded introductory escorts with legal
+bridge orders. Tests cover tick partition determinism, power/weapon constraints, ammo,
+ion/beam/missile distinctions, repairs, retreat, actual research effects, surrender,
+negotiation/evasion, hull persistence, emergency recovery, one-time rewards, active-battle
+replay and prior-version migration. Browser flows cover station contact, paid passage,
+saved reports, the real-time/pause clock, room selection, combat reload, victory and
+mobile retreat. Ship-display height assertions prevent control panels clipping the hulls.
+
+This is a saved escort-combat slice, not a fully balanced faction campaign. Automatic
+interceptions, fighter launch bays, more encounter stories and the remaining tactical
+loadouts remain outside this increment.

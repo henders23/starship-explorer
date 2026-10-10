@@ -14,6 +14,7 @@
     "mystery": "tsx tools/mystery-cli.ts",
     "golden:record": "tsx tools/record-golden.ts",
     "test:e2e": "playwright test",
+    "ship:simulate": "node --import tsx tools/ship-walkthrough.ts",
     "tactical:simulate": "node --import tsx tools/tactical-walkthrough.ts",
     "exploration:simulate": "node --import tsx tools/exploration-walkthrough.ts"
   },

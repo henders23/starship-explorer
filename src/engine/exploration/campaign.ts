@@ -1,3 +1,5 @@
+import { createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
+import type { ShipBattle, ShipOrder } from './ship-battle.js'
 import { createMission, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, TacticalAction } from '../tactical/mission.js'
 import { createRng } from '../rng/prng.js'
@@ -23,11 +25,15 @@ export interface Campaign {
   outcome: 'exploring' | 'home'
   roster: Operative[]; mission: Mission | null; missionAttempts: number; recruits: number
   lastMission: Mission | null
+  shipBattle: ShipBattle | null; escortCompleted: string[]; lastShipBattle: ShipBattle | null
   /** Version-1 prefix is replayed with the frozen preview reducer before migration. */
   legacyActions: LegacyAction[] | null
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
+  | { type: 'escort'; locationId: string }
+  | { type: 'ship-order'; order: ShipOrder }
+  | { type: 'ship-debrief' }
   | { type: 'deploy'; locationId: string; squad: string[] }
   | { type: 'tactical'; order: TacticalAction }
   | { type: 'debrief' }
@@ -68,6 +74,7 @@ export function createCampaign(seed: string): Campaign {
     research: { active: null, progress: {}, completed: [], queue: [] },
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
+    shipBattle: null, escortCompleted: [], lastShipBattle: null,
     legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
@@ -155,9 +162,21 @@ function contacted(state: Campaign, id: string) {
 export function actionLock(state: Campaign, action: CampaignAction): string | null {
   if (!action || typeof action !== 'object') return 'Invalid action'
   if (state.outcome === 'home') return 'This voyage has returned home'
+  if (state.shipBattle && !['ship-order', 'ship-debrief'].includes(action.type)) return 'Resolve the ship encounter first'
   if (state.mission && !['tactical', 'debrief'].includes(action.type)) return 'Extract or finish the away mission first'
   if (state.driveTest === 'calibrating' && !['complete-drive-test', 'abort-drive-test'].includes(action.type)) return 'Finish or abort the prototype test first'
   switch (action.type) {
+    case 'escort': {
+      const station = contacted(state, action.locationId)
+      if (!station || station.systemId !== state.at) return 'Contact a local station first'
+      if (state.escortCompleted.includes(station.id)) return 'This station’s survey escort is complete'
+      return state.hull <= 1 ? 'Repair the hull before accepting an escort' : null
+    }
+    case 'ship-order':
+      if (!state.shipBattle) return 'No ship encounter in progress'
+      if (action.order?.type === 'pay' && state.exploration.credits < state.shipBattle.toll) return `Requires ${state.shipBattle.toll} credits`
+      return shipOrderLock(state.shipBattle, action.order)
+    case 'ship-debrief': return state.shipBattle?.phase === 'report' ? null : 'Finish the encounter first'
     case 'deploy': {
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
       if (!site || !['derelict', 'ruins'].includes(site.kind) || state.exploration.statuses[site.id] !== 'investigated') return 'Investigate an unresolved derelict or ruin first'
@@ -282,6 +301,38 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   let next: Campaign = { ...state, exploration: { ...state.exploration }, actions: [...state.actions, action] }
   let days = 0, message = ''
   switch (action.type) {
+    case 'escort': {
+      const station = contacted(state, action.locationId)!
+      next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
+        escortClass(state.seed, station.id, station.threat), state.hull, hullCapacity(state), {
+          fireControl: hasTech(state, 'fire-control'), ion: fitted(state, 'ion-projector'), beam: fitted(state, 'focus-beam'),
+          layered: hasTech(state, 'layered-shields'), adaptive: hasTech(state, 'adaptive-shields'),
+          translated: hasTech(state, 'trade-language'), contextual: hasTech(state, 'contextual-translation'), countermeasures: fitted(state, 'countermeasures'),
+        })
+      message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
+    }
+    case 'ship-order':
+      next.shipBattle = reduceShipBattle(state.shipBattle!, action.order)
+      if (action.order.type === 'pay') next.exploration.credits -= state.shipBattle!.toll
+      // The encounter owns hull during battle; campaign travel remains locked.
+      next.hull = next.shipBattle.hull
+      message = next.shipBattle.log.at(-1)!; break
+    case 'ship-debrief': {
+      const battle = state.shipBattle!
+      const success = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)
+      days = battle.result === 'cancelled' ? 0 : battle.result === 'disabled' ? 3 : 1
+      if (success) {
+        const materials = battle.result === 'victory' ? 12 : 6, credits = battle.result === 'victory' ? 35 : 18
+        next.exploration.materials += materials; next.exploration.credits += credits
+        next.escortCompleted = [...state.escortCompleted, battle.locationId]
+        message = `Survey escort complete: ${materials} materials and ${credits} credits. This station’s escort reward is claimed.`
+      } else if (battle.result === 'disabled') {
+        const materials = Math.min(8, next.exploration.materials), credits = Math.min(20, next.exploration.credits)
+        next.exploration.materials -= materials; next.exploration.credits -= credits
+        message = `Emergency tow completed. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
+      } else message = battle.result === 'cancelled' ? 'Escort declined. No time or supplies spent.' : 'Escort withdrawn. Hull damage persists; no reward. The station can offer the job again.'
+      next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null; break
+    }
     case 'deploy': {
       const site = state.world.locations.find((s) => s.id === action.locationId)!
       next.mission = createMission(`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name,

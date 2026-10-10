@@ -133,6 +133,7 @@ export function ExplorationEnding({ state, onExit }: { state: Campaign; onExit: 
     <p>Morozova checks the reading twice. Vale lets her finish. “Send our identification,” he says. “Tell them we’re home.”</p>
     <div className="exp-ending-stats"><span><b>{state.visited.length}</b>systems visited</span><span><b>{state.findings.length}</b>scientific sources</span><span><b>{state.research.completed.length}</b>projects completed</span></div>
     <p>{state.findings.some((f) => f.sourceName) ? 'The knowledge shared by distant stations travelled home with you.' : 'The observations and recovered machinery that made the journey possible are secured in the science archive.'}</p>
+    {state.escortCompleted.length > 0 && <p>{state.escortCompleted.length} survey tenders reached their destinations under the Ithaca’s protection.</p>}
     {state.roster.some((o) => o.dead) && <p>The crew reads the names of those who did not return: {state.roster.filter((o) => o.dead).map((o) => o.name).join(', ')}.</p>}
     {state.roster.some((o) => o.missions > 0 && !o.dead) && <p>The shuttle crews bring their mission records home, too. Every return to the hangar mattered.</p>}
     <p>{hasTech(state, 'slipstream') ? 'Your navigators leave a chart of shortcuts for the next ship to follow.' : 'Every lane in the voyage log marks a place the Ithaca reached under her own power.'}</p>

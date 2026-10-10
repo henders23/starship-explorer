@@ -10,6 +10,7 @@ import { REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { saveExploration } from './exploration-save.js'
 import { DRIVE_SEQUENCE, PROJECTS } from '../engine/exploration/research.js'
 import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
+import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
 
@@ -76,6 +77,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       title={lock ?? undefined} onClick={() => dispatch(action)}>{children}</button>
   }
 
+  if (state.shipBattle) return <ExplorationBattle state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
   if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
   return <main className="exp-deck" data-tab={tab}>
     <header className="exp-header" inert={modalOpen}>
@@ -119,7 +121,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           {command({ type: 'emergency-fuel' }, 'Emergency fuel · 3 days')}
         </div>}
         {fitted(state, 'fuel-recycling') && command({ type: 'recycle-fuel' }, 'Recycle fuel · 3 materials · 1 day')}
-        <div className="exp-preview-note">Playable now: exploration, research, boarding missions, ship refits and the journey home. Ship combat integration and broader mission stories are still in development.</div>
+        <div className="exp-preview-note">Playable now: exploration, research, boarding missions, ship refits and the journey home. Station escort jobs now offer negotiation and ship combat. Broader mission stories and tactical loadouts remain in development.</div>
       </aside>
       <section className="exp-main">
         {tab === 'system' && <>
@@ -190,6 +192,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
               {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
+              <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />
               <small>Services remain available after you leave. Contracts provide renewable supplies.</small>
               {hasTech(state, 'contextual-translation') && <><h3>Scientific records</h3><small>A station supplies one independent spatial source. Seek a second station or an expedition for another.</small>
                 {(['exotic-energy', 'spatial-observation', 'alien-propulsion'] as const).map((kind) => <div key={kind}>{command({ type: 'archive', locationId: site.id, kind }, `${DISCOVERY_NAMES[kind]} · 30 credits · 1 day`)}</div>)}
