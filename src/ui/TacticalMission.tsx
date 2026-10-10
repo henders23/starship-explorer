@@ -1,3 +1,5 @@
+import { DECK_NAMES, DECK_NOTES, siteVariant } from '../engine/tactical/variants.js'
+import { TacticalFigure, figureAsset } from './TacticalFigure.js'
 import { OPERATION_KINDS, OPERATION_BRIEFINGS, operationArt } from '../engine/tactical/operations.js'
 import type { OperationKind } from '../engine/tactical/operations.js'
 import { useRef, useState } from 'react'
@@ -13,15 +15,16 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
   const site = state.world.locations.find((s) => s.id === locationId)
   const station = state.world.locations.find((s) => s.systemId === state.at && s.kind === 'station' && ['investigated', 'resolved'].includes(state.exploration.statuses[s.id] ?? ''))
   const [operation, setOperation] = useState<OperationKind | 'core'>('rescue')
+  const variant = siteVariant(state.seed, locationId ?? '')
   const briefing = operation === 'core' ? null : OPERATION_BRIEFINGS[operation]
-  const deploy: CampaignAction = operation === 'core' ? { type: 'deploy', locationId: locationId ?? '', squad } : { type: 'deploy-operation', locationId: locationId ?? '', squad, kind:operation }
+  const deploy: CampaignAction = operation === 'core' ? { type: 'deploy', locationId: locationId ?? '', squad } : { type: 'deploy-operation', locationId: locationId ?? '', squad, kind:operation, variant }
   const lock = actionLock(state, deploy)
   return <div className="exp-modal-backdrop"><section className="exp-modal away-team" role="dialog" aria-modal="true" aria-label="Away team">
     <span className="exp-eyebrow">ISS ITHACA / SHUTTLE BAY</span><h2>{site ? 'Choose your four.' : 'The away team.'}</h2>
     <p>{site ? `${site.name}. ${Math.min(4, 2 + site.threat)} autonomous custodians guard the deck.` : 'Six berths. Each operative keeps their service record. Injuries heal as campaign days pass.'}</p>
     {site && <section className="operation-briefing" aria-label="Mission briefing"><label>Mission contract<select aria-label="Mission contract" value={operation} onChange={(e) => setOperation(e.target.value as OperationKind | 'core')}>
       {OPERATION_KINDS.map((kind) => <option key={kind} value={kind}>{kind[0]!.toUpperCase() + kind.slice(1)} · {OPERATION_BRIEFINGS[kind].title}</option>)}<option value="core">Core recovery · original mission</option>
-    </select></label>{site && <img className="away-briefing-art" src={operation === 'core' ? `/assets/exploration/${site.kind === 'ruins' ? 'buried-observatory' : 'silent-courier'}.webp` : operationArt(operation)} alt="Boarding destination environment" />}{briefing && <><h3>{briefing.title}</h3><p>{briefing.description}</p><p className="operation-voice">{briefing.voice}</p><strong>{briefing.reward}</strong><small>{briefing.warning}</small></>}<small>Choose one operation for this site. A successful extraction also recovers its normal cargo and science, closing the other contracts.</small></section>}
+    </select></label>{site && <img className="away-briefing-art" src={operation === 'core' ? `/assets/exploration/${site.kind === 'ruins' ? 'buried-observatory' : 'silent-courier'}.webp` : operationArt(operation)} alt="Boarding destination environment" />}{briefing && <><h3>{briefing.title}</h3>{operation !== 'core' && <p className="operation-layout"><strong>{DECK_NAMES[operation][variant - 1]}</strong>{DECK_NOTES[operation][variant - 1]}</p>}<p>{briefing.description}</p><p className="operation-voice">{briefing.voice}</p><strong>{briefing.reward}</strong><small>{briefing.warning}</small></>}<small>Choose one operation for this site. A successful extraction also recovers its normal cargo and science, closing the other contracts.</small></section>}
     {site && <div className="exp-notice">Optional mission · 1 campaign day · normal cargo and science, with the selected operation’s bonus on success. Wounded survivors need medical rest. Anyone left behind is permanently lost.</div>}
     <div className="away-roster">{state.roster.map((o) => {
       const ready = !o.dead && o.injuredUntil <= state.day
@@ -77,6 +80,10 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
   }
   const chooseTarget = (id: string) => { setTarget(id); if (window.matchMedia('(max-width: 720px)').matches) document.querySelector('.tac-orders')?.scrollIntoView({ block: 'start', behavior: 'smooth' }) }
   const selectUnit = (id: string) => { setSelected(id); setDestination(null) }
+  const jumpTo = (selector: string) => {
+    const panel = document.querySelector<HTMLElement>(selector)
+    panel?.scrollIntoView({block:'start',behavior:'auto'}); panel?.focus({preventScroll:true})
+  }
   if (m.outcome !== 'active') {
     const lost = crew.filter((o) => !m.rescued.includes(o.id))
     return <main className="exp-deck tac-results"><section className="exp-modal exp-ending" aria-label="Mission debrief">
@@ -90,7 +97,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
       <small>{saved ? 'Mission report saved' : 'Autosave unavailable — keep this tab open'}</small>
     </section></main>
   }
-  return <main className="exp-deck tactical-deck">
+  return <main className={`exp-deck tactical-deck atmosphere-${m.operation?.kind ?? 'core'}`}>
     <div inert={confirmExtract}>
       <header className="tac-header"><div><span className="exp-eyebrow">AWAY TEAM / LIVE TELEMETRY</span><h1>Boarding operation</h1><p>{m.name}{m.operation ? ` / ${OPERATION_BRIEFINGS[m.operation.kind].title}` : ''}</p></div>
         <div className="tac-turn"><span>TURN</span><b>{m.turn.toString().padStart(2, '0')}</b><small>{saved ? 'Orders saved' : 'Autosave unavailable'}</small></div>
@@ -98,16 +105,18 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
       </header>
       <div className="tac-objective"><span>{m.operation ? m.operation.kind.toUpperCase() : m.recovered ? '02 / EXTRACT' : '01 / RECOVER'}</span><strong>{operationStatus(m)}</strong><div className="tac-command">{control({ type: 'end-turn' }, 'End turn · hostiles act', true)}<button className="exp-button" disabled={!!tacticalLock(m, { type: 'extract', abandon: true })} title={tacticalLock(m, { type: 'extract', abandon: true }) ?? undefined} onClick={() => setConfirmExtract(true)}>Extract team</button></div></div>
       <div className="tac-layout">
-        <section className="tac-arena" aria-label="Tactical map">
-          <div className="tac-mapbar"><span>{hostiles.length} visible hostiles · {u.name} selected</span><button className="exp-text-button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Fit map' : 'Enlarge map'}</button></div>
+        <section className="tac-arena" aria-label="Tactical map" tabIndex={-1}>
+          <div className="tac-mapbar"><span>{hostiles.length} visible hostiles · {u.name} selected</span><div className="tac-map-tools"><button className="exp-text-button" onClick={() => { const ready = [...crew.slice(crew.indexOf(u)+1),...crew.slice(0,crew.indexOf(u))].find((c) => c.hp > 0 && c.ap > 0); if (ready) selectUnit(ready.id) }} disabled={!crew.some((c) => c.id !== u.id && c.hp > 0 && c.ap > 0)}>Next ready operative</button><button className="exp-text-button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Fit map' : 'Enlarge map'}</button><button className="exp-text-button tac-mobile-jump" onClick={() => jumpTo('.tac-orders')}>Orders ↓</button></div></div>
+          {expanded && <small className="tac-pan-hint">Swipe or scroll sideways to explore the deck.</small>}
           <div className={`tac-scroll ${expanded ? 'expanded' : ''}`}>
             <svg viewBox="0 0 720 420" className="tac-board" aria-label="Isometric boarding deck">
-              <defs><radialGradient id="deck-glow"><stop stopColor="#183941" /><stop offset="1" stopColor="#08131c" /></radialGradient><linearGradient id="operative-body" x2="0" y2="1"><stop stopColor="#b1fff2"/><stop offset="1" stopColor="#268d98"/></linearGradient></defs>
+              <defs><radialGradient id="deck-glow"><stop stopColor="#183941" /><stop offset="1" stopColor="#08131c" /></radialGradient><linearGradient id="bulkhead-top" x2="0" y2="1"><stop stopColor="#74919c"/><stop offset="1" stopColor="#3b5260"/></linearGradient><linearGradient id="bulkhead-face" x2="1" y2="1"><stop stopColor="#2c4653"/><stop offset="1" stopColor="#152734"/></linearGradient><pattern id="deck-grating" width="6" height="6" patternUnits="userSpaceOnUse"><path d="M 0 0 L 6 0 M 0 3 L 6 3" stroke="#b9d5d2" strokeWidth=".35" opacity=".2"/></pattern></defs>
               <rect width="720" height="420" fill="url(#deck-glow)" />
+              <path d="M 41 196 L 400 387 L 699 228 L 699 236 L 400 395 L 41 204 Z" fill="#030a11" stroke="#344b59" strokeWidth="1" pointerEvents="none"/>
               <BoardTiles m={m} unitId={u.id} sprint={sprint} destination={destination} onDestination={setDestination} />
               {path?.map((p, i) => { const q = point(p); return <circle key={i} cx={q.x} cy={q.y} r={3} fill="#c3fff0" pointerEvents="none" /> })}
               {(!m.operation || m.operation.kind === 'sabotage') && m.seen.includes(m.objective.y * m.width + m.objective.x) && <g pointerEvents="none" transform={`translate(${point(m.objective).x} ${point(m.objective).y})`}><path d="M -11 0 L 0 -23 L 11 0 L 0 7 Z" fill={m.recovered ? '#2a5960' : '#ffd184'} stroke="#fbe6b6"/><text y={21} textAnchor="middle" fill="#ffd184" fontSize={9}>{m.recovered ? 'SECURED' : m.operation ? 'UPLINK' : 'CORE'}</text></g>}
-              {m.operation?.survivors.filter((s) => !s.evacuated).map((s,i) => { const p = point(s); return <g key={s.id} pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><ellipse rx={15} ry={8} fill="#242331" stroke="#edc4fa"/><path d="M -6 -3 L -7 -19 L 7 -19 L 6 -3 Z" fill="#c8a9d4" stroke="#f3dfff"/><circle cy={-25} r={5} fill="#efdcce"/><text y={20} fontSize={9} textAnchor="middle" fill="#f4dfff">{i+1} / {s.leader ? 'FOLLOWING' : 'SURVIVOR'}</text></g> })}
+              {m.operation?.survivors.filter((s) => !s.evacuated).map((s,i) => { const p = point(s); return <g key={s.id} pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><ellipse rx={15} ry={8} fill="#242331" stroke="#edc4fa"/><image href="/assets/exploration/tactical-survivor.webp" x={-30} y={-53} width={60} height={60}/><text y={20} fontSize={9} textAnchor="middle" fill="#f4dfff">{i+1} / {s.leader ? 'FOLLOWING' : 'SURVIVOR'}</text></g> })}
               {m.operation?.crates.map((c,i) => { const p = point(c); return <g key={i} pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><path d="M -12 0 L -12 -16 L 0 -22 L 12 -16 L 12 0 L 0 6 Z" fill={c.collected ? '#263e43' : '#b58b45'} stroke={c.collected ? '#4e6465' : '#ffe0a2'}/><text y={20} fontSize={9} fill="#efdbb2" textAnchor="middle">{c.collected ? 'SECURED' : `CASE ${i+1}`}</text></g> })}
               {[...m.units].sort((a, b) => a.x + a.y - b.x - b.y).filter((unit) => unit.side === 'crew' || visible(m, unit)).map((unit) => {
                 const p = point(unit), ally = unit.side === 'crew', index = crew.findIndex((c) => c.id === unit.id), chosen = ally ? selected === unit.id : targetId === unit.id
@@ -115,22 +124,21 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
                   {(unit.shield ?? 0) > 0 && <ellipse cx={p.x} cy={p.y - 16} rx={20} ry={29} fill="#6bcbe511" stroke="#83d6f0" strokeDasharray="3 3" pointerEvents="none"/>}
                   <ellipse cx={p.x} cy={p.y + 2} rx={18} ry={9} fill="#0008" stroke={chosen ? '#f6eacb' : 'none'} strokeWidth={2}/>
                   {unit.hp > 0 ? <g transform={`translate(${p.x} ${p.y})`}>
-                    {ally ? <><path d="M -9 -2 L -7 -18 L 7 -18 L 9 -2 L 4 2 L 0 -4 L -4 2 Z" fill="url(#operative-body)" stroke="#bffff4"/><circle cy={-24} r={6} fill="#244e62" stroke="#c4fff2"/><path d="M -4 -25 L 4 -25" stroke="#c4fff2" strokeWidth={2}/><path d="M 7 -15 L 16 -10" stroke="#ecfffa" strokeWidth={4}/></> : <><path d="M -11 -3 L -9 -19 L 9 -19 L 11 -3 Z" fill="#9b4136" stroke="#ffae82"/><path d="M -8 -10 L -16 -2 M 8 -10 L 16 -2" stroke="#ffbc87" strokeWidth={3}/><rect x={-7} y={-28} width={14} height={9} rx={2} fill="#4b272b" stroke="#ffbd84"/><path d="M -4 -24 L 4 -24" stroke="#ffdb92" strokeWidth={2}/></>}
-                    <rect x={-15} y={-40} width={30} height={4} fill="#060b10"/><rect x={-15} y={-40} width={30 * unit.hp / unit.maxHp} height={4} fill={ally ? '#7de9d5' : '#ef9876'}/>
-                    {ally && <><text x={-20} y={-16} fill="#d2fff2" fontSize={11} fontWeight="bold">{index + 1}</text>{[0, 1].map((n) => <circle key={n} cx={-4 + n * 8} cy={-47} r={2.5} fill={unit.ap > n ? '#e9d298' : '#30444c'}/>)}</>}
+                    <TacticalFigure unit={unit} index={index} />
                   </g> : <g transform={`translate(${p.x} ${p.y})`}><path d="M -10 -4 L 10 4 M -10 4 L 10 -4" stroke={ally ? '#f4c271' : '#705556'} strokeWidth={4}/>{ally && <text y={-13} textAnchor="middle" fontSize={9} fill="#ffcf85">DOWN</text>}</g>}
                 </g>
               })}
               {m.lastShot && m.rolls > loadedRolls.current && <g key={`shot-${m.rolls}`} className="tac-shot-effect" pointerEvents="none"><line x1={point(m.lastShot.from).x} y1={point(m.lastShot.from).y - 15} x2={point(m.lastShot.to).x} y2={point(m.lastShot.to).y - 15} stroke={m.lastShot.hit ? '#eafed0' : '#e8a17a'} strokeWidth={3}/><circle cx={point(m.lastShot.to).x} cy={point(m.lastShot.to).y - 15} r={12} fill="none" stroke="#ffdea0"/><text x={point(m.lastShot.to).x} y={point(m.lastShot.to).y - 58} textAnchor="middle" fill="#fff2d1" fontSize={15}>{m.lastShot.hit ? `−${m.lastShot.damage}` : 'MISS'}</text></g>}
-              <text x={23} y={391} fill="#69cbbd" fontSize={10}>SHUTTLE ←</text><text x={470} y={391} fill="#7fa0ae" fontSize={9}>RECOVERY DECK / 12 × 10</text>
+              {m.operation?.kind === 'salvage' && <g pointerEvents="none" className="tac-heat-boundary"><path d="M 460 100 L 160 260" stroke="#f5b47b" strokeDasharray="4 5" strokeWidth="1.5"/><text x={447} y={99} fill="#ffd3a1" fontSize={9}>HEAT ZONE →</text></g>}
+              <text x={23} y={391} fill="#69cbbd" fontSize={10}>SHUTTLE ←</text><text x={470} y={391} fill="#7fa0ae" fontSize={9}>{m.operation?.variant ? DECK_NAMES[m.operation.kind][m.operation.variant - 1]!.toUpperCase() : 'RECOVERY DECK'} / 12 × 10</text>
             </svg>
           </div>
           {destination && <div className="tac-destination"><span>{u.name} → {destination.x + 1},{destination.y + 1} · {path?.length ?? 'no'} path tiles</span>{control({ type: 'move', unitId: u.id, ...destination, sprint }, `${sprint ? 'Sprint' : 'Move'} · ${sprint ? 2 : 1} AP`, true)}<small>{tacticalLock(m, { type: 'move', unitId: u.id, ...destination, sprint })}</small></div>}
           <div className="tac-legend"><span>◈ Shuttle</span><span>{m.operation?.kind === 'rescue' ? 'Lilac / survivor beacons' : 'Amber / objective'}</span><span>Low crates / half cover</span><span>Tall bulkheads / block sight</span></div>
           <div className="tac-squad">{crew.map((unit, i) => <button key={unit.id} aria-pressed={selected === unit.id} onClick={() => selectUnit(unit.id)}><small>0{i + 1} / {unit.role}</small><strong>{unit.name}</strong><span>{unit.hp > 0 ? `${unit.hp}/${unit.maxHp} HP · ${unit.ap} AP${unit.shield !== undefined ? ` · ${unit.shield} shield` : ''}` : 'DOWNED — rescue or revive'}</span><progress value={unit.hp} max={unit.maxHp} aria-label={`${unit.name} health`} /></button>)}</div>
         </section>
-        <aside className="tac-orders">
-          <span className="exp-eyebrow">SELECTED OPERATIVE</span><h2>{u.name}</h2><p>{u.role} · {u.hp}/{u.maxHp} health · {u.ap}/2 AP<br/>{u.ammo}/{u.magazine} ammunition · {u.damage} damage{u.weapon === 'plasma' ? ' · PLASMA' : ''}{u.shield !== undefined ? ` · ${u.shield}/4 SHIELD` : ''}{u.aimed ? ' · AIMED' : ''}{u.overwatch ? ' · OVERWATCH' : ''}</p>
+        <aside className="tac-orders" tabIndex={-1} aria-label="Operative orders"><button className="exp-text-button tac-mobile-jump" onClick={() => jumpTo('.tac-arena')}>Back to map ↑</button>
+          <img className="tac-operative-preview" src={figureAsset('crew')} alt="" /><span className="exp-eyebrow">SELECTED OPERATIVE</span><h2>{u.name}</h2><p>{u.role} · {u.hp}/{u.maxHp} health · {u.ap}/2 AP<br/>{u.ammo}/{u.magazine} ammunition · {u.damage} damage{u.weapon === 'plasma' ? ' · PLASMA' : ''}{u.shield !== undefined ? ` · ${u.shield}/4 SHIELD` : ''}{u.aimed ? ' · AIMED' : ''}{u.overwatch ? ' · OVERWATCH' : ''}</p>
           {m.operation && <div className="operation-tracker"><span className="exp-eyebrow">MISSION TRACKER</span>{m.operation.kind === 'rescue' ? m.operation.survivors.map((s) => <p key={s.id}>{s.name}<small>{s.evacuated ? 'Safely aboard' : `${s.x+1},${s.y+1} · ${s.leader ? `following ${crew.find((c) => c.id === s.leader)?.name}${crew.find((c) => c.id === s.leader)?.hp === 0 ? ' · escort DOWN; send help' : ''}` : 'waiting for an escort'}`}</small></p>) : <p>{operationStatus(m)}</p>}<small>{tacticalLock(m,{type:'interact',unitId:u.id}) ?? 'Objective interaction available now.'}</small></div>}
           <div className="tac-move"><label><input type="checkbox" checked={sprint} onChange={(e) => setSprint(e.target.checked)} /> Sprint · 2 AP · up to {u.move * 2} tiles</label>
             <p>{destination ? `Destination ${destination.x + 1},${destination.y + 1} · ${path?.length ?? 'no'} path${path?.length ? ' tiles' : ''}` : `Select a lit floor tile. Move up to ${u.move} tiles for 1 AP.`}</p>
@@ -163,7 +171,8 @@ function BoardTiles({ m, unitId, sprint, destination, onDestination }: { m: Miss
         role={known && tile === 'floor' ? 'button' : undefined} tabIndex={known && tile === 'floor' ? 0 : undefined} aria-label={`Tile ${p.x + 1},${p.y + 1}${inExtraction(p) ? ' shuttle' : ''}`}
         onClick={() => { if (known && tile === 'floor') onDestination(p) }} onKeyDown={(e) => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); onDestination(p) }
           const d: Record<string, Point> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } }; if (d[e.key]) { e.preventDefault(); document.getElementById(`tile-${p.x + d[e.key]!.x}-${p.y + d[e.key]!.y}`)?.focus() } }} />
-      {known && tile !== 'floor' && <g pointerEvents="none"><path d={`M ${q.x - 29} ${q.y} L ${q.x} ${q.y + 15} L ${q.x + 29} ${q.y} L ${q.x + 29} ${q.y - height} L ${q.x} ${q.y + 15 - height} L ${q.x - 29} ${q.y - height} Z`} fill={tile === 'wall' ? '#203c4a' : '#4d5140'} stroke="#6b7e82" strokeWidth={0.7}/><polygon points={diamond(p, height)} fill={tile === 'wall' ? '#476171' : '#8c805c'} stroke="#92a2a0" strokeWidth={0.7}/></g>}
+      {known && tile === 'floor' && <g pointerEvents="none" opacity={lit ? 1 : .4}><polygon points={diamond(p)} fill="url(#deck-grating)"/><path d={`M ${q.x-21} ${q.y} L ${q.x} ${q.y+11} L ${q.x+21} ${q.y}`} fill="none" stroke="#a3bdc4" strokeOpacity={.18} strokeWidth={.6}/>{(inExtraction(p) || (p.x % 3 === 0 && p.y % 3 === 0)) && <path d={`M ${q.x-23} ${q.y-3} L ${q.x-11} ${q.y-9}`} stroke={inExtraction(p) ? '#a2f6da' : '#8ebacb'} strokeWidth={2}/>}</g>}
+      {known && tile !== 'floor' && <g pointerEvents="none"><path d={`M ${q.x - 29} ${q.y} L ${q.x} ${q.y + 15} L ${q.x + 29} ${q.y} L ${q.x + 29} ${q.y - height} L ${q.x} ${q.y + 15 - height} L ${q.x - 29} ${q.y - height} Z`} fill={tile === 'wall' ? 'url(#bulkhead-face)' : '#49473c'} stroke="#6b7e82" strokeWidth={0.7}/><polygon points={diamond(p, height)} fill={tile === 'wall' ? 'url(#bulkhead-top)' : '#a09268'} stroke="#92a2a0" strokeWidth={0.7}/><path d={`M ${q.x} ${q.y+15} L ${q.x} ${q.y+15-height}`} stroke="#acbac0" strokeOpacity={.5}/><path d={`M ${q.x+6} ${q.y+8-height} L ${q.x+22} ${q.y-height}`} stroke={tile === 'wall' ? '#a3e2e5' : '#e8c382'} strokeWidth={2}/>{tile === 'wall' && <path d={`M ${q.x-19} ${q.y+2-height} L ${q.x-19} ${q.y+4} M ${q.x-12} ${q.y+6-height} L ${q.x-12} ${q.y+8}`} stroke="#10232d" strokeWidth={2}/>}</g>}
     </g>
   })}</>
 }

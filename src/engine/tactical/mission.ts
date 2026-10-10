@@ -1,4 +1,6 @@
 import type { Operation, OperationKind } from './operations.js'
+import { DECK_NAMES, DECK_NOTES, VARIANT_LAYOUTS, survivorNames } from './variants.js'
+import type { DeckVariant } from './variants.js'
 import { OPERATION_BRIEFINGS } from './operations.js'
 import { createRng } from '../rng/prng.js'
 
@@ -118,7 +120,31 @@ export function createMission(seed: string, locationId: string, name: string, sq
     log: [`${squad[0]!.name}: “The custodians are still running. Take the core, then back to the shuttle. We don’t need to clear the whole ship.”`] })
 }
 /** New operations are opt-in through a separate campaign action; legacy missions stay exact. */
-export function createOperation(seed: string, locationId: string, name: string, squad: Operative[], threat: number, loadouts: Record<string, OperativeLoadout>, kind: OperationKind): Mission {
+export function createOperation(seed: string, locationId: string, name: string, squad: Operative[], threat: number, loadouts: Record<string, OperativeLoadout>, kind: OperationKind, variant?: DeckVariant): Mission {
+  if (variant) {
+    const m = createOperation(seed, locationId, name, squad, threat, loadouts, kind)
+    m.operation!.variant = variant
+    const names = survivorNames(seed, locationId)
+    m.operation!.survivors.forEach((s,i) => { s.name = names[i]! })
+    if (variant === 2) {
+      m.tiles = Array.from({length:120},(_,i) => m.tiles[(9 - Math.floor(i / 12)) * 12 + i % 12]!)
+      m.units.forEach((u) => { u.y = 9 - u.y })
+      m.objective = {...m.objective,y:9 - m.objective.y}
+      for (const p of [...m.operation!.survivors,...m.operation!.crates]) p.y = 9 - p.y
+    }
+    if (variant === 3) {
+      const layout = VARIANT_LAYOUTS[kind]
+      m.tiles = Array.from({length:120},() => 'floor')
+      for (const [x,y] of layout.walls) m.tiles[y! * 12 + x!] = 'wall'
+      for (const [x,y] of layout.cover) m.tiles[y! * 12 + x!] = 'half'
+      const rearGuard = m.units.find((u) => u.id === 'sentry-3')
+      if (rearGuard) rearGuard.y = 7
+      m.objective = {...layout.objective}
+      for (const [i,p] of [...m.operation!.survivors,...m.operation!.crates].entries()) Object.assign(p,layout.targets[i])
+    }
+    m.log.push(`${DECK_NAMES[kind][variant - 1]}. ${DECK_NOTES[kind][variant - 1]}`)
+    return reveal({...m,seen:[]})
+  }
   const base = createMission(seed, locationId, name, squad, threat, loadouts)
   const layouts: Record<OperationKind, { walls: number[][]; cover: number[][]; objective: Point }> = {
     rescue: { walls: [[6,2],[7,2],[8,2],[6,7],[7,7],[8,7],[4,0],[4,1],[4,8],[4,9]], cover: [[4,3],[4,6],[8,5]], objective: {x:8,y:3} },

@@ -460,3 +460,10 @@ escorts, sabotage with pursuing reserves, and salvage with partial extraction an
 turn-based heat. Three new layouts, cinematic briefing images, bonus rewards and
 save envelope version 6 supersede the earlier one-objective boarding limitation.
 The original core mission and older save journals retain their rules.
+
+## Tactical atmosphere and deck variety — 11 October 2026
+
+See [TACTICAL-ATMOSPHERE.md](TACTICAL-ATMOSPHERE.md): three realistic transparent
+figures, detailed deck panels and lighting, three configurations per operation,
+stable survivor identities, quick crew selection and phone map/orders navigation.
+Version 7 explicitly records deck variants while retaining version-6 mission rules.

@@ -3,21 +3,23 @@ import type { Mission, TacticalAction, Point } from '../src/engine/tactical/miss
 import { createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../src/engine/exploration/campaign.js'
 import type { OperationKind } from '../src/engine/tactical/operations.js'
+import type { DeckVariant } from '../src/engine/tactical/variants.js'
 export function readyOperation(seed: string) {
   let s = createCampaign(seed)
   s = reduceCampaign(s,{type:'scan',tier:'survey'})
   s = reduceCampaign(s,{type:'investigate',locationId:s.world.locations.find((l) => l.name === 'The Silent Courier')!.id})
   return s
 }
-export function launchOperation(seed: string, kind: OperationKind) {
+export function launchOperation(seed: string, kind: OperationKind, variant?: DeckVariant) {
   const s = readyOperation(seed)
-  return reduceCampaign(s,{type:'deploy-operation',locationId:s.world.locations.find((l) => l.name === 'The Silent Courier')!.id,squad:s.roster.slice(0,4).map((o) => o.id),kind})
+  return reduceCampaign(s,{type:'deploy-operation',locationId:s.world.locations.find((l) => l.name === 'The Silent Courier')!.id,squad:s.roster.slice(0,4).map((o) => o.id),kind,...(variant ? {variant} : {})})
 }
 /** Fixture pilot issues legal orders, never alters a campaign, and only shoots visible targets. */
 export function nextOperationOrder(m: Mission, cases = 3): TacticalAction {
   const op = m.operation!, crew = m.units.filter((u) => u.side === 'crew' && u.hp > 0)
   const done = op.kind === 'rescue' ? op.survivors.every((s) => s.evacuated) : op.kind === 'salvage' ? op.crates.filter((c) => c.collected).length >= cases : m.recovered
   if (done && m.units.filter((u) => u.side === 'crew').every(inExtraction)) return {type:'extract',abandon:false}
+  if (done && crew.every(inExtraction) && !crew.some((u) => u.medkit)) return {type:'extract',abandon:true}
   for (const u of crew.filter((u) => u.ap > 0)) {
     const hurt = m.units.find((t) => t.side === 'crew' && t.hp <= t.maxHp - 3 && distance(u,t) <= 1)
     if (hurt && !tacticalLock(m,{type:'heal',unitId:u.id,targetId:hurt.id})) return {type:'heal',unitId:u.id,targetId:hurt.id}
@@ -43,8 +45,8 @@ export function nextOperationOrder(m: Mission, cases = 3): TacticalAction {
   }
   return {type:'end-turn'}
 }
-export function completeOperation(seed: string, kind: OperationKind, cases = 3) {
-  let state = launchOperation(seed,kind)
+export function completeOperation(seed: string, kind: OperationKind, cases = 3, variant?: DeckVariant) {
+  let state = launchOperation(seed,kind,variant)
   const deployed = state
   let interaction: Campaign | null = null, extraction: Campaign | null = null
   for(let i=0;i<500 && state.mission!.outcome === 'active';i++) {

@@ -1,6 +1,7 @@
+import { siteVariant } from '../src/engine/tactical/variants.js'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { readyOperation, completeOperation, nextOperationOrder } from '../tools/operation-walkthrough.js'
+import { readyOperation, completeOperation, nextOperationOrder, launchOperation } from '../tools/operation-walkthrough.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { reduceCampaign } from '../src/engine/exploration/campaign.js'
 import { OPERATION_KINDS, OPERATION_BRIEFINGS } from '../src/engine/tactical/operations.js'
@@ -21,7 +22,10 @@ async function noOverflow(page: Page) {
 for (const mobile of [false,true]) test(`operation briefings and withdrawal on ${mobile?'mobile':'desktop'}`,async({page},info)=>{
   if(mobile)await page.setViewportSize({width:390,height:844})
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
-  await resume(page,readyOperation('browser-operations'))
+  const ready = readyOperation('browser-operations')
+  const site = ready.world.locations.find((l)=>l.name==='The Silent Courier')!
+  const names = launchOperation(ready.seed,'rescue',siteVariant(ready.seed,site.id)).mission!.operation!.survivors.map((s)=>s.name)
+  await resume(page,ready)
   await page.getByRole('button',{name:/The Silent Courier/}).click()
   await page.getByRole('button',{name:'Board with away team · tactical mission'}).click()
   for(const kind of OPERATION_KINDS){
@@ -36,13 +40,13 @@ for (const mobile of [false,true]) test(`operation briefings and withdrawal on $
   }
   await page.getByRole('combobox',{name:'Mission contract'}).selectOption('rescue')
   await page.getByRole('button',{name:'Deploy away team',exact:true}).click()
-  await expect(page.locator('.operation-tracker')).toContainText('Dr Imani Hale')
-  await expect(page.locator('.operation-tracker')).toContainText('Tarin Voss')
+  await expect(page.locator('.operation-tracker')).toContainText(names[0]!)
+  await expect(page.locator('.operation-tracker')).toContainText(names[1]!)
   await page.screenshot({path:info.outputPath('rescue-deck.png'),fullPage:true})
   await noOverflow(page)
   await page.getByRole('button',{name:'Extract team',exact:true}).click()
   const confirm=page.getByRole('dialog',{name:'Confirm extraction'})
-  await expect(confirm).toContainText('Civilians left behind: Dr Imani Hale, Tarin Voss')
+  await expect(confirm).toContainText(`Civilians left behind: ${names.join(', ')}`)
   await expect(confirm).toContainText('No objective secured: no reward')
   await page.getByRole('button',{name:'Keep the shuttle waiting'}).click()
   await expect(confirm).not.toBeVisible()
@@ -78,4 +82,33 @@ for(const kind of OPERATION_KINDS)test(`${kind} objective, reload, extraction an
   await page.reload();await page.getByRole('button',{name:'Resume expedition'}).click()
   await expect(page.getByTestId('exp-materials')).toHaveText(String(run.final.exploration.materials))
   await noOverflow(page)
+})
+
+for(const width of [1440,390,320])test(`alternate decks, figures and quick controls at ${width}px`,async({page},info)=>{
+  await page.setViewportSize({width,height:900})
+  await page.emulateMedia({reducedMotion:'reduce'})
+  for(const kind of OPERATION_KINDS){
+    await resume(page,launchOperation('visual-variants',kind,3))
+    const assets = kind==='rescue' ? ['operative','custodian','survivor'] : ['operative','custodian']
+    for(const name of assets){
+      expect(await page.evaluate(async (src)=>{const img=new Image();img.src=src;try{await img.decode();return img.naturalWidth===512}catch{return false}},`/assets/exploration/tactical-${name}.webp`)).toBe(true)
+    }
+    await page.getByRole('button',{name:'Next ready operative',exact:true}).click()
+    await expect(page.locator('.tac-orders h2')).toHaveText('Idris Okonkwo')
+    await page.getByRole('button',{name:'Select Sofia Reyes',exact:true}).click()
+    await expect(page.locator('.tac-orders h2')).toHaveText('Sofia Reyes')
+    if(width<721){
+      await page.getByRole('button',{name:'Orders ↓',exact:true}).click()
+      await expect(page.getByRole('complementary',{name:'Operative orders'})).toBeFocused()
+      await page.getByRole('button',{name:'Back to map ↑',exact:true}).click()
+      await expect(page.getByRole('region',{name:'Tactical map'})).toBeFocused()
+      await page.getByRole('button',{name:'Enlarge map',exact:true}).click()
+      await expect(page.locator('.tac-scroll')).toHaveClass(/expanded/)
+    }
+    await noOverflow(page)
+    await page.screenshot({path:info.outputPath(`${kind}-variant-three.png`),fullPage:true})
+    await page.reload();await page.getByRole('button',{name:'Resume expedition'}).click()
+    const raw=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),EXPLORATION_SAVE_KEY)
+    expect(raw.actions.at(-1)).toMatchObject({type:'deploy-operation',variant:3,kind})
+  }
 })

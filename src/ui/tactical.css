@@ -26,7 +26,8 @@
 .tac-board { display:block; width:100%; min-width:390px; }
 .tac-scroll.expanded .tac-board { min-width:900px; }
 .tac-board [role=button] { cursor:pointer; outline:none; }
-.tac-board [role=button]:focus { stroke:#fff0b0; stroke-width:3px; }
+.tac-board polygon[role=button]:focus-visible { stroke:#fff0b0; stroke-width:3px; }
+.tac-board g[role=button]:focus-visible .tac-figure-hitbox { stroke:#fff0b0; stroke-width:1.5px; }
 .tac-legend { display:flex; flex-wrap:wrap; gap:15px; color:#8aabb7; font-size:10px; padding:12px 0; }
 .tac-squad { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:6px; }
 .tac-squad button { text-align:left; padding:13px 10px; border:1px solid #2a4958; background:#102833; }
@@ -114,4 +115,27 @@
 .operation-tracker { border:1px solid #766a57; background:#142832; padding:14px; margin:20px 0; }
 .operation-tracker p { color:#e5d5bb; }
 .operation-loss { color:#ffc38a!important; border:1px solid #8f6448; padding:12px; }
+.tac-map-tools { display:flex; align-items:center; gap:20px; }
+.tac-map-tools button { min-height:36px; }
+.tac-map-tools button:disabled { opacity:.4; cursor:default; }
+.tac-operative-preview { width:90px; height:90px; object-fit:contain; float:right; margin:-12px -12px 0 0; filter:drop-shadow(0 4px 8px #0009); }
+.tac-figure image { filter:drop-shadow(0 2px 1px #02070b); }
+.tac-orders .operation-tracker { clear:both; }
+.tactical-deck.atmosphere-rescue { background:radial-gradient(ellipse at 35% 20%,#193948,#07121a 70%); }
+.tactical-deck.atmosphere-salvage { background:radial-gradient(ellipse at 35% 20%,#3c2c23,#10151a 70%); }
+.atmosphere-salvage .tac-objective { background:#3a3329; border-color:#84724f; }
+.atmosphere-sabotage .tac-objective { background:#292f39; border-color:#60677c; }
+.operation-briefing .operation-layout { border-bottom:1px solid #3d5963; padding-bottom:14px; color:#bad0d7; font-size:11px; }
+.operation-briefing .operation-layout strong { margin:0 0 4px; color:#e6c991; text-transform:uppercase; letter-spacing:1px; font-size:10px; }
+@media(max-width:720px) {
+  .tac-mapbar { flex-wrap:wrap; gap:4px; }
+  .tac-map-tools { width:100%; justify-content:space-between; gap:12px; }
+  .tac-map-tools button { min-height:42px; }
+  .tac-operative-preview { width:100px; height:100px; }
+}
 @media(max-width:640px) { .operation-briefing { padding:14px; } .operation-briefing select { font-size:12px; padding:10px 6px; } .operation-briefing h3 { font-size:23px; } .away-team .away-briefing-art { aspect-ratio:1.8; } }
+
+.tac-mobile-jump { display:none; }
+@media(max-width:720px) { .tac-mobile-jump { display:block; } .tac-orders>.tac-mobile-jump { margin:0 0 22px; min-height:42px; } .tac-arena:focus,.tac-orders:focus { outline:1px solid #85c7c7; outline-offset:-2px; } }
+
+.tac-pan-hint { display:block; margin:8px 0; color:#bad5d8; font-size:11px; }
