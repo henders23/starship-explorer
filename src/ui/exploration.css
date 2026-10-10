@@ -115,3 +115,70 @@
 .exp-project progress::-webkit-progress-bar { background:#213e49; }
 .exp-project progress::-webkit-progress-value { background:#74ddd0; }
 .exp-project progress::-moz-progress-bar { background:#74ddd0; }
+/* Research, fitting and the Return Drive. */
+.exp-drive-progress { display:grid; grid-template-columns:repeat(5,minmax(0,1fr)); gap:8px; margin:22px 0; }
+.exp-drive-progress>div { padding:13px 10px; background:#101e28; border:1px solid #2b4654; }
+.exp-drive-progress span { display:block; color:#7d9cab; font-size:11px; margin-bottom:9px; }
+.exp-drive-progress strong { display:block; font-size:11px; font-weight:500; min-height:36px; }
+.exp-drive-progress small { font-size:9px; margin-top:6px; }
+.exp-drive-progress .complete { border-color:#4faaa0; background:#12352f; }
+.exp-drive-progress .complete span { color:#8cedd7; }
+.exp-drive-progress .active { border-color:#d3a15a; }
+.exp-drive-actions { margin:15px 0; }
+.exp-research-queue { display:grid; grid-template-columns:1fr 1fr; gap:24px; padding:22px; background:#0e2330; border:1px solid #335567; margin:22px 0; }
+.exp-research-queue h3 { margin-top:10px; }
+.exp-research-queue p { font-size:11px; margin-bottom:10px; }
+.exp-research-queue progress { width:100%; accent-color:#6edace; }
+.exp-research-queue ol { list-style:none; margin:10px 0 0; padding:0; }
+.exp-research-queue li { border-top:1px solid #2c4753; padding:12px 0; }
+.exp-research-queue strong { font-size:12px; font-weight:400; }
+.exp-queue-buttons { display:flex; flex-wrap:wrap; gap:6px; margin-top:8px; }
+.exp-queue-buttons .exp-button { padding:4px 7px; font-size:9px; }
+.exp-lab-sections { display:flex; flex-wrap:wrap; gap:10px; margin:24px 0 15px; }
+.exp-lab-sections button { padding:12px; border-bottom:2px solid #2d4350; color:#9fb9c5; }
+.exp-lab-sections button[aria-pressed=true] { border-color:#72ddd0; color:#cffaf1; }
+.exp-branches { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; }
+.exp-branches button { border:1px solid #2e4b58; background:#0e1e29; padding:13px; text-align:left; font-size:12px; }
+.exp-branches button[aria-pressed=true] { border-color:#75dcd2; background:#183a42; }
+.exp-branches small { font-size:10px; }
+.exp-dependencies { display:flex; flex-wrap:wrap; align-items:center; gap:8px; margin:14px 0; }
+.exp-dependencies>span { color:#7b9ead; font-size:10px; text-transform:uppercase; }
+.exp-dependencies>button { color:#8ecdd2; font-size:10px; padding:6px 9px; border:1px solid #355767; }
+.exp-project-controls { display:flex; flex-wrap:wrap; gap:8px; }
+.exp-lock-reason { margin-top:5px; max-width:350px; }
+.exp-action-control { margin:8px 0; }
+.exp-project.upcoming { border-style:dashed; background:#0c1720; }
+.exp-blueprint { border-top:1px solid #34515d; padding-top:15px; margin-top:15px; }
+.exp-slot-summary { display:grid; grid-template-columns:repeat(4,1fr); gap:10px; margin-top:20px; }
+.exp-slot-summary>span { padding:12px; background:#102632; border:1px solid #31525f; font-size:11px; text-transform:capitalize; }
+.exp-slot-summary b { display:block; font-size:20px; color:#8aded4; font-weight:400; }
+.exp-science-leads { margin:25px 0; padding:22px; border:1px solid #3a5665; }
+.exp-science-leads h3 { margin-top:12px; }
+.exp-science-leads>.exp-button { margin:6px 8px 6px 0; }
+.exp-modal-backdrop { position:fixed; inset:0; z-index:100; background:#000b; display:grid; place-items:center; overflow-y:auto; padding:24px; backdrop-filter:blur(8px); }
+.exp-modal { background:linear-gradient(135deg,#14313e,#091620); border:1px solid #78c8c8; padding:36px; max-width:640px; width:100%; max-height:calc(100dvh - 48px); overflow:auto; box-shadow:0 25px 100px #000; }
+.exp-modal h2 { font-size:42px; }
+.exp-modal .exp-button { width:100%; margin:5px 0; }
+.exp-test-portrait { width:75px; height:85px; object-fit:cover; object-position:top; float:left; margin:5px 20px 10px 0; border:1px solid #54858f; }
+.exp-ending { border-color:#e3b16a; }
+.exp-ending h2 { color:#f2d7b0; }
+.exp-ending-stats { display:grid; grid-template-columns:repeat(3,1fr); gap:15px; padding:20px 0; border-block:1px solid #45606b; margin:20px 0; }
+.exp-ending-stats span { font-size:10px; color:#a7c1cc; }
+.exp-ending-stats b { display:block; font-size:32px; font-weight:400; color:#eff5f3; }
+@media(max-width:1150px) { .exp-drive-progress { grid-template-columns:repeat(3,1fr); } .exp-research-queue { grid-template-columns:1fr; } }
+@media(max-width:640px) { .exp-drive-progress { grid-template-columns:repeat(2,1fr); } .exp-branches { grid-template-columns:repeat(2,1fr); } .exp-slot-summary { grid-template-columns:repeat(2,1fr); } .exp-modal { padding:22px; } .exp-modal-backdrop { padding:14px; } .exp-modal h2 { font-size:32px; } }
+.exp-lab-fold { display:flex; justify-content:space-between; gap:12px; width:100%; padding:14px 0; margin-top:12px; border-bottom:1px solid #38535f; color:#c3e1e6; text-align:left; font-size:12px; }
+.exp-lab-fold span { color:#89b3c3; font-size:10px; }
+.exp-deck .exp-compact-research { font-size:11px; color:#8dd9d0; margin:12px 0; }
+@media(max-width:640px) {
+  .exp-deck[data-tab=lab] .exp-rail { display:none; }
+  .exp-lab-hero { padding:20px; }
+  .exp-lab-hero h2 { font-size:28px; }
+  .exp-lab-hero p { font-size:11px; }
+  .exp-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; padding:0 10px; }
+  .exp-nav>button { font-size:9px; padding:13px 2px; text-align:center; }
+  .exp-save { grid-column:1/-1; padding:8px 4px; margin:0; }
+  .exp-branches { grid-template-columns:repeat(3,minmax(0,1fr)); }
+  .exp-branches button { font-size:10px; padding:10px 6px; }
+  .exp-lab-sections button { font-size:10px; padding:10px 6px; }
+}

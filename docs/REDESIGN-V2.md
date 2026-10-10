@@ -199,3 +199,88 @@ Verification: campaign tests cover the complete sensor loop, invalid actions, pe
 services, source provenance, emergency recovery, immutable state, replay saves and malformed
 saves. A 40-seed sweep checks opening science and geographically distributed essential sources.
 Browser tests cover exploration/save/revisit on desktop, narrow layout and the legacy smoke flow.
+
+## 15. Return Drive and research increment (October 2026)
+
+This increment supersedes section 14's sensor-only scope. The exploration preview now
+has a complete **research → construction → prototype test → stabilisation → departure**
+route. The original campaign remains separate.
+
+### Available research and hardware
+
+The catalogue defines all 29 projects and six branches, with explicit dependencies.
+**21 projects are usable now. Eight combat-dependent projects are visibly upcoming and
+cannot be started or queued**: four Weapons projects, Layered Shielding, Adaptive Shield
+Matrix, Personal Shield Emitters and Trauma Protocols. Their original intended effects
+are retained in the catalogue; there are no simulated bonuses pretending that V2 combat
+or operative injuries already exist.
+
+One project is active and three may wait in the queue. Projects may be queued before
+prerequisites are met; the scheduler takes the first ready entry and leaves blocked
+entries waiting. Switching or pausing preserves work. Queue entries can be reordered or
+removed. Remaining work from a multi-day action carries into the next ready project.
+A discovery delivered at the end of an expedition, or the completed prototype test,
+only unlocks subsequent work **after** that action finishes.
+
+Construction takes one day and pays materials/credits once. Hardware auto-fits if a slot
+is free, otherwise it remains in storage. Two engine slots, two utility slots, one gadget
+slot and one permanent hull installation constrain fitting. Drive components have their
+own slots. Unfitting retains the hardware; removing fuel tanks vents fuel above 80.
+Hull plating cannot be repeatedly removed/refitted to manufacture free hull repairs.
+
+Usable effects include reduced travel fuel, 100-unit tanks, 120 maximum hull, direct
+travel across two lanes, fuel recycling, remote scan contacts, more precise threat
+reports, cheaper trade, station archive translation, remote scientific-record purchases,
+electronic protection during hazardous recovery, engineering salvage bonuses, faster
+safe recovery by drones, and a fitted laboratory granting 1.25 work days per activity day.
+Field equipment currently affects narrative expeditions; later tactical abilities are
+not being claimed by this increment.
+
+### Completion and recovery routes
+
+The five drive projects still total 40 base research days. Exotic storage needs one
+exotic-energy source; spatial dynamics needs two independent spatial/propulsion sources.
+A station's spatial archive counts once even if it describes several subjects. All
+mandatory world discoveries are accessible with ordinary surveys, so optional sensor
+research never becomes an implicit requirement for victory. Diagnostics reveal optional
+scientific leads on the chart.
+
+The prototype costs 25 materials + 50 credits. It may be tested in any surveyed system.
+The saved, modal test scene offers remote probes (two days, no damage) or a shielded pass
+(one day, 10 hull damage), and may be safely aborted and resumed. Stabilisation unlocks
+the final 60-material/150-credit drive. Construction does not end exploration. Departure
+is an explicit confirmed choice from any system; it records a persistent home outcome
+and a voyage-specific ending. Completed voyages reject further gameplay mutations.
+
+Station archives provide another route to discoveries after Contextual Translation;
+the relay permits remote archive purchases but never remote physical refuelling/repairs.
+A second independent spatial source must come from another station or an expedition.
+Station survey contracts take three days and renewably pay 8 materials + 18 credits,
+providing recovery from empty stores. Buying alloys costs more than selling them earns.
+Previously unrewarded non-station surveys now yield modest one-time materials/credits.
+Emergency hydrogen collection restores enough fuel for any adjacent lane when no jump
+is affordable. None of these routes requires combat.
+
+### Save compatibility and validation
+
+Exploration save version **2** retains an optional version-1 journal prefix. That prefix
+is replayed by `legacy-campaign.ts` using the unchanged location generator, then explicitly
+migrated. Original balances, calendar, finds, research work and installed array survive.
+New actions are replayed under the new rules. Known scanned systems receive newly
+survey-accessible contacts. Malformed and unknown versions remain untouched. The loader
+does not overwrite a version-1 save; the next successful autosave stores both its original
+prefix and the new continuation. Future semantic changes require another version/migration.
+
+`tools/exploration-walkthrough.ts` completes campaigns using accepted public actions,
+without balance edits or resource grants. Run `npm run exploration:simulate -- 20`.
+Tests cover queue order/limits and blocked entries, fractional work, discovery delivery
+timing, hardware costs/slots/effects, independent archives, empty-store recovery, safe
+prototype failure avoidance, saves during the test, version-1 migration and returned-game
+immutability. Twenty seeded runs cover exploration and archives, including deliberately
+missed scientific sources. Browser flows cover the original campaign, sensors, the
+prototype scene, final research/build/departure, completed-save reload and mobile queues.
+
+These simulations establish solvability, not a validated 4–8-hour campaign balance.
+Tactical missions, ship-combat integration and substantial authored faction arcs remain
+next. The short archive route and repeatable recovery contracts will need pacing review
+alongside those richer encounters.

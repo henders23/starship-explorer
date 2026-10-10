@@ -13,7 +13,8 @@
     "typecheck": "tsc --noEmit",
     "mystery": "tsx tools/mystery-cli.ts",
     "golden:record": "tsx tools/record-golden.ts",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "exploration:simulate": "node --import tsx tools/exploration-walkthrough.ts"
   },
   "dependencies": {
     "react": "^19.2.8",
