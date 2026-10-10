@@ -1,4 +1,4 @@
-/** V2 research catalogue. Future combat nodes are visible but cannot consume work. */
+/** V2 research catalogue: ship systems and away-team equipment. */
 export const BRANCHES = ['Propulsion', 'Weapons', 'Defence', 'Sensors', 'Communications', 'Applied science'] as const
 export type ResearchBranch = typeof BRANCHES[number]
 export const PROJECT_IDS = [
@@ -20,7 +20,6 @@ export interface ResearchProject {
   blueprint?: Blueprint
   future?: string
 }
-const tactical = 'Available when tactical weapon and gadget loadouts are implemented'
 export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'drive-diagnostics': { name: 'Drive Diagnostics', branch: 'Propulsion', days: 4, requires: [],
     effect: 'Identify what the Return Drive needs and chart leads to spatial research.' },
@@ -47,7 +46,7 @@ export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'focus-beam': { name: 'Focus Beam', branch: 'Weapons', days: 7, requires: ['fire-control'],
     effect: 'Precision damage to exposed hull systems; cannot penetrate shields.', blueprint: { materials: 24, credits: 70, slot: 'utility' } },
   'plasma-ballistics': { name: 'Alien Plasma Ballistics', branch: 'Weapons', days: 8, requires: ['fire-control'],
-    effect: 'Unlock ground weapons effective against heavy armour.', future: tactical },
+    effect: 'Unlock plasma loadouts: +2 ground damage, two-round magazine. Costs 2 materials per equipped operative at deployment.' },
   'composite-hull': { name: 'Composite Hull', branch: 'Defence', days: 4, requires: [],
     effect: 'Fit reinforced plating: maximum hull rises to 120 and current hull gains 20.', blueprint: { materials: 18, credits: 45, slot: 'hull' } },
   'layered-shields': { name: 'Layered Shielding', branch: 'Defence', days: 6, requires: ['composite-hull'],
@@ -55,7 +54,7 @@ export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'adaptive-shields': { name: 'Adaptive Shield Matrix', branch: 'Defence', days: 7, requires: ['layered-shields'],
     effect: 'Improve shield recovery by 20%.' },
   'personal-shields': { name: 'Personal Shield Emitters', branch: 'Defence', days: 6, requires: ['composite-hull'],
-    effect: 'Unlock a protective shield in an operative’s gadget slot.', future: tactical },
+    effect: 'Unlock a 4-point personal shield instead of a medkit. No recharge during a mission. Costs 2 materials per equipped operative at deployment.' },
   spectrometry: { name: 'Planetary Spectrometry', branch: 'Sensors', days: 4, requires: [],
     effect: 'Identify scientific signatures at detected sites before investigating.' },
   triangulation: { name: 'Signal Triangulation', branch: 'Sensors', days: 5, requires: ['spectrometry'],

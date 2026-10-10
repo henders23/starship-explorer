@@ -35,7 +35,7 @@ describe('research catalogue and work scheduler', () => {
     }
     PROJECT_IDS.forEach((id) => visitNode(id))
     expect(DRIVE_SEQUENCE.reduce((sum, id) => sum + PROJECTS[id].days, 0)).toBe(40)
-    expect(PROJECT_IDS.filter((id) => PROJECTS[id].future)).toHaveLength(2)
+    expect(PROJECT_IDS.filter((id) => PROJECTS[id].future)).toHaveLength(0)
   })
 
   it('preserves paused work, caps the queue at three and validates reorder/removal', () => {
@@ -82,11 +82,11 @@ describe('research catalogue and work scheduler', () => {
     expect(researchProgress(state, 'exotic-storage')).toBe(0)
   })
 
-  it('cannot spend work on upcoming combat nodes or bypass test/discovery requirements', () => {
+  it('requires tactical research prerequisites and cannot bypass drive-test requirements', () => {
     const state = createCampaign('no-fake-tech')
-    for (const id of PROJECT_IDS.filter((id) => PROJECTS[id].future)) {
+    for (const id of ['plasma-ballistics', 'personal-shields'] as const) {
       expect(reduceCampaign(state, { type: 'research', project: id })).toBe(state)
-      expect(reduceCampaign(state, { type: 'queue', project: id })).toBe(state)
+      expect(actionLock(state, { type: 'queue', project: id })).toBeNull()
     }
     expect(actionLock(state, { type: 'return-home' })).toBeTruthy()
     expect(actionLock(state, { type: 'complete-drive-test', approach: 'remote' })).toBeTruthy()
@@ -260,7 +260,7 @@ describe('version-1 preview migration', () => {
     expect(storage.getItem(EXPLORATION_SAVE_KEY)).toBe(raw)
     const continued = apply(migrated, { type: 'research', project: 'drive-diagnostics' })
     saveExploration(continued, storage)
-    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(4)
+    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(5)
     expect(loadExploration(storage).campaign).toEqual(continued)
   })
 })

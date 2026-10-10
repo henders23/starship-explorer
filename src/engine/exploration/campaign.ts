@@ -1,7 +1,9 @@
+import { storyAt } from './stories.js'
+import type { StoryRecord } from './stories.js'
 import { createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ShipBattle, ShipOrder } from './ship-battle.js'
 import { createMission, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
-import type { Mission, Operative, TacticalAction } from '../tactical/mission.js'
+import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
 import { createRng } from '../rng/prng.js'
 import { laneCost } from '../travel/travel.js'
 import { generateGalaxy } from '../worldgen/galaxy.js'
@@ -15,6 +17,8 @@ import type { Campaign as LegacyCampaign, CampaignAction as LegacyAction } from 
 
 export interface Finding { locationId: string; kind: DiscoveryKind; day: number; systemId?: string; sourceName?: string }
 export interface Campaign {
+  loadouts: Record<string, OperativeLoadout>
+  stories: StoryRecord[]; lettersDelivered: boolean
   ruleset: 'exploration-v2'
   seed: string; galaxy: Galaxy; world: ExplorationWorld; at: SystemId; visited: SystemId[]
   scans: Record<SystemId, ScanTier>; exploration: ExplorationState; findings: Finding[]
@@ -31,6 +35,9 @@ export interface Campaign {
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
+  | { type: 'loadout'; operativeId: string; weapon: OperativeLoadout['weapon']; gadget: OperativeLoadout['gadget'] }
+  | { type: 'story'; locationId: string; choiceId: string }
+  | { type: 'deliver-letters'; locationId: string }
   | { type: 'escort'; locationId: string }
   | { type: 'ship-order'; order: ShipOrder }
   | { type: 'ship-debrief' }
@@ -75,7 +82,7 @@ export function createCampaign(seed: string): Campaign {
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
     shipBattle: null, escortCompleted: [], lastShipBattle: null,
-    legacyActions: null, actions: [],
+    loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
 export function migratePreview(old: LegacyCampaign): Campaign {
@@ -91,6 +98,7 @@ export function migratePreview(old: LegacyCampaign): Campaign {
     built: old.deepArray ? ['deep-survey'] : [], equipped: old.deepArray ? ['deep-survey'] : [],
     legacyActions: old.actions, log: [...old.log.slice(-48), 'Research expansion ready. Your voyage, discoveries and completed sensor work have been preserved.'] }
 }
+export const boardingLoadoutCost = (s: Campaign, ids: string[]) => ids.reduce((cost, id) => cost + (s.loadouts[id]?.weapon === 'plasma' ? 2 : 0) + (s.loadouts[id]?.gadget === 'shield' ? 2 : 0), 0)
 export const hasTech = (s: Campaign, id: ProjectId) => s.research.completed.includes(id)
 export const fitted = (s: Campaign, id: BuildId) => s.equipped.includes(id)
 export const fuelCapacity = (s: Campaign) => fitted(s, 'fuel-tanks') ? 100 : 80
@@ -166,6 +174,33 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
   if (state.mission && !['tactical', 'debrief'].includes(action.type)) return 'Extract or finish the away mission first'
   if (state.driveTest === 'calibrating' && !['complete-drive-test', 'abort-drive-test'].includes(action.type)) return 'Finish or abort the prototype test first'
   switch (action.type) {
+    case 'loadout': {
+      if (!state.roster.some((o) => o.id === action.operativeId && !o.dead)) return 'Select a living operative'
+      if (!['standard', 'plasma'].includes(action.weapon) || !['medkit', 'shield'].includes(action.gadget)) return 'Unknown equipment'
+      if (action.weapon === 'plasma' && !hasTech(state, 'plasma-ballistics')) return 'Research Alien Plasma Ballistics first'
+      if (action.gadget === 'shield' && !hasTech(state, 'personal-shields')) return 'Research Personal Shield Emitters first'
+      const current = state.loadouts[action.operativeId] ?? { weapon: 'standard', gadget: 'medkit' }
+      return current.weapon === action.weapon && current.gadget === action.gadget ? 'Already equipped' : null
+    }
+    case 'story': {
+      const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
+      if (!site || !['investigated', 'resolved'].includes(state.exploration.statuses[site.id] ?? '')) return 'Investigate this local contact first'
+      if (state.stories.some((record) => record.locationId === site.id)) return 'This decision is already recorded'
+      const choice = storyAt(state.seed, site)?.choices.find((c) => c.id === action.choiceId)
+      if (!choice) return 'Unknown encounter choice'
+      if (state.exploration.materials + choice.materials < 0) return `Requires ${-choice.materials} materials`
+      if (state.exploration.credits + choice.credits < 0) return `Requires ${-choice.credits} credits`
+      if (state.fuel + choice.fuel < 0) return `Requires ${-choice.fuel} fuel`
+      return null
+    }
+    case 'deliver-letters': {
+      const station = contacted(state, action.locationId)
+      if (!station || station.systemId !== state.at) return 'Contact a local station first'
+      if (state.lettersDelivered) return 'The letters have already been relayed'
+      if (!state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry')) return 'Recover the Silent Courier’s letters first'
+      return state.at === state.galaxy.start ? 'Find a relay station in another system' : null
+    }
+
     case 'escort': {
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
@@ -181,6 +216,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
       if (!site || !['derelict', 'ruins'].includes(site.kind) || state.exploration.statuses[site.id] !== 'investigated') return 'Investigate an unresolved derelict or ruin first'
       if (!Array.isArray(action.squad) || action.squad.length !== 4 || new Set(action.squad).size !== 4) return 'Choose four different operatives'
+      if (state.exploration.materials < boardingLoadoutCost(state, action.squad)) return `Requires ${boardingLoadoutCost(state, action.squad)} materials for field equipment; standard equipment is free`
       return action.squad.every((id) => state.roster.some((o) => o.id === id && !o.dead && o.injuredUntil <= state.day)) ? null : 'Choose healthy, living operatives'
     }
     case 'tactical': return state.mission ? tacticalLock(state.mission, action.order) : 'No away mission in progress'
@@ -301,6 +337,22 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   let next: Campaign = { ...state, exploration: { ...state.exploration }, actions: [...state.actions, action] }
   let days = 0, message = ''
   switch (action.type) {
+    case 'loadout':
+      next.loadouts = { ...state.loadouts, [action.operativeId]: { weapon: action.weapon, gadget: action.gadget } }
+      message = `${state.roster.find((o) => o.id === action.operativeId)!.name}: ${action.weapon} weapon, ${action.gadget}. Field equipment is supplied at deployment.`; break
+    case 'story': {
+      const site = state.world.locations.find((s) => s.id === action.locationId)!
+      const story = storyAt(state.seed, site)!, choice = story.choices.find((c) => c.id === action.choiceId)!
+      days = choice.days
+      next.exploration.materials += choice.materials; next.exploration.credits += choice.credits
+      next.fuel = Math.min(fuelCapacity(state), state.fuel + choice.fuel)
+      next.stories = [...state.stories, { locationId: site.id, storyId: story.id, choiceId: choice.id, day: state.day + days }]
+      message = `${story.title}: ${choice.outcome}`; break
+    }
+    case 'deliver-letters':
+      days = 1; next.lettersDelivered = true; next.exploration.credits += 25
+      message = 'The last post: the relay accepts all 143 letters. One recipient answers before we undock: “We kept the light on too.” Delivery commission: 25 credits.'; break
+
     case 'escort': {
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
@@ -336,7 +388,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'deploy': {
       const site = state.world.locations.find((s) => s.id === action.locationId)!
       next.mission = createMission(`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name,
-        action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat)
+        action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat, state.loadouts)
+      next.exploration.materials -= boardingLoadoutCost(state, action.squad)
       next.missionAttempts++; message = `Away team deployed to ${site.name}. Recover the core and extract. One campaign day passes when the team returns.`
       break
     }

@@ -444,3 +444,11 @@ mobile retreat. Ship-display height assertions prevent control panels clipping t
 This is a saved escort-combat slice, not a fully balanced faction campaign. Automatic
 interceptions, fighter launch bays, more encounter stories and the remaining tactical
 loadouts remain outside this increment.
+
+
+## Expedition polish and tactical equipment — 10 October 2026
+
+See [EXPEDITION-POLISH.md](EXPEDITION-POLISH.md) for the current increment:
+10 authored encounters, the Courier delivery side voyage, three cinematic environment
+assets, operative plasma/shield loadouts, all 29 research projects usable, and save
+envelope version 5. This supersedes the earlier notes about two locked tactical nodes.

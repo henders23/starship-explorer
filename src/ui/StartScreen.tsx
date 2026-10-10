@@ -29,6 +29,17 @@ export function StartScreen({
           Starship <em>Ithaca</em>
         </h1>
         <p>Sail your crew home</p>
+        <div className="start-exploration">
+          <span className="exp-eyebrow">OPEN EXPEDITION / BUILD A WAY HOME</span>
+          <p>Explore strange worlds. Decide which stories you leave behind. Lead boarding teams, defend survey ships and build a way home.</p>
+          {explorationSaved && <button className="exp-button primary" onClick={() => onExplore(undefined, true)}>Resume expedition</button>}
+          <button className="exp-button primary" onClick={() => {
+            if ((explorationSaved || explorationError) && !window.confirm('Replace the expedition save with a new voyage? Your original campaign is unaffected.')) return
+            onExplore(customSeed.trim() || undefined)
+          }}>Begin expedition</button>
+          {explorationError && <p role="alert">{explorationError}</p>}
+        </div>
+        <div className="start-classic-label exp-eyebrow">CLASSIC VOYAGE / FOLLOW THE MYSTERY</div>
         <div className="start-actions">
           {resumable && (
             <button className="start-begin" onClick={onResume}>
@@ -44,20 +55,12 @@ export function StartScreen({
           <input
             value={customSeed}
             onChange={(event) => setCustomSeed(event.target.value)}
+            maxLength={200}
             placeholder={resumable ? seed : 'leave blank for a random sky'}
             spellCheck={false}
           />
         </label>
-        <div className="start-exploration">
-          <span className="exp-eyebrow">NEW / EXPLORATION PREVIEW</span>
-          <p>Explore strange systems, lead boarding teams and defend survey ships while you build a Return Drive. Your exploration voyage has its own save.</p>
-          {explorationSaved && <button className="exp-button primary" onClick={() => onExplore(undefined, true)}>Resume exploration</button>}
-          <button className="exp-button" onClick={() => {
-            if ((explorationSaved || explorationError) && !window.confirm('Replace the exploration preview save with a new voyage? Your original campaign is unaffected.')) return
-            onExplore(customSeed.trim() || undefined)
-          }}>Start exploration preview</button>
-          {explorationError && <p role="alert">{explorationError}</p>}
-        </div>
+
       </div>
     </div>
   )

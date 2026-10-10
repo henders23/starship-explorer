@@ -1,6 +1,8 @@
 import { createRng } from '../rng/prng.js'
 
 export type Role = 'assault' | 'recon' | 'engineer' | 'medic' | 'heavy'
+export interface OperativeLoadout { weapon: 'standard' | 'plasma'; gadget: 'medkit' | 'shield' }
+export const DEFAULT_LOADOUT: OperativeLoadout = { weapon: 'standard', gadget: 'medkit' }
 export interface Operative { id: string; name: string; role: Role; injuredUntil: number; dead: boolean; missions: number; xp: number }
 export const ROLE_NOTES: Record<Role, string> = {
   assault: 'Rifle · 3 damage · 10 health', recon: 'Scout · moves 5 tiles · 8 health',
@@ -20,6 +22,7 @@ export interface Point { x: number; y: number }
 export type Tile = 'floor' | 'half' | 'wall'
 export interface TacticalUnit extends Point {
   id: string; name: string; role: Role; side: 'crew' | 'hostile'; hp: number; maxHp: number
+  shield?: number; weapon?: OperativeLoadout['weapon']
   ap: number; ammo: number; magazine: number; damage: number; move: number; aimed: boolean; fired: boolean; overwatch: boolean; medkit: boolean
 }
 export interface Mission {
@@ -90,7 +93,7 @@ export function shotInfo(m: Mission, shooter: TacticalUnit, target: TacticalUnit
   return { chance: Math.max(10, Math.min(95, 75 - cover - rangePenalty + aim)), cover, rangePenalty, aim,
     possible: range <= 7 && lineOfSight(m, shooter, target) && target.hp > 0 && shooter.hp > 0 }
 }
-export function createMission(seed: string, locationId: string, name: string, squad: Operative[], threat: number): Mission {
+export function createMission(seed: string, locationId: string, name: string, squad: Operative[], threat: number, loadouts: Record<string, OperativeLoadout> = {}): Mission {
   const width = 12, height = 10, tiles: Tile[] = Array.from({ length: width * height }, () => 'floor')
   // Two layouts share a clear central corridor and safe shuttle approach.
   const alternate = createRng(seed).int(2) === 1
@@ -98,9 +101,11 @@ export function createMission(seed: string, locationId: string, name: string, sq
   for (const [x, y] of (alternate ? [[4, 3], [6, 6], [8, 4], [9, 6]] : [[4, 6], [6, 3], [8, 6], [9, 4]])) tiles[y! * width + x!] = 'half'
   const units: TacticalUnit[] = squad.map((o, i) => {
     const maxHp = { assault: 10, recon: 8, engineer: 9, medic: 9, heavy: 11 }[o.role]
-    const magazine = o.role === 'heavy' ? 3 : 4
+    const gear = loadouts[o.id] ?? DEFAULT_LOADOUT
+    const magazine = gear.weapon === 'plasma' ? 2 : o.role === 'heavy' ? 3 : 4
     return { ...o, x: 1, y: i + 3, side: 'crew', hp: maxHp, maxHp, ap: 2, ammo: magazine, magazine,
-      damage: o.role === 'heavy' ? 4 : 3, move: o.role === 'recon' ? 5 : 4, aimed: false, fired: false, overwatch: false, medkit: true }
+      damage: (o.role === 'heavy' ? 4 : 3) + (gear.weapon === 'plasma' ? 2 : 0), move: o.role === 'recon' ? 5 : 4, aimed: false, fired: false, overwatch: false, medkit: gear.gadget === 'medkit',
+      ...(gear.weapon === 'plasma' ? { weapon: gear.weapon } : {}), ...(gear.gadget === 'shield' ? { shield: 4 } : {}) }
   })
   for (let i = 0; i < Math.min(4, 2 + threat); i++) units.push({ id: `sentry-${i}`, name: `Custodian ${i + 1}`, role: 'assault', side: 'hostile',
     x: i === 0 ? 6 : 9 + i % 2, y: [4, 5, 3, 6][i]!, hp: 5 + Math.min(threat, 2), maxHp: 5 + Math.min(threat, 2), ap: 2, ammo: 4, magazine: 4,
@@ -144,7 +149,7 @@ export function tacticalLock(m: Mission, action: TacticalAction): string | null 
     case 'interact': return m.recovered ? 'Core already secured' : distance(u, m.objective) > (u.role === 'engineer' ? 2 : 1) || !lineOfSight(m, u, m.objective) ? 'Move next to the core (engineer: within two tiles)' : null
     case 'heal': {
       const t = m.units.find((unit) => unit.id === action.targetId && unit.side === 'crew')
-      return !u.medkit ? 'Medkit spent' : !t || t.hp >= t.maxHp || distance(u, t) > 1 ? 'Choose an injured adjacent operative or yourself' : null
+      return !u.medkit ? u.shield !== undefined ? 'No medkit equipped' : 'Medkit spent' : !t || t.hp >= t.maxHp || distance(u, t) > 1 ? 'Choose an injured adjacent operative or yourself' : null
     }
     case 'evacuate': {
       const t = m.units.find((unit) => unit.id === action.targetId && unit.side === 'crew')
@@ -158,8 +163,13 @@ function fire(m: Mission, shooter: TacticalUnit, target: TacticalUnit) {
   const hit = createRng(`${m.seed}:shot:${m.rolls++}`).int(100) < info.chance
   m.lastShot = { from: { x: shooter.x, y: shooter.y }, to: { x: target.x, y: target.y }, hit, damage: shooter.damage }
   shooter.ammo--; shooter.fired = true; shooter.overwatch = false; shooter.aimed = false
-  if (hit) target.hp = Math.max(0, target.hp - shooter.damage)
-  m.log.push(`${shooter.name} → ${target.name}: ${hit ? `${shooter.damage} damage${target.hp === 0 ? target.side === 'crew' ? ' · DOWNED' : ' · disabled' : ''}` : 'miss'} (${info.chance}%).`)
+  const absorbed = hit ? Math.min(target.shield ?? 0, shooter.damage) : 0
+  if (hit) {
+    if (target.shield !== undefined) target.shield -= absorbed
+    target.hp = Math.max(0, target.hp - (shooter.damage - absorbed))
+  }
+  if (absorbed) m.log.push(`${target.name}’s shield absorbs ${absorbed}; ${target.shield} shield remaining.`)
+  m.log.push(`${shooter.name} → ${target.name}: ${hit ? `${shooter.damage - absorbed} damage${absorbed ? ` + ${absorbed} absorbed` : ''}${target.hp === 0 ? target.side === 'crew' ? ' · DOWNED' : ' · disabled' : ''}` : 'miss'} (${info.chance}%).`)
 }
 function enemyTurn(m: Mission) {
   for (const enemy of m.units.filter((u) => u.side === 'hostile' && u.hp > 0)) {

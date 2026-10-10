@@ -1,8 +1,8 @@
 import { useRef, useState } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
-import { actionLock } from '../engine/exploration/campaign.js'
-import { distance, extractionLosses, inExtraction, pathTo, ROLE_NOTES, shotInfo, tacticalLock, tileAt, visible } from '../engine/tactical/mission.js'
-import type { Mission, Point, TacticalAction } from '../engine/tactical/mission.js'
+import { actionLock, boardingLoadoutCost, hasTech } from '../engine/exploration/campaign.js'
+import { DEFAULT_LOADOUT, distance, extractionLosses, inExtraction, pathTo, ROLE_NOTES, shotInfo, tacticalLock, tileAt, visible } from '../engine/tactical/mission.js'
+import type { Mission, OperativeLoadout, Point, TacticalAction } from '../engine/tactical/mission.js'
 import './tactical.css'
 
 type Dispatch = (action: CampaignAction) => void
@@ -15,6 +15,7 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
   return <div className="exp-modal-backdrop"><section className="exp-modal away-team" role="dialog" aria-modal="true" aria-label="Away team">
     <span className="exp-eyebrow">ISS ITHACA / SHUTTLE BAY</span><h2>{site ? 'Choose your four.' : 'The away team.'}</h2>
     <p>{site ? `${site.name}. Recover the core, then extract through the shuttle zone. ${Math.min(4, 2 + site.threat)} autonomous custodians guard the deck.` : 'Six berths. Each operative keeps their service record. Injuries heal as campaign days pass.'}</p>
+    {site && <img className="away-briefing-art" src={`/assets/exploration/${site.kind === 'ruins' ? 'buried-observatory' : 'silent-courier'}.webp`} alt="Boarding destination environment" />}
     {site && <div className="exp-notice">Optional mission · 1 campaign day · same cargo and science as remote recovery. Wounded survivors need medical rest. Anyone left behind is permanently lost.</div>}
     <div className="away-roster">{state.roster.map((o) => {
       const ready = !o.dead && o.injuredUntil <= state.day
@@ -23,11 +24,22 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
         <span className="away-monogram">{o.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</span><span><strong>{o.name}</strong><small>{o.role} · {o.dead ? 'LOST' : ready ? 'READY' : `${o.injuredUntil - state.day} days recovery`}</small><small>{ROLE_NOTES[o.role]}</small><small>{o.missions} missions · {o.xp} service XP</small></span>
       </button>
     })}</div>
-    {site && <><p>{squad.length}/4 selected. Select a crew member to free a place.</p><button className="exp-button primary" disabled={!!lock} onClick={() => { dispatch(deploy); onClose() }}>Deploy away team</button>{lock && <small>{lock}</small>}</>}
+    <section className="away-equipment" aria-label="Field equipment"><details open={hasTech(state, 'plasma-ballistics') || hasTech(state, 'personal-shields')}><summary>Field equipment · weapons & gadgets</summary><p>Standard weapons and medkits are free. Advanced gear costs 2 materials per item each time the team deploys.</p>
+      <small>Plasma: +2 damage, two-round magazine. Shield: absorbs 4 damage, no recharge; replaces that operative’s medkit.</small>
+      {state.roster.filter((o) => !o.dead && (!site || squad.includes(o.id))).map((o) => {
+        const gear = state.loadouts[o.id] ?? DEFAULT_LOADOUT
+        const change = (patch: Partial<OperativeLoadout>) => dispatch({ type: 'loadout', operativeId: o.id, ...gear, ...patch })
+        return <div className="away-gear-row" key={o.id}><strong>{o.name}</strong>
+          <label>Weapon<select aria-label={`${o.name} weapon`} value={gear.weapon} onChange={(e) => change({ weapon: e.target.value as OperativeLoadout['weapon'] })}><option value="standard">Standard · free</option><option value="plasma" disabled={!hasTech(state, 'plasma-ballistics')}>Plasma · {hasTech(state, 'plasma-ballistics') ? '2 materials' : 'research required'}</option></select></label>
+          <label>Gadget<select aria-label={`${o.name} gadget`} value={gear.gadget} onChange={(e) => change({ gadget: e.target.value as OperativeLoadout['gadget'] })}><option value="medkit">Medkit · free</option><option value="shield" disabled={!hasTech(state, 'personal-shields')}>Shield · {hasTech(state, 'personal-shields') ? '2 materials' : 'research required'}</option></select></label>
+        </div>
+      })}
+    </details></section>
+    {site && <div className="away-deploy"><p>Deployment equipment: {boardingLoadoutCost(state, squad)} materials. {squad.length}/4 selected. Select a crew member to free a place.</p><button className="exp-button primary" disabled={!!lock} onClick={() => { dispatch(deploy); onClose() }}>Deploy away team</button>{lock && <small>{lock}</small>}</div>}
     {!site && <>
       <button className="exp-button" disabled={!!actionLock(state, { type: 'rest-team' })} onClick={() => dispatch({ type: 'rest-team' })}>Medical rest · 1 day · no cost</button>
       {station ? <><button className="exp-button" disabled={!!actionLock(state, { type: 'recruit', locationId: station.id })} onClick={() => dispatch({ type: 'recruit', locationId: station.id })}>Recruit replacement · 20 credits · 1 day</button><small>{actionLock(state, { type: 'recruit', locationId: station.id }) ?? 'A named operative can join your team here.'}</small></> : <p>Contact a station to recruit replacements for lost operatives. Station contracts can fund recruitment.</p>}
-      <small>Service XP records experience; rank bonuses and loadouts are planned for a later increment.</small>
+      <small>Service XP records experience. Research in Weapons and Defence unlocks plasma weapons and personal shields.</small>
     </>}
     <button className="exp-text-button" onClick={onClose}>{site ? 'Cancel deployment' : 'Back to ship'}</button>
   </section></div>
@@ -89,6 +101,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
               {[...m.units].sort((a, b) => a.x + a.y - b.x - b.y).filter((unit) => unit.side === 'crew' || visible(m, unit)).map((unit) => {
                 const p = point(unit), ally = unit.side === 'crew', index = crew.findIndex((c) => c.id === unit.id), chosen = ally ? selected === unit.id : targetId === unit.id
                 return <g key={unit.id} role="button" tabIndex={0} aria-label={`${ally ? 'Select' : 'Target'} ${unit.name}`} onClick={() => ally ? selectUnit(unit.id) : chooseTarget(unit.id)} onKeyDown={(e) => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); ally ? selectUnit(unit.id) : chooseTarget(unit.id) } }}>
+                  {(unit.shield ?? 0) > 0 && <ellipse cx={p.x} cy={p.y - 16} rx={20} ry={29} fill="#6bcbe511" stroke="#83d6f0" strokeDasharray="3 3" pointerEvents="none"/>}
                   <ellipse cx={p.x} cy={p.y + 2} rx={18} ry={9} fill="#0008" stroke={chosen ? '#f6eacb' : 'none'} strokeWidth={2}/>
                   {unit.hp > 0 ? <g transform={`translate(${p.x} ${p.y})`}>
                     {ally ? <><path d="M -9 -2 L -7 -18 L 7 -18 L 9 -2 L 4 2 L 0 -4 L -4 2 Z" fill="url(#operative-body)" stroke="#bffff4"/><circle cy={-24} r={6} fill="#244e62" stroke="#c4fff2"/><path d="M -4 -25 L 4 -25" stroke="#c4fff2" strokeWidth={2}/><path d="M 7 -15 L 16 -10" stroke="#ecfffa" strokeWidth={4}/></> : <><path d="M -11 -3 L -9 -19 L 9 -19 L 11 -3 Z" fill="#9b4136" stroke="#ffae82"/><path d="M -8 -10 L -16 -2 M 8 -10 L 16 -2" stroke="#ffbc87" strokeWidth={3}/><rect x={-7} y={-28} width={14} height={9} rx={2} fill="#4b272b" stroke="#ffbd84"/><path d="M -4 -24 L 4 -24" stroke="#ffdb92" strokeWidth={2}/></>}
@@ -103,10 +116,10 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
           </div>
           {destination && <div className="tac-destination"><span>{u.name} → {destination.x + 1},{destination.y + 1} · {path?.length ?? 'no'} path tiles</span>{control({ type: 'move', unitId: u.id, ...destination, sprint }, `${sprint ? 'Sprint' : 'Move'} · ${sprint ? 2 : 1} AP`, true)}<small>{tacticalLock(m, { type: 'move', unitId: u.id, ...destination, sprint })}</small></div>}
           <div className="tac-legend"><span>◈ Shuttle</span><span>Amber / objective</span><span>Low crates / half cover</span><span>Tall bulkheads / block sight</span></div>
-          <div className="tac-squad">{crew.map((unit, i) => <button key={unit.id} aria-pressed={selected === unit.id} onClick={() => selectUnit(unit.id)}><small>0{i + 1} / {unit.role}</small><strong>{unit.name}</strong><span>{unit.hp > 0 ? `${unit.hp}/${unit.maxHp} HP · ${unit.ap} AP` : 'DOWNED — rescue or revive'}</span><progress value={unit.hp} max={unit.maxHp} aria-label={`${unit.name} health`} /></button>)}</div>
+          <div className="tac-squad">{crew.map((unit, i) => <button key={unit.id} aria-pressed={selected === unit.id} onClick={() => selectUnit(unit.id)}><small>0{i + 1} / {unit.role}</small><strong>{unit.name}</strong><span>{unit.hp > 0 ? `${unit.hp}/${unit.maxHp} HP · ${unit.ap} AP${unit.shield !== undefined ? ` · ${unit.shield} shield` : ''}` : 'DOWNED — rescue or revive'}</span><progress value={unit.hp} max={unit.maxHp} aria-label={`${unit.name} health`} /></button>)}</div>
         </section>
         <aside className="tac-orders">
-          <span className="exp-eyebrow">SELECTED OPERATIVE</span><h2>{u.name}</h2><p>{u.role} · {u.hp}/{u.maxHp} health · {u.ap}/2 AP<br/>{u.ammo}/{u.magazine} ammunition · {u.damage} damage{u.aimed ? ' · AIMED' : ''}{u.overwatch ? ' · OVERWATCH' : ''}</p>
+          <span className="exp-eyebrow">SELECTED OPERATIVE</span><h2>{u.name}</h2><p>{u.role} · {u.hp}/{u.maxHp} health · {u.ap}/2 AP<br/>{u.ammo}/{u.magazine} ammunition · {u.damage} damage{u.weapon === 'plasma' ? ' · PLASMA' : ''}{u.shield !== undefined ? ` · ${u.shield}/4 SHIELD` : ''}{u.aimed ? ' · AIMED' : ''}{u.overwatch ? ' · OVERWATCH' : ''}</p>
           <div className="tac-move"><label><input type="checkbox" checked={sprint} onChange={(e) => setSprint(e.target.checked)} /> Sprint · 2 AP · up to {u.move * 2} tiles</label>
             <p>{destination ? `Destination ${destination.x + 1},${destination.y + 1} · ${path?.length ?? 'no'} path${path?.length ? ' tiles' : ''}` : `Select a lit floor tile. Move up to ${u.move} tiles for 1 AP.`}</p>
             {destination && control({ type: 'move', unitId: u.id, ...destination, sprint }, `${sprint ? 'Sprint' : 'Move'} to selected tile · ${sprint ? 2 : 1} AP`, true)}
@@ -118,7 +131,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
           <p className="tac-hint">One shot per turn. Overwatch fires once at a moving hostile during its turn; unused overwatch expires. Aim lasts this turn and ends when you move.</p>
           {crew.filter((c) => c.hp < c.maxHp && distance(c, u) <= 1).map((c) => <div key={c.id}>{control({ type: 'heal', unitId: u.id, targetId: c.id }, `Medkit: ${c.name} · 1 AP`)}{c.hp === 0 && inExtraction(u) && control({ type: 'evacuate', unitId: u.id, targetId: c.id }, `Pull ${c.name} aboard · 1 AP`)}</div>)}
           
-          <small>Extraction requires a conscious operative in the shuttle zone. Revive downed crew with a medkit; they can move next turn. Each operative carries one kit.</small>
+          <small>Extraction requires a conscious operative in the shuttle zone. Revive downed crew with a medkit; they can move next turn. Each operative carries a medkit or a personal shield.</small>
         </aside>
       </div>
       <footer className="tac-log" aria-live="polite"><span className="exp-eyebrow">TEAM CHANNEL</span>{m.log.slice(-4).map((line, i) => <p key={i}>{line}</p>)}<details><summary>Mission transcript</summary>{m.log.slice(0, -4).map((line, i) => <p key={i}>{line}</p>)}</details></footer>

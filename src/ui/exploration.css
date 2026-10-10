@@ -182,3 +182,47 @@
   .exp-branches button { font-size:10px; padding:10px 6px; }
   .exp-lab-sections button { font-size:10px; padding:10px 6px; }
 }
+/* Expedition art and authored discoveries. Art stays decorative; controls remain HTML. */
+.exp-system-hero { min-height:320px; background:linear-gradient(90deg,rgba(4,12,20,.92),rgba(4,12,20,.45) 55%,rgba(4,12,20,.08)),url('/assets/exploration/orbital-frontier.webp') center/cover; display:flex; flex-direction:column; justify-content:center; }
+.exp-system-hero>h2 { font-size:clamp(38px,3.8vw,60px); color:#f5eee0; margin-top:16px; text-shadow:0 2px 18px #000; }
+.exp-system-hero>p { color:#d1dfe1; text-shadow:0 2px 8px #000; }
+.exp-hero-caption { position:absolute; right:16px; bottom:12px; color:#d0e3e0; font-size:8px; letter-spacing:.15em; }
+.exp-first-step { display:flex; gap:16px; align-items:center; padding:16px 0; border-bottom:1px solid #354652; }
+.exp-first-step>span { flex:1; font-size:11px; color:#a7bdc4; line-height:1.7; }
+.exp-first-step strong { display:block; color:#e7d5b8; font-weight:500; }
+.exp-destination-art { display:block; width:100%; aspect-ratio:1.6; object-fit:cover; border:1px solid #39505b; margin:20px 0; }
+.exp-story { margin:28px 0 12px; padding-top:24px; border-top:1px solid #977849; }
+.exp-story h3 { font-family:var(--font-display); color:#efdab5; font-size:26px; margin:10px 0; }
+.exp-story p { color:#bfd0d5; }
+.exp-story-choice { margin-bottom:14px; }
+.exp-story-choice .exp-button { border-color:#5a6b69; background:#172b31; }
+.exp-story-choice strong { font-weight:500; font-size:12px; color:#f0e4ce; }
+.exp-story-choice .exp-button small { color:#aad7d2; margin-top:3px; }
+.exp-story-choice>small { font-size:10px; }
+.exp-letter-objective { padding:18px 0; margin:22px 0 0; border-top:1px solid #726449; }
+.exp-letter-objective h3 { margin:10px 0; color:#e8c890; }
+.exp-letter-objective p { font-size:12px; margin-bottom:0; }
+.exp-captains-record { margin:24px 0 36px; }
+.exp-captains-record>.exp-finding { border-left:2px solid #b79a67; }
+.exp-captains-record strong { font-size:12px; color:#d5c4a7; font-weight:400; }
+.exp-relay { border-block:1px solid #806d4d; padding:20px 0; margin:18px 0; }
+@media(max-width:640px) { .exp-system-hero { min-height:300px; background-position:60% center; padding:22px; } .exp-system-hero>h2 { max-width:100%; } .exp-system-hero>p { max-width:85%; } .exp-first-step { flex-wrap:wrap; } .exp-first-step>span { min-width:180px; } .exp-letter-objective { width:100%; margin-top:0; padding-bottom:0; } }
+@media(prefers-reduced-motion:reduce) { .exp-deck *, .exp-deck *::before, .exp-deck *::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; } }
+.exp-location-scene { padding:26px; border:1px solid #45606a; background:linear-gradient(145deg,#132832,#0b1720); }
+.exp-location-scene>h2 { color:#f2e6cf; font-size:36px; }
+.exp-location-scene>.exp-destination-art { aspect-ratio:2.35; margin:22px 0; border:0; }
+.exp-location-scene .exp-story { border-top:0; padding-top:0; margin-top:22px; }
+.exp-location-scene .exp-story p { max-width:65ch; font-size:14px; line-height:1.85; }
+.exp-location-scene .exp-story-choice { display:inline-block; width:calc(50% - 8px); vertical-align:top; margin-right:8px; }
+.exp-location-scene .exp-story-choice .exp-button { display:block; width:100%; min-height:76px; }
+.exp-location-scene .exp-story-choice>small { margin-top:8px; }
+.exp-scene-navigation { display:flex; flex-wrap:wrap; gap:18px; border-top:1px solid #34505a; padding-top:18px; margin-top:22px; align-items:center; }
+@media(max-width:640px) { .exp-location-scene { padding:18px; } .exp-location-scene>h2 { font-size:30px; } .exp-location-scene>.exp-destination-art { aspect-ratio:1.6; } .exp-location-scene .exp-story-choice { display:block; width:100%; margin-right:0; } .exp-location-scene .exp-story p { font-size:13px; } }
+.start-copy .start-exploration { margin:28px 0; border:1px solid #6b848855; padding:22px; background:#0a1925b8; backdrop-filter:blur(10px); max-width:420px; }
+.start-copy .start-exploration p { font-size:13px; line-height:1.8; color:#c7d8dc; margin:12px 0 18px; }
+.start-copy .start-exploration button { width:100%; padding:13px 16px; font-size:13px; }
+.start-classic-label { margin:24px 0 12px; color:#a7b5bd; }
+/* These selectors must outrank the original title stylesheet, which loads later. */
+.app-shell .start-screen { overflow-y:auto; }
+.start-screen .start-copy { position:relative; bottom:auto; left:auto; padding:clamp(28px,8vh,90px) 7%; box-sizing:content-box; }
+@media(max-width:640px) { .start-screen .start-copy { padding:32px 22px; max-width:calc(100% - 44px); } .start-screen .start-copy h1 { font-size:42px; } }

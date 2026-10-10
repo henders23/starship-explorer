@@ -1,3 +1,5 @@
+import { ExplorationStory, LettersObjective } from './ExplorationStory.js'
+import { storyAt } from '../engine/exploration/stories.js'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
@@ -46,6 +48,14 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     if (modalOpen) (document.querySelector('[role=dialog] button:not(:disabled)') as HTMLButtonElement | null)?.focus()
   }, [modalOpen, state.driveTest, state.outcome])
   const detailRef = useRef<HTMLElement>(null)
+  const mainRef = useRef<HTMLElement>(null)
+  const sceneRef = useRef<HTMLElement>(null)
+  const selectedStatus = selectedSite ? state.exploration.statuses[selectedSite] : undefined
+  useEffect(() => { mainRef.current?.scrollTo({ top: 0 }) }, [selectedSite, tab])
+  useEffect(() => {
+    if (selectedStatus === 'investigated' && window.matchMedia('(max-width: 640px)').matches)
+      sceneRef.current?.scrollIntoView({ block: 'start' })
+  }, [selectedStatus])
   useEffect(() => {
     if (selectedSite && window.matchMedia('(max-width: 640px)').matches)
       detailRef.current?.scrollIntoView({ block: 'start' })
@@ -81,7 +91,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
   return <main className="exp-deck" data-tab={tab}>
     <header className="exp-header" inert={modalOpen}>
-      <div><span className="exp-eyebrow">ISS ITHACA / EXPLORATION PREVIEW</span><h1>Beyond the familiar</h1></div>
+      <div><span className="exp-eyebrow">ISS ITHACA / DEEP SPACE EXPEDITION</span><h1>Beyond the familiar</h1></div>
       <div className="exp-resources" aria-label="Ship resources">
         <span>DAY <b data-testid="exp-day">{state.day}</b></span>
         <span>FUEL <b data-testid="exp-fuel">{state.fuel}/{fuelCapacity(state)}</b></span>
@@ -105,6 +115,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span className="exp-eyebrow">CAPTAIN’S NEXT STEP</span>
         <h2>{advice}</h2><p>{adviceText}</p>
         <button className="exp-button" onClick={() => setTab('lab')}>Open research lab</button>
+        <LettersObjective state={state} />
         <div className="exp-rule" />
         <span className="exp-eyebrow">NEIGHBOURING SYSTEMS</span>
         <div className="exp-neighbours">
@@ -121,12 +132,17 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           {command({ type: 'emergency-fuel' }, 'Emergency fuel · 3 days')}
         </div>}
         {fitted(state, 'fuel-recycling') && command({ type: 'recycle-fuel' }, 'Recycle fuel · 3 materials · 1 day')}
-        <div className="exp-preview-note">Playable now: exploration, research, boarding missions, ship refits and the journey home. Station escort jobs now offer negotiation and ship combat. Broader mission stories and tactical loadouts remain in development.</div>
+
       </aside>
-      <section className="exp-main">
+      <section className="exp-main" ref={mainRef}>
         {tab === 'system' && <>
-          <div className="exp-system-hero">
-            <div className="exp-orbit" aria-hidden="true"><div /></div>
+          {site && site.kind !== 'station' ? <section className="exp-location-scene" ref={sceneRef} aria-label="Location briefing">
+            <span className="exp-eyebrow">{here.name} / {LABELS[site.kind]}</span><h2>{site.name}</h2>
+            {['derelict', 'world', 'ruins'].includes(site.kind) && <img className="exp-destination-art" src={`/assets/exploration/${site.kind === 'derelict' ? 'silent-courier' : site.kind === 'ruins' ? 'buried-observatory' : 'orbital-frontier'}.webp`} alt={site.kind === 'derelict' ? 'Frost-lined corridor aboard an abandoned courier, with a navigation cell still glowing' : site.kind === 'ruins' ? 'Ancient arches rise from copper dunes above a buried installation' : 'Clouds and copper continents seen from orbit'} />}
+            {state.exploration.statuses[site.id] === 'detected' ? <p>Investigate this contact to uncover its story and identify recoverable supplies.</p> : <ExplorationStory state={state} site={site} dispatch={dispatch} />}
+            <div className="exp-scene-navigation"><button className="exp-button" onClick={() => { detailRef.current?.scrollIntoView({ block: 'start' }); detailRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled):not(.exp-read-story)')?.focus() }}>Open {state.exploration.statuses[site.id] === 'detected' ? 'investigation' : 'recovery'} controls</button><button className="exp-text-button" onClick={() => setSelectedSite(null)}>Back to system overview</button></div>
+          </section> : <div className="exp-system-hero">
+            <span className="exp-hero-caption">EXPEDITION ATLAS / DEEP SPACE</span>
             <span className="exp-eyebrow">{REGION_NAMES[here.region]} / {here.faction ? state.galaxy.factions.find((f) => f.id === here.faction)?.name : 'Unclaimed space'}</span>
             <h2>{here.name}</h2><p>Orbiting {STAR_NAMES[here.star]}.<br />{known.length} known {known.length === 1 ? 'contact' : 'contacts'} · {state.scans[state.at] ? `${state.scans[state.at]} scan complete` : 'passive sensors only'}</p>
             <div className="exp-actions">
@@ -134,7 +150,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               {command({ type: 'scan', tier: 'deep' }, 'Deep scan · 1 day')}
             </div>
             {!state.deepArray && <small>Deep scans require a researched and installed survey array.</small>}
-          </div>
+          </div>}
+          {state.day < 5 && !active && !state.research.completed.length && <div className="exp-first-step"><span><strong>Make every day count.</strong> Start Drive Diagnostics; research advances while you explore.</span><button className="exp-button" onClick={() => { dispatch({ type: 'research', project: 'drive-diagnostics' }); setTab('lab') }}>Start drive research</button></div>}
           <div className="exp-section-heading"><h3>Places to investigate</h3><span>Leave and return at any time</span></div>
           <div className="exp-locations">
             {known.length === 0 && <p className="exp-empty">Passive sensors found no contacts. Run a system survey to search further.</p>}
@@ -142,7 +159,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               className={`exp-location ${site?.id === location.id ? 'selected' : ''}`} onClick={() => setSelectedSite(location.id)}>
               <span className={`exp-site-icon ${location.kind}`} aria-hidden="true">{location.kind === 'station' ? '◇' : location.kind === 'world' ? '◉' : '⌁'}</span>
               <span><small>{LABELS[location.kind]}</small><strong>{location.name}</strong>
-                <span className="exp-site-status">{state.exploration.statuses[location.id]}{location.services.length ? ' · station services' : ''}
+                <span className="exp-site-status">{state.exploration.statuses[location.id]}{storyAt(state.seed, location) && ['investigated', 'resolved'].includes(state.exploration.statuses[location.id] ?? '') && !state.stories.some((r) => r.locationId === location.id) ? ' · decision waiting' : ''}{location.services.length ? ' · station services' : ''}
                   {state.research.completed.includes('spectrometry') && location.discovery ? ` · ${DISCOVERY_NAMES[location.discovery]}` : ''}</span></span>
               <span className={`exp-threat threat-${location.threat}`}>{hasTech(state, 'threat-analysis') ? `${recoveryDamage(state, location)} HULL RISK` : ['LOW', 'GUARDED', 'HAZARDOUS', 'EXTREME'][location.threat]}</span>
             </button>)}
@@ -163,6 +180,12 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'lab' && <ExplorationResearch state={state} dispatch={dispatch} onShowSystem={(id) => { setSelectedSystem(id); setTab('galaxy') }} />}
         {tab === 'archive' && <>
           <div className="exp-section-heading"><div><span className="exp-eyebrow">SCIENCE ARCHIVE</span><h2>What we brought back</h2></div><span>{state.findings.length} distinct sources</span></div>
+          <LettersObjective state={state} />
+          {state.stories.length > 0 && <section className="exp-captains-record"><h3>Captain’s record</h3>{state.stories.map((record) => {
+            const place = state.world.locations.find((s) => s.id === record.locationId)!
+            const story = storyAt(state.seed, place)!, choice = story.choices.find((c) => c.id === record.choiceId)!
+            return <article className="exp-finding" key={record.locationId}><span className="exp-eyebrow">DAY {record.day} / {place.name}</span><h3>{story.title}</h3><strong>{choice.label}</strong><p>{choice.outcome}</p><button className="exp-button" onClick={() => { setSelectedSystem(place.systemId); setTab('galaxy') }}>Locate encounter on chart</button></article>
+          })}</section>}
           <p>Each source is kept separately. Multiple observations of the same phenomenon can support later research.</p>
           {state.findings.length === 0 && <div className="exp-empty">No discoveries recovered yet. Start with the Silent Courier in your arrival system.</div>}
           {state.findings.map((finding) => {
@@ -183,6 +206,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'system' && (site ? <>
           <span className="exp-eyebrow">{LABELS[site.kind]} / {state.exploration.statuses[site.id]}</span>
           <h2>{site.name}</h2>
+          {storyAt(state.seed, site) && state.exploration.statuses[site.id] !== 'detected' && <button className="exp-button exp-read-story" onClick={() => { sceneRef.current?.scrollIntoView({ block: 'start' }); sceneRef.current?.querySelector<HTMLButtonElement>('button:not(:disabled)')?.focus({ preventScroll: true }) }}>{state.stories.some((r) => r.locationId === site.id) ? 'Read captain’s record' : 'Read encounter · decision waiting'}</button>}
           <div className="exp-officer"><img src="/assets/portraits/26_helen_morozova.png" alt="Helen Morozova" /><span>Helen Morozova<small>Science officer</small></span></div>
           <p>{state.exploration.statuses[site.id] === 'detected' ? 'We have a fix on the location. Investigate it to establish contact, assess the conditions and identify what can be recovered.' : site.name === 'The Silent Courier' ? 'Its crew shut down everything except the power cell. That cell has kept a tiny navigation beacon alive for decades. If we map its emissions, we can calibrate our sensors to recognise similar technology.' : SCENES[site.kind]}</p>
           {state.exploration.statuses[site.id] === 'detected' ? command({ type: 'investigate', locationId: site.id }, site.kind === 'station' ? 'Establish contact · 1 day' : 'Investigate · 1 day', true) : <>
@@ -192,6 +216,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
               {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
+              {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <div className="exp-relay"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</div>}
               <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />
               <small>Services remain available after you leave. Contracts provide renewable supplies.</small>
               {hasTech(state, 'contextual-translation') && <><h3>Scientific records</h3><small>A station supplies one independent spatial source. Seek a second station or an expedition for another.</small>
