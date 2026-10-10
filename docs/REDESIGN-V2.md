@@ -159,3 +159,43 @@ Implementation in playable increments:
 Do not build colonies, fleets, diplomacy grand strategy, detailed economies or procedural dialogue that merely changes names. Focus on meaningful, persistent discoveries and a small number of replayable but genuinely different encounters. A playable vertical slice is the standard for each milestone.
 
 **Important:** this specification describes the target v2, not a claim that the currently deployed game already implements it.
+
+## 14. Playable exploration increment (October 2026)
+
+The title screen now offers **Start exploration preview**, with its own resume control.
+The original campaign still runs through **Take command** and retains its existing save.
+The preview reuses the 90-system galaxy generator and lane fuel costs, with a separate
+pure `exploration/campaign.ts` reducer and an accepted-action journal.
+
+Implemented:
+- Galaxy navigation, passive arrival scans, one-day surveys and gated deep scans.
+- Persistent selectable contacts, investigation, explicit one-time recovery, return visits.
+- A guaranteed survey-accessible Silent Courier with an exotic-energy discovery at the start.
+- Named discovery sources (two spatial observations remain two distinct findings).
+- Two sensor projects: Planetary Spectrometry (4 days) and Deep Survey Array (8 days).
+  Spectrometry identifies scientific signatures before investigation. Deep Survey requires
+  completed spectrometry and one recovered discovery, then a 20-material/65-credit refit.
+  Research advances during actions; switching preserves progress. No queue in this increment.
+- Remote investigation (2 days, no damage) or rapid recovery (1 day, 4 hull damage per
+  threat tier); both recover the same resources. This is narrative exploration, not tactical combat.
+- Persistent station refuelling (+20 fuel/10 credits), repairs (+20 hull/5 materials/10 credits),
+  and alloy sales (4 materials/12 credits), each taking one day. Tanks and hull are capped.
+- Three-day emergency hydrogen collection, available only when no neighbouring jump is
+  affordable, restores enough fuel for a jump even with empty stores.
+- Discovery archive, voyage log, responsive controls, visible research locks and autosave status.
+
+Preview saves use `starship-explorer-exploration-v2`, envelope version 1, seed plus accepted
+actions. Loading replays the journal rather than trusting stored balances. Invalid and future
+versions remain untouched; replacing an existing preview requires an explicit new-voyage
+confirmation. Changes to generation or action semantics require a save-version change and
+an intentional migration/archive policy. Legacy save keys are never read by this loader.
+
+Still pending: the full research tree, research queue, Return Drive victory, faction consequence
+arcs, operative missions, tactical combat and ship-combat integration. The preview does not
+claim a complete or balanced campaign. Random location generation still needs encounter variety
+and tuning; this increment uses the existing large galaxy instead of a bespoke 12-system slice.
+
+Verification: campaign tests cover the complete sensor loop, invalid actions, persistent
+services, source provenance, emergency recovery, immutable state, replay saves and malformed
+saves. A 40-seed sweep checks opening science and geographically distributed essential sources.
+Browser tests cover exploration/save/revisit on desktop, narrow layout and the legacy smoke flow.

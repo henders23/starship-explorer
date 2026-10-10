@@ -14,6 +14,10 @@ import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StartScreen } from './StartScreen.js'
 import { useGame, useNavPlot } from './store.js'
+import { createCampaign } from '../engine/exploration/campaign.js'
+import type { Campaign } from '../engine/exploration/campaign.js'
+import { ExplorationDeck } from './ExplorationDeck.js'
+import { loadExploration } from './exploration-save.js'
 
 export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
 
@@ -28,12 +32,17 @@ const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
  * Title → comic → briefing → the game. The comic is how the ship got here;
  * the briefing is the crew handing over context once it has.
  */
-type Phase = 'title' | 'comic' | 'briefing' | 'game'
+type Phase = 'title' | 'comic' | 'briefing' | 'game' | 'exploration'
 
 export function App() {
   const outcome = useGame((s) => s.state.outcome)
   const [screen, setScreen] = useState<Screen>('ship')
   const [phase, setPhase] = useState<Phase>('title')
+  const [exploration, setExploration] = useState<Campaign | null>(null)
+  const [explorationSave, setExplorationSave] = useState(() => {
+    try { return loadExploration(window.localStorage) }
+    catch { return { campaign: null, error: 'Exploration autosave is unavailable in this browser.' } }
+  })
   const ambientRef = useRef<HTMLAudioElement | null>(null)
   const themeRef = useRef<HTMLAudioElement | null>(null)
 
@@ -135,10 +144,24 @@ export function App() {
     else ambient.pause()
   }, [phase, screen])
 
+  if (phase === 'exploration' && exploration) {
+    return <ExplorationDeck initial={exploration} onExit={() => {
+      try { setExplorationSave(loadExploration(window.localStorage)) } catch { /* storage unavailable */ }
+      setPhase('title')
+    }} />
+  }
+
   if (phase === 'title') {
     return (
       <div className="crt app-shell h-full">
-        <StartScreen onBegin={begin} onResume={resume} />
+        <StartScreen onBegin={begin} onResume={resume}
+          explorationSaved={!!explorationSave.campaign} explorationError={explorationSave.error}
+          onExplore={(seed, resumeSaved) => {
+            const campaign = resumeSaved ? explorationSave.campaign : createCampaign((seed || `explore-${Date.now().toString(36)}`).slice(0, 200))
+            if (!campaign) return
+            setExploration(campaign)
+            setPhase('exploration')
+          }} />
       </div>
     )
   }

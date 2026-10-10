@@ -114,7 +114,7 @@ export function generateExplorationWorld(seed: string, galaxy: Galaxy): Explorat
   // reserved for another prerequisite.
   const sources: DiscoveryKind[] = ['exotic-energy', 'spatial-observation', 'alien-propulsion']
   const allocated = new Set<string>()
-  for (const [categoryIndex, kind] of sources.entries()) {
+  for (const kind of sources) {
     const candidates = createRng(`${seed}:discoveries:${kind}`).shuffle(
       locations.filter((loc) => loc.kind !== 'station' && !allocated.has(loc.id)),
     )
@@ -140,7 +140,6 @@ export function generateExplorationWorld(seed: string, galaxy: Galaxy): Explorat
       location.discovery = kind
       allocated.add(location.id)
     }
-    void categoryIndex
   }
 
   // Explicit accessible starting services/resources and early scientific opportunity.
@@ -153,6 +152,14 @@ export function generateExplorationWorld(seed: string, galaxy: Galaxy): Explorat
     const system = galaxy.systems.find((s) => s.id === start)!
     locations.push(makeLocation(system, locationsAt({ seed, locations }, start).length, 'resource-field', 'survey'))
   }
+  // A survey-accessible first discovery prevents sensor research from depending
+  // on a deep-scan-only sample. Keep it separate from random prerequisite sites.
+  const starter = galaxy.systems.find((system) => system.id === start)!
+  const introduction = makeLocation(starter, locationsAt({ seed, locations }, start).length,
+    'derelict', 'survey', 'exotic-energy')
+  introduction.name = 'The Silent Courier'
+  introduction.threat = 0
+  locations.push(introduction)
   return { seed, locations }
 }
 

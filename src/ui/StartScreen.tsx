@@ -4,9 +4,15 @@ import { hasSave, useGame } from './store.js'
 export function StartScreen({
   onBegin,
   onResume,
+  onExplore,
+  explorationSaved,
+  explorationError,
 }: {
   onBegin: (seed?: string) => void
   onResume: () => void
+  onExplore: (seed?: string, resumeSaved?: boolean) => void
+  explorationSaved: boolean
+  explorationError: string | null
 }) {
   const day = useGame((s) => s.state.day)
   const seed = useGame((s) => s.state.seed)
@@ -42,6 +48,16 @@ export function StartScreen({
             spellCheck={false}
           />
         </label>
+        <div className="start-exploration">
+          <span className="exp-eyebrow">NEW / EXPLORATION PREVIEW</span>
+          <p>Discover persistent locations, recover alien science and develop your sensors. A separate voyage and save.</p>
+          {explorationSaved && <button className="exp-button primary" onClick={() => onExplore(undefined, true)}>Resume exploration</button>}
+          <button className="exp-button" onClick={() => {
+            if ((explorationSaved || explorationError) && !window.confirm('Replace the exploration preview save with a new voyage? Your original campaign is unaffected.')) return
+            onExplore(customSeed.trim() || undefined)
+          }}>Start exploration preview</button>
+          {explorationError && <p role="alert">{explorationError}</p>}
+        </div>
       </div>
     </div>
   )

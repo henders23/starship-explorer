@@ -11,6 +11,20 @@ stars hides the way back. Some of those fragments are lies.
 
 When you think you know where home is, you commit everything to one jump.
 
+## Exploration redesign preview
+
+Choose **Start exploration preview** on the title screen for the new direction:
+persistent system locations, surveys, scientific discoveries, station services and
+two sensor research projects. **Resume exploration** continues its separate autosave.
+Begin by researching Planetary Spectrometry, surveying the arrival system, and
+investigating the Silent Courier. Discoveries and time spent exploring advance the
+sensor loop until a Deep Survey Array can be researched and fitted.
+
+This is a playable development increment. The full technology tree, Return Drive,
+faction stories and XCOM-style ground combat are still to come. The original
+**Take command** campaign described below remains available with its original save.
+See [the V2 specification and implementation status](docs/REDESIGN-V2.md).
+
 ## Status
 
 **Foundation complete, R-series underway** — the deduction is playable and
@@ -31,6 +45,8 @@ npm run dev                                       # play the Nav Plot
 npm run mystery -- --seed voyager --walkthrough   # inspect a generated puzzle
 npm run mystery -- --sweep 300                    # generation statistics
 npm test
+npx playwright install chromium                  # one-time browser setup
+npm run test:e2e                                # original and V2 browser checks
 ```
 
 ## Documentation

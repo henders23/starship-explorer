@@ -1,0 +1,36 @@
+import { createCampaign, reduceCampaign } from '../engine/exploration/campaign.js'
+import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
+import type { StorageLike } from './save.js'
+
+export const EXPLORATION_SAVE_KEY = 'starship-explorer-exploration-v2'
+export type ExplorationSave = { campaign: Campaign | null; error: string | null }
+
+/** Replay only accepted actions against a versioned ruleset; never reinterpret V1. */
+export function loadExploration(storage: StorageLike): ExplorationSave {
+  try {
+    const raw = storage.getItem(EXPLORATION_SAVE_KEY)
+    if (!raw) return { campaign: null, error: null }
+    const envelope = JSON.parse(raw)
+    if (envelope?.version !== 1 || envelope.ruleset !== 'exploration-v2')
+      return { campaign: null, error: 'This exploration save uses another version. It has been kept unchanged.' }
+    if (typeof envelope.seed !== 'string' || !envelope.seed.length || envelope.seed.length > 200 ||
+      !Array.isArray(envelope.actions) || envelope.actions.length > 10000) throw new Error('Invalid save')
+    let campaign = createCampaign(envelope.seed)
+    for (const action of envelope.actions as CampaignAction[]) {
+      const next = reduceCampaign(campaign, action)
+      if (next === campaign) throw new Error('Invalid action journal')
+      campaign = next
+    }
+    return { campaign, error: null }
+  } catch {
+    return { campaign: null, error: 'The exploration save could not be read. It has been kept unchanged.' }
+  }
+}
+
+export function saveExploration(state: Campaign, storage: StorageLike): boolean {
+  try {
+    storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify({ version: 1, ruleset: state.ruleset,
+      seed: state.seed, actions: state.actions }))
+    return true
+  } catch { return false }
+}
