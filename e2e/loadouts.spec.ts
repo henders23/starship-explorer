@@ -18,6 +18,7 @@ for (const mobile of [false, true]) test(`research unlocks equipment that persis
   await page.getByRole('region', { name: 'Field equipment' }).scrollIntoViewIfNeeded()
   await page.screenshot({ path: info.outputPath('field-equipment.png'), fullPage: true })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.getByRole('combobox', { name: 'Mission contract' }).selectOption('core')
   await page.getByRole('button', { name: 'Deploy away team', exact: true }).click()
   await expect(page.locator('.tac-orders')).toContainText('5 damage · PLASMA · 4/4 SHIELD')
   await expect(page.locator('.tac-orders')).toContainText('2/2 ammunition')

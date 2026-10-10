@@ -260,7 +260,7 @@ describe('version-1 preview migration', () => {
     expect(storage.getItem(EXPLORATION_SAVE_KEY)).toBe(raw)
     const continued = apply(migrated, { type: 'research', project: 'drive-diagnostics' })
     saveExploration(continued, storage)
-    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(5)
+    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(6)
     expect(loadExploration(storage).campaign).toEqual(continued)
   })
 })

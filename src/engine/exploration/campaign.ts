@@ -1,8 +1,10 @@
+import { OPERATION_KINDS } from '../tactical/operations.js'
+import type { OperationKind } from '../tactical/operations.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
 import { createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ShipBattle, ShipOrder } from './ship-battle.js'
-import { createMission, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
+import { createMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
 import { createRng } from '../rng/prng.js'
 import { laneCost } from '../travel/travel.js'
@@ -17,6 +19,7 @@ import type { Campaign as LegacyCampaign, CampaignAction as LegacyAction } from 
 
 export interface Finding { locationId: string; kind: DiscoveryKind; day: number; systemId?: string; sourceName?: string }
 export interface Campaign {
+  completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
   ruleset: 'exploration-v2'
@@ -35,6 +38,7 @@ export interface Campaign {
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
+  | { type: 'deploy-operation'; locationId: string; squad: string[]; kind: OperationKind }
   | { type: 'loadout'; operativeId: string; weapon: OperativeLoadout['weapon']; gadget: OperativeLoadout['gadget'] }
   | { type: 'story'; locationId: string; choiceId: string }
   | { type: 'deliver-letters'; locationId: string }
@@ -82,7 +86,7 @@ export function createCampaign(seed: string): Campaign {
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
     shipBattle: null, escortCompleted: [], lastShipBattle: null,
-    loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
+    completedOperations: [], loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
 export function migratePreview(old: LegacyCampaign): Campaign {
@@ -212,7 +216,8 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (action.order?.type === 'pay' && state.exploration.credits < state.shipBattle.toll) return `Requires ${state.shipBattle.toll} credits`
       return shipOrderLock(state.shipBattle, action.order)
     case 'ship-debrief': return state.shipBattle?.phase === 'report' ? null : 'Finish the encounter first'
-    case 'deploy': {
+    case 'deploy': case 'deploy-operation': {
+      if (action.type === 'deploy-operation' && !OPERATION_KINDS.includes(action.kind)) return 'Unknown operation'
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
       if (!site || !['derelict', 'ruins'].includes(site.kind) || state.exploration.statuses[site.id] !== 'investigated') return 'Investigate an unresolved derelict or ruin first'
       if (!Array.isArray(action.squad) || action.squad.length !== 4 || new Set(action.squad).size !== 4) return 'Choose four different operatives'
@@ -385,12 +390,12 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       } else message = battle.result === 'cancelled' ? 'Escort declined. No time or supplies spent.' : 'Escort withdrawn. Hull damage persists; no reward. The station can offer the job again.'
       next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null; break
     }
-    case 'deploy': {
+    case 'deploy': case 'deploy-operation': {
       const site = state.world.locations.find((s) => s.id === action.locationId)!
-      next.mission = createMission(`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name,
-        action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat, state.loadouts)
+      const args = [`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name, action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat, state.loadouts] as const
+      next.mission = action.type === 'deploy-operation' ? createOperation(...args, action.kind) : createMission(...args)
       next.exploration.materials -= boardingLoadoutCost(state, action.squad)
-      next.missionAttempts++; message = `Away team deployed to ${site.name}. Recover the core and extract. One campaign day passes when the team returns.`
+      next.missionAttempts++; message = action.type === 'deploy-operation' ? `${action.kind} operation deployed to ${site.name}. One campaign day passes on debrief.` : `Away team deployed to ${site.name}. Recover the core and extract. One campaign day passes when the team returns.`
       break
     }
     case 'tactical':
@@ -411,8 +416,14 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         next.exploration = reduceExploration(state.exploration, state.world, { type: 'resolve', locationId: site.id }, state.at)
         if (site.discovery) next.findings = [...state.findings, { locationId: site.id, kind: site.discovery, day: state.day + days }]
       }
+      const bonus = operationReward(mission)
+      if (mission.operation && mission.outcome === 'success') {
+        next.exploration = {...next.exploration, materials:next.exploration.materials + bonus.materials, credits:next.exploration.credits + bonus.credits}
+        next.completedOperations = [...state.completedOperations, {locationId:site.id,kind:mission.operation.kind,survivors:mission.operation.survivors.filter((s) => s.evacuated).length,cases:mission.operation.crates.filter((c) => c.collected).length}]
+      }
       const lost = mission.units.filter((u) => u.side === 'crew' && !mission.rescued.includes(u.id)).map((u) => u.name)
       message = `${mission.outcome === 'success' ? `Core recovered: ${site.reward?.materials ?? 0} materials, ${site.reward?.credits ?? 0} credits${site.discovery ? ' and a scientific discovery' : ''}.` : 'No cargo recovered; the site remains available.'} ${lost.length ? `Lost: ${lost.join(', ')}.` : 'All four operatives returned.'} Injured survivors recover aboard ship.`
+      if (mission.operation) message = `${mission.operation.kind} ${mission.outcome}. ${mission.outcome === 'success' ? `Normal site cargo and science recovered. Operation bonus: ${bonus.materials} materials + ${bonus.credits} credits.` : 'No cargo or bonus; the site remains available.'} ${mission.operation.kind === 'rescue' ? `${mission.operation.survivors.filter((s) => s.evacuated).length}/2 civilians evacuated.` : ''} ${lost.length ? `Lost: ${lost.join(', ')}.` : 'All four operatives returned.'}`
       next.lastMission = mission; next.mission = null; break
     }
     case 'rest-team': days = 1; message = 'One day of medical care aboard the Ithaca. The laboratory continues its work.'; break

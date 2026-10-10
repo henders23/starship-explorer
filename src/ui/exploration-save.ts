@@ -5,7 +5,7 @@ import type { CampaignAction as PreviewAction } from '../engine/exploration/lega
 import type { StorageLike } from './save.js'
 
 export const EXPLORATION_SAVE_KEY = 'starship-explorer-exploration-v2'
-export const EXPLORATION_SAVE_VERSION = 5
+export const EXPLORATION_SAVE_VERSION = 6
 export type ExplorationSave = { campaign: Campaign | null; error: string | null }
 function replayPreview(seed: string, actions: PreviewAction[]): Campaign {
   let old = createPreview(seed)
@@ -22,7 +22,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
     const raw = storage.getItem(EXPLORATION_SAVE_KEY)
     if (!raw) return { campaign: null, error: null }
     const envelope = JSON.parse(raw)
-    if (![1, 2, 3, 4, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
+    if (![1, 2, 3, 4, 5, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
       return { campaign: null, error: 'This exploration save uses another version. It has been kept unchanged.' }
     if (typeof envelope.seed !== 'string' || !envelope.seed.length || envelope.seed.length > 200 ||
       !Array.isArray(envelope.actions) || envelope.actions.length > 10000) throw new Error('Invalid save')
@@ -38,6 +38,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
       if (envelope.version < 4 && (['escort', 'ship-order', 'ship-debrief'].includes(action?.type) ||
         ('project' in (action ?? {}) && ['fire-control', 'ion-projector', 'focus-beam', 'layered-shields', 'adaptive-shields'].includes((action as { project: string }).project)))) throw new Error('Invalid pre-combat action')
       if (envelope.version < 5 && (['story', 'deliver-letters', 'loadout'].includes(action?.type) || ('project' in (action ?? {}) && ['plasma-ballistics', 'personal-shields'].includes((action as { project: string }).project)))) throw new Error('Invalid pre-stories action')
+      if (envelope.version < 6 && action?.type === 'deploy-operation') throw new Error('Invalid pre-operations action')
       const next = reduceCampaign(campaign, action)
       if (next === campaign) throw new Error('Invalid action journal')
       campaign = next

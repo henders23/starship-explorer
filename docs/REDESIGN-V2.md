@@ -452,3 +452,11 @@ See [EXPEDITION-POLISH.md](EXPEDITION-POLISH.md) for the current increment:
 10 authored encounters, the Courier delivery side voyage, three cinematic environment
 assets, operative plasma/shield loadouts, all 29 research projects usable, and save
 envelope version 5. This supersedes the earlier notes about two locked tactical nodes.
+
+## Boarding operations — 10 October 2026
+
+See [BOARDING-OPERATIONS.md](BOARDING-OPERATIONS.md): rescue with physical civilian
+escorts, sabotage with pursuing reserves, and salvage with partial extraction and
+turn-based heat. Three new layouts, cinematic briefing images, bonus rewards and
+save envelope version 6 supersede the earlier one-objective boarding limitation.
+The original core mission and older save journals retain their rules.

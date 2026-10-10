@@ -1,3 +1,5 @@
+import type { Operation, OperationKind } from './operations.js'
+import { OPERATION_BRIEFINGS } from './operations.js'
 import { createRng } from '../rng/prng.js'
 
 export type Role = 'assault' | 'recon' | 'engineer' | 'medic' | 'heavy'
@@ -26,6 +28,7 @@ export interface TacticalUnit extends Point {
   ap: number; ammo: number; magazine: number; damage: number; move: number; aimed: boolean; fired: boolean; overwatch: boolean; medkit: boolean
 }
 export interface Mission {
+  operation?: Operation
   seed: string; locationId: string; name: string; width: number; height: number; tiles: Tile[]
   objective: Point; recovered: boolean; units: TacticalUnit[]; seen: number[]; turn: number; rolls: number
   lastShot: { from: Point; to: Point; hit: boolean; damage: number } | null
@@ -114,6 +117,67 @@ export function createMission(seed: string, locationId: string, name: string, sq
     units, seen: [], turn: 1, rolls: 0, lastShot: null, outcome: 'active', rescued: [],
     log: [`${squad[0]!.name}: “The custodians are still running. Take the core, then back to the shuttle. We don’t need to clear the whole ship.”`] })
 }
+/** New operations are opt-in through a separate campaign action; legacy missions stay exact. */
+export function createOperation(seed: string, locationId: string, name: string, squad: Operative[], threat: number, loadouts: Record<string, OperativeLoadout>, kind: OperationKind): Mission {
+  const base = createMission(seed, locationId, name, squad, threat, loadouts)
+  const layouts: Record<OperationKind, { walls: number[][]; cover: number[][]; objective: Point }> = {
+    rescue: { walls: [[6,2],[7,2],[8,2],[6,7],[7,7],[8,7],[4,0],[4,1],[4,8],[4,9]], cover: [[4,3],[4,6],[8,5]], objective: {x:8,y:3} },
+    sabotage: { walls: [[5,0],[5,1],[5,2],[5,7],[5,8],[5,9],[9,2],[10,2],[9,7],[10,7]], cover: [[4,4],[7,3],[7,6]], objective: {x:10,y:5} },
+    salvage: { walls: [[5,1],[6,1],[7,1],[6,6],[7,6],[8,6],[3,8],[4,8]], cover: [[4,5],[7,3],[9,4]], objective: {x:5,y:3} },
+  }
+  const layout = layouts[kind], tiles: Tile[] = Array.from({length:base.width * base.height}, () => 'floor')
+  for (const [x,y] of layout.walls) tiles[y! * base.width + x!] = 'wall'
+  for (const [x,y] of layout.cover) tiles[y! * base.width + x!] = 'half'
+  const units = base.units.map((u) => u.side === 'hostile' ? {...u, x: u.id === 'sentry-0' ? 6 : 10, y: [4,6,3,8][Number(u.id.at(-1))]!} : u)
+  return reveal({...base, tiles, units, seen: [], objective: layout.objective,
+    operation: {kind, alarm:false, reinforcement:false,
+      survivors: kind === 'rescue' ? [{id:'survivor-0',name:'Dr Imani Hale',x:8,y:3,leader:null,evacuated:false},{id:'survivor-1',name:'Tarin Voss',x:9,y:6,leader:null,evacuated:false}] : [],
+      crates: kind === 'salvage' ? [{x:5,y:3,collected:false},{x:8,y:5,collected:false},{x:10,y:7,collected:false}] : []},
+    log:[OPERATION_BRIEFINGS[kind].voice]})
+}
+export function operationReward(m: Mission): { materials: number; credits: number } {
+  if (!m.operation || m.outcome !== 'success') return {materials:0,credits:0}
+  const count = m.operation.kind === 'rescue' ? m.operation.survivors.filter((s) => s.evacuated).length : m.operation.crates.filter((c) => c.collected).length
+  return m.operation.kind === 'sabotage' ? {materials:8,credits:20} : {materials:count * (m.operation.kind === 'rescue' ? 3 : 5), credits:count * (m.operation.kind === 'rescue' ? 15 : 8)}
+}
+export function operationStatus(m: Mission): string {
+  const op = m.operation
+  if (!op) return m.recovered ? 'Core secured. Bring the team to the teal shuttle zone.' : 'Reach the amber core and recover it. Killing every custodian is optional.'
+  if (m.outcome !== 'active') {
+    if (op.kind === 'rescue') return `${op.survivors.filter((s) => s.evacuated).length}/2 civilians reached the shuttle. ${op.survivors.filter((s) => !s.evacuated).map((s) => s.name).join(' and ')}${op.survivors.some((s) => !s.evacuated) ? ' remained outside.' : 'Both surveyors are safely aboard.'}`
+    if (op.kind === 'sabotage') return op.alarm ? 'The security uplink is disabled. The operation has ended.' : 'The team withdrew with the uplink still active.'
+    return `${op.crates.filter((c) => c.collected).length}/3 cases secured during the operation. ${m.outcome === 'success' ? 'The shuttle is clear of the thermal surge.' : 'No cargo reward was recovered.'}`
+  }
+  if (op.kind === 'rescue') return `${op.survivors.filter((s) => s.evacuated).length}/2 survivors aboard. Guide each survivor, then lead them into the shuttle zone.`
+  if (op.kind === 'sabotage') return op.alarm ? `Uplink disabled. Guards are pursuing. ${op.reinforcement ? 'Reserve custodian deployed.' : 'One reserve arrives next enemy turn.'} Extract the team.` : 'Disable the amber security uplink. Guards hold position until sabotage.'
+  return `${op.crates.filter((c) => c.collected).length}/3 cases recovered. ${m.turn < 4 ? `Heat starts after ${4 - m.turn + 1} enemy turns.` : `End-turn heat: ${m.turn < 7 ? 1 : 2} health beyond column 4.`} Extract with any cargo; columns 1–4 are safe.`
+}
+function rescueTarget(m: Mission, u: TacticalUnit) {
+  return m.operation?.survivors.find((s) => !s.evacuated && s.leader !== u.id && distance(u,s) <= 1 && lineOfSight(m,u,s) &&
+    !m.operation!.survivors.some((other) => !other.evacuated && other.leader === u.id) &&
+    (!s.leader || !m.units.some((leader) => leader.id === s.leader && leader.hp > 0)))
+}
+function salvageTarget(m: Mission, u: TacticalUnit) {
+  return m.operation?.crates.find((c) => !c.collected && distance(u,c) <= (u.role === 'engineer' ? 2 : 1) && lineOfSight(m,u,c))
+}
+export function interactionLabel(m: Mission): string {
+  return m.operation?.kind === 'rescue' ? 'Guide survivor' : m.operation?.kind === 'sabotage' ? 'Disable uplink' : m.operation?.kind === 'salvage' ? 'Collect cargo case' : 'Recover core'
+}
+function updateOperation(m: Mission) {
+  const op = m.operation
+  if (!op) return
+  if (op.kind === 'rescue') {
+    for (const s of op.survivors) if (!s.evacuated && s.leader && (inExtraction(s) || m.units.some((u) => u.id === s.leader && u.hp > 0 && inExtraction(u) && distance(u,s) <= 1 && lineOfSight(m,u,s)))) { s.evacuated = true; m.log.push(`${s.name}: “I can see the shuttle. Thank you.” Survivor evacuated.`) }
+    m.recovered = op.survivors.some((s) => s.evacuated)
+    const waiting = op.survivors.find((s) => !s.evacuated && !s.leader) ?? op.survivors.find((s) => !s.evacuated)
+    if (waiting) m.objective = {x:waiting.x,y:waiting.y}
+  }
+  if (op.kind === 'salvage') {
+    m.recovered = op.crates.some((c) => c.collected)
+    const next = op.crates.find((c) => !c.collected)
+    if (next) m.objective = {x:next.x,y:next.y}
+  }
+}
 export function extractionLosses(m: Mission): TacticalUnit[] {
   return m.units.filter((u) => u.side === 'crew' && !inExtraction(u))
 }
@@ -124,6 +188,7 @@ export function tacticalLock(m: Mission, action: TacticalAction): string | null 
   if (action.type === 'extract') {
     if (!livingCrew(m).some(inExtraction)) return 'A conscious operative must reach the shuttle zone'
     if (typeof action.abandon !== 'boolean') return 'Confirm extraction order'
+    if (m.operation?.kind === 'rescue' && m.operation.survivors.some((s) => !s.evacuated) && !action.abandon) return 'Confirm departure with civilians still outside'
     return extractionLosses(m).length && !action.abandon ? 'Some operatives are outside the shuttle zone' : null
   }
   if (!('unitId' in action)) return 'Unknown order'
@@ -146,7 +211,10 @@ export function tacticalLock(m: Mission, action: TacticalAction): string | null 
     case 'aim': return u.aimed || u.fired ? 'Aim before firing; aim does not stack' : null
     case 'reload': return u.ammo === u.magazine ? 'Magazine full' : null
     case 'overwatch': return u.fired || u.overwatch || !u.ammo ? 'Requires ammunition and an unused shot' : null
-    case 'interact': return m.recovered ? 'Core already secured' : distance(u, m.objective) > (u.role === 'engineer' ? 2 : 1) || !lineOfSight(m, u, m.objective) ? 'Move next to the core (engineer: within two tiles)' : null
+    case 'interact':
+      if (m.operation?.kind === 'rescue') return rescueTarget(m,u) ? null : 'Reach an unescorted survivor with an operative who is not already escorting'
+      if (m.operation?.kind === 'salvage') return salvageTarget(m,u) ? null : 'Reach an uncollected case (engineer: within two tiles)'
+      return m.recovered ? 'Core already secured' : distance(u, m.objective) > (u.role === 'engineer' ? 2 : 1) || !lineOfSight(m, u, m.objective) ? 'Move next to the core (engineer: within two tiles)' : null
     case 'heal': {
       const t = m.units.find((unit) => unit.id === action.targetId && unit.side === 'crew')
       return !u.medkit ? u.shield !== undefined ? 'No medkit equipped' : 'Medkit spent' : !t || t.hp >= t.maxHp || distance(u, t) > 1 ? 'Choose an injured adjacent operative or yourself' : null
@@ -172,13 +240,20 @@ function fire(m: Mission, shooter: TacticalUnit, target: TacticalUnit) {
   m.log.push(`${shooter.name} → ${target.name}: ${hit ? `${shooter.damage - absorbed} damage${absorbed ? ` + ${absorbed} absorbed` : ''}${target.hp === 0 ? target.side === 'crew' ? ' · DOWNED' : ' · disabled' : ''}` : 'miss'} (${info.chance}%).`)
 }
 function enemyTurn(m: Mission) {
+  if (m.operation?.kind === 'sabotage' && m.operation.alarm && !m.operation.reinforcement) {
+    const spawn = [{x:11,y:0},{x:11,y:9},{x:10,y:0}].find((p) => !m.units.some((u) => u.hp > 0 && u.x === p.x && u.y === p.y))
+    if (spawn) {
+      m.units.push({id:'reserve',name:'Reserve custodian',role:'assault',side:'hostile',...spawn,hp:5,maxHp:5,ap:2,ammo:4,magazine:4,damage:2,move:4,aimed:false,fired:false,overwatch:false,medkit:false})
+      m.operation.reinforcement = true; m.log.push('Sofia: “Reserve unit on the deck. Do not stop to fight it unless we have to.”')
+    }
+  }
   for (const enemy of m.units.filter((u) => u.side === 'hostile' && u.hp > 0)) {
     const targets = livingCrew(m).sort((a, b) => distance(enemy, a) - distance(enemy, b))
     if (!targets.length) break
     enemy.fired = false
     if (!enemy.ammo) { enemy.ammo = enemy.magazine; m.log.push(`${enemy.name} reloads.`); continue }
     let target = targets.find((u) => shotInfo(m, enemy, u).possible)
-    if (!target) {
+    if (!target && !(m.operation?.kind === 'sabotage' && !m.operation.alarm)) {
       const nearest = targets[0]!
       const approaches = neighbours(nearest).map((p) => pathTo(m, enemy, p, false)).filter((p): p is Point[] => !!p?.length).sort((a, b) => a.length - b.length)
       for (const p of (approaches[0] ?? []).slice(0, enemy.move)) {
@@ -192,6 +267,11 @@ function enemyTurn(m: Mission) {
     }
     if (enemy.hp > 0 && target) fire(m, enemy, target)
   }
+  if (m.operation?.kind === 'salvage' && m.turn >= 4) {
+    const damage = m.turn >= 7 ? 2 : 1
+    for (const u of livingCrew(m).filter((u) => u.x >= 4)) u.hp = Math.max(0,u.hp - damage)
+    m.log.push(`Thermal surge: exposed operatives beyond column 4 take ${damage} health damage. The exit corridor stays safe.`)
+  }
   if (!livingCrew(m).length) { m.outcome = 'defeat'; m.log.push('No operative can reach the shuttle. The boarding team is lost. Remote recovery remains possible.'); return }
   m.turn++
   for (const u of livingCrew(m)) { u.ap = 2; u.fired = false; u.aimed = false; u.overwatch = false }
@@ -199,21 +279,33 @@ function enemyTurn(m: Mission) {
 }
 export function reduceMission(state: Mission, action: TacticalAction): Mission {
   if (tacticalLock(state, action)) return state
-  let m: Mission = { ...state, units: state.units.map((u) => ({ ...u })), log: [...state.log] }
+  let m: Mission = { ...state, units: state.units.map((u) => ({ ...u })), log: [...state.log], ...(state.operation ? {operation: {...state.operation, survivors:state.operation.survivors.map((s) => ({...s})), crates:state.operation.crates.map((c) => ({...c}))}} : {}) }
   if (action.type === 'end-turn') enemyTurn(m)
   else if (action.type === 'extract') {
     m.rescued = m.units.filter((u) => u.side === 'crew' && inExtraction(u)).map((u) => u.id)
     m.outcome = m.recovered ? 'success' : 'retreat'
-    m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Ithaca.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
+    if (m.operation) m.log.push(`${operationStatus(m)} ${m.recovered ? 'Operation complete.' : 'Withdrawal without a reward.'}`)
+    else m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Ithaca.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
   } else {
     const u = m.units.find((unit) => unit.id === action.unitId)!
     u.ap -= action.type === 'move' && action.sprint ? 2 : 1
-    if (action.type === 'move') { u.x = action.x; u.y = action.y; u.aimed = false; u.overwatch = false }
+    if (action.type === 'move') {
+      if (m.operation?.kind === 'rescue') for (const step of pathTo(m,u,action)!) {
+        for (const s of m.operation.survivors.filter((s) => !s.evacuated && s.leader === u.id)) { s.x = u.x; s.y = u.y }
+        u.x = step.x; u.y = step.y; updateOperation(m)
+      }
+      u.x = action.x; u.y = action.y; u.aimed = false; u.overwatch = false
+    }
     if (action.type === 'shoot') fire(m, u, m.units.find((unit) => unit.id === action.targetId)!)
     if (action.type === 'aim') u.aimed = true
     if (action.type === 'overwatch') u.overwatch = true
     if (action.type === 'reload') u.ammo = u.magazine
-    if (action.type === 'interact') { m.recovered = true; m.log.push(`${u.name}: “Core is secure. Let’s get everyone out.”`) }
+    if (action.type === 'interact') {
+      if (m.operation?.kind === 'rescue') { const s = rescueTarget(m,u)!; s.leader = u.id; m.log.push(`${u.name}: “${s.name}, stay behind me. We are taking you home.”`) }
+      else if (m.operation?.kind === 'salvage') { salvageTarget(m,u)!.collected = true; m.log.push(`${u.name}: “Case secured. We can leave now, or push for the next one.”`) }
+      else if (m.operation?.kind === 'sabotage') { m.recovered = true; m.operation.alarm = true; for (const e of m.units.filter((u) => u.side === 'hostile')) e.move = 4; m.log.push('Sofia: “Uplink down. They are coming. Back to the shuttle!”') }
+      else { m.recovered = true; m.log.push(`${u.name}: “Core is secure. Let’s get everyone out.”`) }
+    }
     if (action.type === 'heal') {
       const t = m.units.find((unit) => unit.id === action.targetId)!
       const wasDown = t.hp === 0
@@ -226,6 +318,6 @@ export function reduceMission(state: Mission, action: TacticalAction): Mission {
       t.x = u.x; t.y = u.y; m.log.push(`${u.name} pulls ${t.name} into the shuttle zone.`)
     }
   }
-  m = reveal(m); m.log = m.log.slice(-60)
+  updateOperation(m); m = reveal(m); m.log = m.log.slice(-60)
   return m
 }

@@ -16,6 +16,7 @@ test('boards from a location, issues orders, resumes combat and safely retreats'
   await page.getByTestId('location-derelict').filter({ hasText: 'Silent Courier' }).click()
   await page.getByRole('button', { name: 'Board with away team · tactical mission' }).click()
   await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toContainText('4/4 selected')
+  await page.getByRole('combobox', { name: 'Mission contract' }).selectOption('core')
   await page.getByRole('button', { name: 'Deploy away team', exact: true }).click()
   await expect(page.getByRole('heading', { name: 'Boarding operation' })).toBeVisible()
   await page.getByRole('button', { name: 'Tile 3,4', exact: true }).click()

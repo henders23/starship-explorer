@@ -226,7 +226,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               <div className="exp-reward"><span className="exp-eyebrow">EXPECTED RECOVERY</span><p>{site.reward ? `${site.reward.materials} materials · ${site.reward.credits} credits` : 'A completed survey'}{site.discovery ? ` · ${DISCOVERY_NAMES[site.discovery]}` : ''}</p></div>
               {command({ type: 'recover', locationId: site.id, approach: 'careful' }, `Remote investigation · ${carefulDays(state)} ${carefulDays(state) === 1 ? 'day' : 'days'} · no damage`, true)}
               {command({ type: 'recover', locationId: site.id, approach: 'rapid' }, `Rapid expedition · 1 day · ${recoveryDamage(state, site)} hull damage`)}
-              {['derelict', 'ruins'].includes(site.kind) && <><button className="exp-button" onClick={() => { setDeploySite(site.id); setTeamOpen(true) }}>Board with away team · tactical mission</button><small>Optional: recover the same cargo on foot. Two AP per operative; injuries and casualties persist. Remote investigation remains safe.</small></>}
+              {['derelict', 'ruins'].includes(site.kind) && <><button className="exp-button" onClick={() => { setDeploySite(site.id); setTeamOpen(true) }}>Board with away team · tactical mission</button><small>Choose rescue, sabotage or salvage for extra rewards. Two AP per operative; injuries and casualties persist. Remote investigation remains safe.</small></>}
               <p className="exp-prerequisite">Both approaches recover the same science. Remote instruments avoid damage; rapid retrieval uses any fitted engineering tools to recover additional materials from ruins and derelicts.</p>
             </>}
           </>}

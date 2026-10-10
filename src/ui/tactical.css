@@ -104,3 +104,14 @@
 .tac-squad progress::-webkit-progress-bar { background:#233c45; }
 .tac-squad progress::-webkit-progress-value { background:#8addbd; }
 .tac-squad progress::-moz-progress-bar { background:#8addbd; }
+.operation-briefing { border:1px solid #587780; background:#0c202a; padding:20px; margin:20px 0; }
+.operation-briefing label { display:block; font-size:11px; color:#9ebbc5; }
+.operation-briefing select { display:block; width:100%; background:#102e39; border:1px solid #658b91; color:#e6eddf; padding:12px; margin:8px 0 20px; font-size:13px; }
+.operation-briefing h3 { color:#f0d5a6; font-size:25px; }
+.operation-briefing strong { display:block; color:#a8dfd3; font-size:12px; line-height:1.8; margin:15px 0; }
+.operation-briefing .operation-voice { border-left:2px solid #c9a871; padding-left:14px; color:#e0d0b6; }
+.operation-report-art { display:block; width:100%; aspect-ratio:2.5; object-fit:cover; margin:20px 0; }
+.operation-tracker { border:1px solid #766a57; background:#142832; padding:14px; margin:20px 0; }
+.operation-tracker p { color:#e5d5bb; }
+.operation-loss { color:#ffc38a!important; border:1px solid #8f6448; padding:12px; }
+@media(max-width:640px) { .operation-briefing { padding:14px; } .operation-briefing select { font-size:12px; padding:10px 6px; } .operation-briefing h3 { font-size:23px; } .away-team .away-briefing-art { aspect-ratio:1.8; } }

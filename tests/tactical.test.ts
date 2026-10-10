@@ -156,6 +156,6 @@ describe('boarding campaign integration and migration', () => {
     mem.setItem(EXPLORATION_SAVE_KEY, raw)
     expect(loadExploration(mem)).toEqual({ campaign: old, error: null }); expect(mem.getItem()).toBe(raw)
     expect(old.roster).toEqual(initialRoster())
-    saveExploration(old, mem); expect(JSON.parse(mem.getItem()!).version).toBe(5)
+    saveExploration(old, mem); expect(JSON.parse(mem.getItem()!).version).toBe(6)
   })
 })
