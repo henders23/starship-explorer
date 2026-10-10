@@ -299,13 +299,25 @@ describe('away missions', () => {
 })
 
 describe('decoding', () => {
-  const SEED = 'decode-tests'
+  /**
+   * These tests need a galaxy that actually plants decode-required evidence at
+   * a site an away team can reach, and which seed does that moves whenever
+   * worldgen or mystery generation changes. So the seed is found rather than
+   * fixed: the suite is about the science chair, not about any one sky.
+   */
+  const SEEDS = Array.from({ length: 24 }, (_, i) => `decode-tests-${i}`)
 
   /** Full translation matrix: these tests are about the science chair, not comms. */
-  const freshDecodeState = (): GameState => ({
-    ...newGame(SEED),
-    tech: { researched: ['comms-1', 'comms-2'], active: null },
-  })
+  const freshDecodeState = (): GameState => {
+    for (const seed of SEEDS) {
+      const state: GameState = {
+        ...newGame(seed),
+        tech: { researched: ['comms-1', 'comms-2'], active: null },
+      }
+      if (artefactSystem(state) !== null) return state
+    }
+    throw new Error('no seed in the sample plants an artefact at a searchable site')
+  }
 
   /** A hazardous site holding decode-required evidence. */
   function artefactSystem(state: GameState): string | null {

@@ -1,0 +1,142 @@
+.escort-offer { padding:18px 0; margin:16px 0; border-block:1px solid #46616c; }
+.escort-offer h3 { margin:10px 0; }
+.escort-offer p { font-size:11px; }
+.ship-contact,.ship-report { display:grid; place-items:center; padding:30px; }
+.ship-contact-frame { display:grid; grid-template-columns:minmax(250px,.8fr) minmax(350px,1fr); max-width:1100px; width:100%; border:1px solid #456472; background:linear-gradient(125deg,#142d3a,#091520); }
+.ship-contact-art { position:relative; display:grid; place-items:center; min-height:500px; overflow:hidden; border-right:1px solid #344d58; background:radial-gradient(ellipse,#244350,#0b1821 65%); }
+.ship-contact-art img { width:85%; max-height:480px; object-fit:contain; mix-blend-mode:screen; filter:drop-shadow(0 20px 25px #000); }
+.ship-contact-art>span { position:absolute; bottom:28px; font-size:10px; letter-spacing:2px; color:#849caa; }
+.ship-contact-copy { padding:35px; }
+.ship-contact-copy h1 { font-size:35px; font-weight:400; line-height:1.2; margin:15px 0; }
+.ship-contact-copy h2 { color:#edc596; font-size:22px; }
+.ship-contact-copy p { font-size:12px; }
+.ship-contact-stats { display:flex; gap:30px; margin:22px 0; }
+.ship-contact-stats span { color:#9fb3be; font-size:10px; }
+.ship-contact-stats b { display:block; font-size:24px; font-weight:400; color:#f0dfbe; }
+.ship-contact-options { display:grid; gap:9px; margin:20px 0; }
+.ship-contact-response { border-left:2px solid #d4b382; padding:14px; background:#263438; }
+.ship-report .exp-modal { max-height:none; }
+.space-battle { background:radial-gradient(ellipse at 50% 20%,#17313e,#071018 70%); }
+.space-header { display:flex; align-items:center; gap:20px; padding:22px 3vw; border-bottom:1px solid #314d5b; }
+.space-header h1 { font-size:28px; font-weight:400; margin:7px 0; }
+.space-header small { font-size:10px; }
+.space-clock { margin-left:auto; display:flex; align-items:center; flex-wrap:wrap; gap:8px; }
+.space-clock>span { color:#e5c384; font-size:10px; letter-spacing:2px; margin-right:10px; }
+.space-clock>span.live { color:#77e7c6; }
+.space-guidance { display:flex; align-items:center; gap:20px; padding:12px 3vw; background:#16303b; border-bottom:1px solid #3b5867; font-size:11px; }
+.space-guidance .exp-button { margin-left:auto; }
+.space-guidance strong { color:#f0d49c; }
+.space-surrender { padding:15px 3vw; display:flex; justify-content:space-between; align-items:center; border:1px solid #d8ba75; background:#3c3925; }
+.space-surrender p { margin:0; }
+.space-arena { display:grid; grid-template-columns:minmax(0,1.25fr) 100px minmax(0,1fr); align-items:start; padding:25px 3vw 18px; gap:10px; position:relative; overflow:hidden; background-image:radial-gradient(circle at 12% 21%,#739daa55 1px,transparent 2px),radial-gradient(circle at 69% 58%,#739daa55 1px,transparent 2px); background-size:180px 140px,240px 200px; }
+.space-ship { min-width:0; }
+.space-readout { border-bottom:1px solid #395463; padding-bottom:12px; }
+.space-battle .space-readout h2 { font-size:22px; margin:0 0 12px; }
+.hostile .space-readout h2 { color:#e8c59a; }
+.space-readout>div { display:flex; gap:12px; align-items:center; }
+.space-readout label { display:flex; gap:12px; color:#9caeb7; font-size:9px; }
+.space-readout b { font-size:13px; color:#d8efeb; font-weight:400; }
+.space-readout progress { width:100%; min-width:30px; height:5px; accent-color:#7ce2cb; }
+.space-readout span { font-size:9px; white-space:nowrap; color:#9ed6e7; }
+.hostile .space-readout progress { accent-color:#e6a582; }
+.space-hull { position:relative; height:295px; margin:22px auto 5px; }
+.space-hull.own { margin-top:32px; height:260px; }
+.space-hull img { width:100%; height:100%; object-fit:contain; pointer-events:none; }
+.space-hull.own img { object-fit:fill; }
+.space-hull.enemy { width:280px; max-width:100%; }
+.space-hull.enemy img { mix-blend-mode:screen; }
+.space-shield { position:absolute; inset:5% 0; border:1px solid #7bd3e965; border-radius:50%; background:radial-gradient(ellipse,transparent 55%,#71d8ff13 75%,transparent); pointer-events:none; box-shadow:0 0 28px #43c0d918; }
+.hostile .space-shield { border-color:#dfbb8366; background:radial-gradient(ellipse,transparent 55%,#ffb36616 75%,transparent); }
+.space-room { position:absolute; border:1px solid #77bcbe; background:#0e3338b8; color:#c8fbf1; display:flex; flex-direction:column; justify-content:center; align-items:center; cursor:pointer; min-height:32px; }
+.space-room strong { text-transform:uppercase; font-size:9px; font-weight:400; }
+.space-room span { font-size:10px; }
+.hostile .space-room { background:#462d23ce; border-color:#c1a17e; color:#f9dcc1; }
+.space-room.selected { outline:2px solid #f8d799; outline-offset:3px; }
+.space-room.disabled-room { background:#672c31dc; color:#ffc2b5; }
+.space-room.ionised { border-color:#b0eafa; background:#1b5280cd; }
+.space-battle .space-caption { font-size:10px; margin:12px 0 0; min-height:36px; }
+.space-versus { display:flex; flex-direction:column; align-items:center; align-self:center; gap:22px; text-align:center; color:#7495a4; font-size:9px; letter-spacing:2px; }
+.space-versus b { font-size:36px; font-weight:400; color:#b5a880; }
+.space-versus small { font-size:8px; }
+.space-enemy-guns { display:flex; gap:15px; margin-top:10px; }
+.space-enemy-guns label { display:flex; gap:10px; font-size:9px; color:#c8aa85; align-items:center; }
+.space-enemy-guns progress { width:80px; height:4px; accent-color:#e2ac70; }
+.space-console { display:grid; grid-template-columns:minmax(240px,320px) minmax(0,1fr); gap:24px; border-top:1px solid #395363; padding:22px 3vw; background:#0b1b26; }
+.space-section-title { display:flex; justify-content:space-between; align-items:center; gap:10px; }
+.space-section-title strong { font-size:11px; color:#d9c494; white-space:nowrap; font-weight:400; }
+.space-power { display:flex; gap:10px; align-items:center; justify-content:space-between; padding:16px 0; border-bottom:1px solid #29444e; }
+.space-power strong { text-transform:capitalize; font-size:13px; font-weight:400; }
+.space-power small { font-size:9px; max-width:170px; }
+.space-power>div+div { display:flex; align-items:center; gap:7px; }
+.space-power .exp-button { width:28px; height:30px; padding:0; font-size:0; text-align:center; }
+.space-power .exp-button::first-letter { font-size:18px; }
+.space-power b { font-size:16px; font-weight:400; }
+.space-battle .space-reactor p,.space-battle .space-battery>p { font-size:10px; margin:15px 0 0; }
+.space-weapons { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); gap:12px; margin-top:12px; }
+.space-weapons>article { border:1px solid #314d5a; padding:14px; background:#102431; }
+.space-weapons>article.selected { border-color:#dac286; }
+.space-weapon-title { display:flex; width:100%; justify-content:space-between; align-items:center; text-align:left; color:#f1d5a5; font-size:13px; gap:12px; }
+.space-weapon-title span { font-size:9px; color:#9db7c0; white-space:nowrap; }
+.space-weapons small { margin-top:10px; font-size:10px; }
+.space-weapons progress { width:100%; height:5px; margin:12px 0 3px; accent-color:#e0c88a; }
+.space-weapon-meta { display:flex; justify-content:space-between; font-size:9px; color:#a5c0c5; }
+.space-modes { display:flex; gap:6px; margin:12px 0; }
+.space-modes button { padding:7px 10px; border:1px solid #3e5c69; font-size:10px; text-transform:uppercase; flex:1; }
+.space-modes button[aria-pressed=true] { border-color:#b3e0d0; background:#27504f; color:#d6fbeb; }
+.space-modes button:disabled { opacity:.4; }
+.space-weapons .exp-button { width:100%; text-align:center; }
+.space-log { padding:20px 3vw; border-top:1px solid #36515d; }
+.space-battle .space-log p { margin:6px 0; font-size:11px; }
+.space-log summary { color:#9fb9c1; font-size:10px; margin:15px 0; cursor:pointer; }
+.space-volley { position:absolute; left:30%; right:24%; top:44%; height:2px; pointer-events:none; animation:space-shot .8s ease-out forwards; }
+.space-volley i { display:block; background:linear-gradient(90deg,transparent,#f9d999,#fff2d6); height:3px; box-shadow:0 0 12px #fdbe77; }
+.space-volley.enemy { transform:rotate(180deg); }
+.space-volley.ion i { background:#7bd8ff; box-shadow:0 0 15px #58b5fa; }
+.space-volley.beam i { background:#d9a6ff; height:5px; }
+.space-volley span { position:absolute; right:0; top:-30px; font-size:11px; color:#ffdfa7; }
+.space-volley.enemy span { transform:rotate(180deg); }
+@keyframes space-shot { 0% { opacity:1; clip-path:inset(0 90% 0 0); } 20% { opacity:1; clip-path:inset(-60px 0); } 100% { opacity:0; clip-path:inset(-60px 0); } }
+@media(min-width:1500px) { .space-weapons { grid-template-columns:repeat(4,minmax(0,1fr)); } }
+@media(max-width:950px) { .space-header { flex-wrap:wrap; } .space-clock { margin-left:0; } .space-arena { grid-template-columns:minmax(0,1fr) 35px minmax(0,1fr); } .space-versus { font-size:7px; letter-spacing:0; } .space-console { grid-template-columns:1fr; } .space-reactor { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:15px; } .space-section-title,.space-reactor>p { grid-column:1/-1; } .space-power { flex-direction:column; align-items:flex-start; } }
+@media(max-width:640px) {
+  .ship-contact,.ship-report { padding:14px; } .ship-contact-frame { grid-template-columns:1fr; } .ship-contact-art { min-height:180px; height:200px; border-right:0; border-bottom:1px solid #345361; } .ship-contact-art img { max-height:170px; width:65%; } .ship-contact-art>span { bottom:10px; font-size:8px; } .ship-contact-copy { padding:22px; } .ship-contact-copy h1 { font-size:29px; }
+  .space-header { padding:16px; } .space-header h1 { font-size:23px; } .space-clock { gap:6px; } .space-clock .exp-button { font-size:10px; padding:8px; } .space-clock>span { width:100%; }
+  .space-guidance { padding:12px 16px; flex-wrap:wrap; gap:10px; font-size:10px; } .space-guidance .exp-button { margin:0; }
+  .space-arena { display:block; padding:20px 16px; } .space-versus { display:none; } .space-hull.own { height:200px; margin-top:15px; } .space-hull.enemy { height:270px; }
+  .space-readout>div { gap:8px; } .space-ship.hostile { margin-top:25px; border-top:1px solid #4f4c42; padding-top:20px; }
+  .space-console { padding:20px 16px; } .space-reactor { gap:10px; } .space-power small { font-size:9px; } .space-weapons { grid-template-columns:1fr; }
+  .space-room strong { font-size:8px; } .space-weapon-title { font-size:15px; } .space-weapons small { font-size:11px; } .space-volley { display:none; }
+  .space-surrender { flex-direction:column; align-items:stretch; gap:15px; }
+}
+@media(prefers-reduced-motion:reduce) { .space-volley { animation:none; opacity:0; } }
+/* Keep the hull display intact: it must never flex-shrink behind the controls. */
+.space-battle>* { flex-shrink:0; }
+@media(min-width:1100px) {
+  .exp-deck.space-battle { display:grid; grid-template-columns:minmax(0,1fr) clamp(350px,29vw,440px); grid-template-rows:auto auto minmax(0,1fr) auto; overflow:hidden; }
+  .space-header,.space-guidance { grid-column:1/-1; }
+  .space-header { padding:16px 24px; }
+  .space-header h1 { font-size:26px; }
+  .space-guidance { padding:10px 24px; }
+  .space-arena { grid-column:1; grid-row:3; overflow:auto; align-content:center; grid-template-columns:minmax(0,1.2fr) 38px minmax(0,1fr); padding:24px; }
+  .space-hull.own { height:210px; margin-top:65px; }
+  .space-hull.enemy { height:295px; }
+  .space-versus { font-size:7px; letter-spacing:1px; }
+  .space-readout>div { flex-wrap:wrap; gap:8px; }
+  .space-readout progress { flex:1; width:auto; }
+  .space-readout span { flex-basis:100%; }
+  .space-console { grid-column:2; grid-row:3; display:block; overflow:auto; border-top:0; border-left:1px solid #395363; padding:20px; min-height:0; }
+  .space-reactor { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+  .space-section-title,.space-reactor>p { grid-column:1/-1; }
+  .space-power { flex-direction:column; align-items:flex-start; }
+  .space-power small { font-size:8px; }
+  .space-battery { margin-top:24px; }
+  .space-weapons { grid-template-columns:repeat(2,minmax(0,1fr)); gap:8px; }
+  .space-weapons>article { padding:10px; }
+  .space-weapon-title { flex-direction:column; align-items:flex-start; gap:5px; font-size:12px; }
+  .space-weapons small { font-size:9px; }
+  .space-modes { gap:3px; }
+  .space-modes button { padding:7px 5px; font-size:9px; }
+  .space-log { grid-column:1/-1; grid-row:4; max-height:125px; overflow:auto; padding:12px 24px; }
+  .space-battle .space-log p { margin:3px 0; font-size:10px; }
+  .space-surrender { position:fixed; top:150px; left:3vw; right:3vw; z-index:5; box-shadow:0 10px 30px #000; }
+}

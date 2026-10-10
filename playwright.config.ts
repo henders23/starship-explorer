@@ -5,7 +5,8 @@ import { defineConfig } from '@playwright/test'
 // pinned build; use it when present rather than downloading another.
 const sandboxChromium = '/opt/pw-browsers/chromium'
 const executablePath =
-  process.env.CI || !existsSync(sandboxChromium) ? undefined : sandboxChromium
+  process.env.PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH ??
+  (process.env.CI || !existsSync(sandboxChromium) ? undefined : sandboxChromium)
 
 /**
  * The R8 smoke flow: one browser walk through title → briefing → scene →

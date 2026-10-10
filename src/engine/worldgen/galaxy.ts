@@ -27,11 +27,25 @@ export interface GalaxyOptions {
   factionCount: number
 }
 
+/**
+ * A long, shallow wedge of sky rather than a squat one.
+ *
+ * The sector runs outward from the core, and that outward run *is* the
+ * voyage: the ship arrives at the near edge and the way home is somewhere
+ * out at the far one. Making the radial band long and the arc narrow puts
+ * that journey along the sector's own long axis, so the chart can draw it
+ * across the screen at true scale instead of stretching one axis to fit.
+ *
+ * The area is held at roughly what it was (arc × (outer² − inner²) ≈ 431k
+ * ly²), so ninety systems sit at the same density as before and a lane is
+ * the same length it always was. What changes is the shape: the crossing is
+ * about sixty per cent longer in jumps, and `laneCost` was eased to match.
+ */
 export const DEFAULT_GALAXY_OPTIONS: GalaxyOptions = {
   systemCount: 90,
-  innerRadius: 420,
-  outerRadius: 980,
-  arc: 0.55,
+  innerRadius: 350,
+  outerRadius: 1350,
+  arc: 0.254,
   minSeparation: 44,
   laneRange: 135,
   maxDegree: 4,
@@ -39,16 +53,19 @@ export const DEFAULT_GALAXY_OPTIONS: GalaxyOptions = {
 }
 
 /**
- * Region centroids, expressed as a fraction of the radial band and an angle.
+ * Region centroids, expressed as a fraction of the radial band and a fraction
+ * of the sector's half-arc. Both are relative so that reshaping the sector
+ * moves the regions with it rather than throwing them off its edge.
+ *
  * The Shallows sit at the near edge (where the ship arrives) and the Rift
  * Margin at the far edge, so "getting home" runs roughly outward.
  */
-const REGION_ANCHORS: Array<{ id: RegionId; frac: number; theta: number }> = [
-  { id: 'shallows', frac: 0.12, theta: 0.0 },
-  { id: 'trade-reach', frac: 0.42, theta: -0.28 },
-  { id: 'cinder-belt', frac: 0.48, theta: 0.3 },
-  { id: 'xenoline', frac: 0.78, theta: -0.22 },
-  { id: 'rift-margin', frac: 0.88, theta: 0.18 },
+const REGION_ANCHORS: Array<{ id: RegionId; frac: number; across: number }> = [
+  { id: 'shallows', frac: 0.12, across: 0.0 },
+  { id: 'trade-reach', frac: 0.42, across: -0.51 },
+  { id: 'cinder-belt', frac: 0.48, across: 0.55 },
+  { id: 'xenoline', frac: 0.78, across: -0.4 },
+  { id: 'rift-margin', frac: 0.88, across: 0.33 },
 ]
 
 const STAR_WEIGHTS: Record<RegionId, Array<readonly [StarType, number]>> = {
@@ -121,7 +138,7 @@ function assignRegions(
   const span = opts.outerRadius - opts.innerRadius
   const anchors = REGION_ANCHORS.map((anchor) => {
     const r = opts.innerRadius + span * Math.min(0.98, Math.max(0.02, anchor.frac + rng.float(-0.05, 0.05)))
-    const theta = anchor.theta + rng.float(-0.06, 0.06)
+    const theta = opts.arc * (anchor.across + rng.float(-0.11, 0.11))
     return { id: anchor.id, x: r * Math.cos(theta), y: r * Math.sin(theta) }
   })
 

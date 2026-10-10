@@ -39,9 +39,9 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
           Ninety stars, and exactly one of them is the way home. The chart does not know which —
           it only shows you which ones your accounts still allow. It is drawn outward from the
           galactic core: the Shallows where the anomaly dropped you lie at the left edge, the
-          Rift Margin at the right, and the voyage reads across the screen. Because the sector is
-          wider across than it is deep, the two axes are drawn to different scales — trust the
-          jumps and fuel the inspector quotes, never the distance your eye measures.
+          Rift Margin at the right, and the voyage reads across the screen. It is drawn to
+          scale — a lane twice as long on the chart is twice as long in the sky, and costs
+          about twice the fuel.
         </p>
 
         <div className="guide-columns">
@@ -140,6 +140,11 @@ export function MapGuide({ onClose }: { onClose: () => void }) {
             <p>
               <strong>Evidence</strong> raises the drawer of accounts. Trust one and the field
               narrows; doubt one and it widens again. Some of them are lies.
+            </p>
+            <p>
+              The first time you point the chart at a star, whichever officer's department it
+              falls to will say something about the place. They are describing the sky, not your
+              plot — no remark ever tells you whether a star is still possible.
             </p>
           </section>
         </div>

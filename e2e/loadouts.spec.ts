@@ -1,0 +1,33 @@
+import { expect, test } from '@playwright/test'
+import { preparedTeam } from '../tools/loadout-walkthrough.js'
+import { EXPLORATION_SAVE_KEY, saveExploration } from '../src/ui/exploration-save.js'
+for (const mobile of [false, true]) test(`research unlocks equipment that persists into ${mobile ? 'mobile' : 'desktop'} combat`, async ({ page }, info) => {
+  const ready = preparedTeam('browser-loadouts')
+  let raw = ''
+  saveExploration(ready, { getItem: () => null, removeItem: () => {}, setItem: (_, val) => { raw = val } })
+  if (mobile) await page.setViewportSize({ width: 390, height: 844 })
+  await page.addInitScript(({ key, raw }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, raw) }, { key: EXPLORATION_SAVE_KEY, raw })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Resume expedition' }).click()
+  await page.getByRole('button', { name: /The Silent Courier/ }).click()
+  await page.getByRole('button', { name: 'Board with away team · tactical mission' }).click()
+  await page.getByRole('combobox', { name: 'Mara Chen weapon' }).selectOption('plasma')
+  await page.getByRole('combobox', { name: 'Mara Chen gadget' }).selectOption('shield')
+  await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toContainText('Deployment equipment: 4 materials')
+  await expect(page.getByTestId('exp-materials')).toHaveText(String(ready.exploration.materials))
+  await page.getByRole('region', { name: 'Field equipment' }).scrollIntoViewIfNeeded()
+  await page.screenshot({ path: info.outputPath('field-equipment.png'), fullPage: true })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
+  await page.getByRole('combobox', { name: 'Mission contract' }).selectOption('core')
+  await page.getByRole('button', { name: 'Deploy away team', exact: true }).click()
+  await expect(page.locator('.tac-orders')).toContainText('5 damage · PLASMA · 4/4 SHIELD')
+  await expect(page.locator('.tac-orders')).toContainText('2/2 ammunition')
+  await page.screenshot({ path: info.outputPath('equipped-boarding.png'), fullPage: true })
+  await page.reload()
+  await page.getByRole('button', { name: 'Resume expedition' }).click()
+  await expect(page.locator('.tac-orders')).toContainText('4/4 SHIELD')
+  await page.getByRole('button', { name: 'Extract team', exact: true }).click()
+  await page.getByRole('button', { name: 'Confirm safe extraction' }).click()
+  await page.getByRole('button', { name: 'Return to the Ithaca' }).click()
+  await expect(page.getByTestId('exp-materials')).toHaveText(String(ready.exploration.materials - 4))
+})

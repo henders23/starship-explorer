@@ -11,6 +11,28 @@ stars hides the way back. Some of those fragments are lies.
 
 When you think you know where home is, you commit everything to one jump.
 
+## Exploration redesign preview
+
+Choose **Start exploration preview** for persistent locations, scientific discoveries,
+queued research, optional tactical boarding, ship escorts, ship refits and a playable route home. **Resume exploration** continues
+its separate autosave, including voyages begun in the earlier sensor preview.
+
+Start **Drive Diagnostics**, then survey the arrival system and recover the Silent
+Courier's power cell. Follow research leads, explore or acquire station scientific
+records. Construct and test a prototype, complete Drive Stabilisation, and build the
+Return Drive. You choose when to leave; departure works from any system.
+
+The catalogue has **29 projects across six branches: 27 usable and two visibly
+upcoming combat technologies**. Research, building and fitting are separate decisions.
+Board derelicts and ruins with four named operatives: use cover, recover the core and
+extract. Injuries, casualties and service records persist; the Away team screen offers
+medical rest and station recruitment. Remote recovery remains a safe alternative.
+At a contacted station, review a survey escort: negotiate, evade or enter a saved
+ship battle with pause, reactor power and compartment targeting. Research improves
+weapons and shields. Broader mission types, tactical loadouts and developed faction
+stories remain in progress. The original **Take command** campaign described below keeps its own save.
+See [the V2 specification and current implementation status](docs/REDESIGN-V2.md).
+
 ## Status
 
 **Foundation complete, R-series underway** — the deduction is playable and
@@ -31,6 +53,11 @@ npm run dev                                       # play the Nav Plot
 npm run mystery -- --seed voyager --walkthrough   # inspect a generated puzzle
 npm run mystery -- --sweep 300                    # generation statistics
 npm test
+npm run ship:simulate -- 20                      # complete seeded ship escorts
+npm run tactical:simulate -- 12                  # complete seeded boarding missions
+npm run exploration:simulate -- 20               # complete seeded V2 voyages
+npx playwright install chromium                  # one-time browser setup
+npm run test:e2e                                # original and V2 browser checks
 ```
 
 ## Documentation

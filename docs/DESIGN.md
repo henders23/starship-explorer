@@ -208,11 +208,11 @@ state plainly: what is built, what is missing, where the trail points.
 The chart runs full bleed: nothing takes a column out of the sky permanently.
 It is drawn outward from the galactic core, so the voyage reads **left to
 right** — the Shallows the ship arrived in at the left edge, the Rift Margin
-at the right, and the ship starting near the left with the frontier ahead of
-it. Because the sector is wider across its arc than it is deep, the chart's
-two axes are drawn to different scales: it is a projection that preserves
-ordering, neighbours and lane topology, and every cost it implies is quoted in
-jumps and fuel rather than left to the eye.
+at the right, and the ship starting in the left tenth or so with the frontier
+ahead of it. The sector is generated as a long, shallow wedge for exactly this
+reason (§4 worldgen: roughly 1000 ly of radial band across a quarter-radian
+arc), so the chart is drawn at true scale on both axes — a lane twice as long
+on the chart is twice as long in the sky and costs about twice the fuel.
 
 Stars are hexagonal glyphs. Amber is the deduction — a star still consistent
 with everything trusted, breathing on a slow pulse so the remaining field can
@@ -229,6 +229,15 @@ costs, and every order the ship can carry out there — travel, respond, scoop,
 refit, and the Long Jump. The **plot bar** along the foot is the score: the
 stars still standing, listed and clickable, and the state of the technological
 track. The evidence board rises over that bar on request and drops away again.
+
+The first time the chart is pointed at a star the ship has not reached, the
+officer whose department it falls to remarks on the place — one line, once per
+star per voyage, out of an authored pool written against what a system *is*
+(its features, its class of sun, its region, whether it is a junction or a
+dead end or empty). Each of the ninety systems in a sky is dealt its own line,
+fixed by the seed. The remarks are astrography and shipboard temper only:
+none of them says anything about the plot, so a captain who reads all ninety
+is no closer to the way home than one who dismisses them.
 The first time a captain takes the station, a one-slide briefing explains the
 layout, the marks and the movement keys — it is reachable afterwards from the
 "?" beside the zoom, and it teaches navigation only, never the answer.
