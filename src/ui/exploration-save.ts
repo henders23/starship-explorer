@@ -5,7 +5,7 @@ import type { CampaignAction as PreviewAction } from '../engine/exploration/lega
 import type { StorageLike } from './save.js'
 
 export const EXPLORATION_SAVE_KEY = 'starship-explorer-exploration-v2'
-export const EXPLORATION_SAVE_VERSION = 2
+export const EXPLORATION_SAVE_VERSION = 3
 export type ExplorationSave = { campaign: Campaign | null; error: string | null }
 function replayPreview(seed: string, actions: PreviewAction[]): Campaign {
   let old = createPreview(seed)
@@ -22,7 +22,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
     const raw = storage.getItem(EXPLORATION_SAVE_KEY)
     if (!raw) return { campaign: null, error: null }
     const envelope = JSON.parse(raw)
-    if (![1, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
+    if (![1, 2, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
       return { campaign: null, error: 'This exploration save uses another version. It has been kept unchanged.' }
     if (typeof envelope.seed !== 'string' || !envelope.seed.length || envelope.seed.length > 200 ||
       !Array.isArray(envelope.actions) || envelope.actions.length > 10000) throw new Error('Invalid save')
@@ -31,6 +31,10 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
     if (prefix !== null && (!Array.isArray(prefix) || prefix.length > 10000)) throw new Error('Invalid migration prefix')
     let campaign = prefix === null ? createCampaign(envelope.seed) : replayPreview(envelope.seed, prefix)
     for (const action of envelope.actions as CampaignAction[]) {
+      // V2 journals predate boarding and trauma research. Their accepted actions
+      // retain identical semantics; the new roster is additive migration state.
+      if (envelope.version === 2 && (['deploy', 'tactical', 'debrief', 'rest-team', 'recruit'].includes(action?.type) ||
+        ('project' in (action ?? {}) && (action as { project: string }).project === 'trauma-protocols'))) throw new Error('Invalid version-2 action')
       const next = reduceCampaign(campaign, action)
       if (next === campaign) throw new Error('Invalid action journal')
       campaign = next

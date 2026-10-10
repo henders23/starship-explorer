@@ -21,7 +21,7 @@ export interface ResearchProject {
   future?: string
 }
 const combat = 'Available when ship combat is connected to exploration'
-const tactical = 'Available when tactical away missions are connected'
+const tactical = 'Available when tactical weapon and gadget loadouts are implemented'
 export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'drive-diagnostics': { name: 'Drive Diagnostics', branch: 'Propulsion', days: 4, requires: [],
     effect: 'Identify what the Return Drive needs and chart leads to spatial research.' },
@@ -74,7 +74,7 @@ export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'relay-network': { name: 'Diplomatic Relay Network', branch: 'Communications', days: 7, requires: ['contextual-translation'],
     effect: 'Buy scientific records from known stations remotely. Physical cargo and repairs still need a local berth.' },
   'trauma-protocols': { name: 'Trauma Protocols', branch: 'Applied science', days: 4, requires: [],
-    effect: 'Reduce injured operatives’ recovery time.', future: tactical },
+    effect: 'Injured away-team survivors recover in two campaign days instead of four.' },
   'field-engineering': { name: 'Field Engineering', branch: 'Applied science', days: 5, requires: [],
     effect: 'Equip engineering tools: rapid recovery from ruins and derelicts yields 4 additional materials.', blueprint: { materials: 10, credits: 25, slot: 'gadget' } },
   'recon-drones': { name: 'Reconnaissance Drones', branch: 'Applied science', days: 6, requires: ['field-engineering'],

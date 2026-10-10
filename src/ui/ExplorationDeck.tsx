@@ -10,6 +10,7 @@ import { REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { saveExploration } from './exploration-save.js'
 import { DRIVE_SEQUENCE, PROJECTS } from '../engine/exploration/research.js'
 import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
+import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
 
 const LABELS: Record<LocationKind, string> = {
@@ -37,7 +38,9 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const [query, setQuery] = useState('')
   const [saved, setSaved] = useState(true)
   const [returnConfirm, setReturnConfirm] = useState(false)
-  const modalOpen = returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
+  const [teamOpen, setTeamOpen] = useState(false)
+  const [deploySite, setDeploySite] = useState<string | null>(null)
+  const modalOpen = teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
   useEffect(() => {
     if (modalOpen) (document.querySelector('[role=dialog] button:not(:disabled)') as HTMLButtonElement | null)?.focus()
   }, [modalOpen, state.driveTest, state.outcome])
@@ -73,6 +76,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       title={lock ?? undefined} onClick={() => dispatch(action)}>{children}</button>
   }
 
+  if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
   return <main className="exp-deck" data-tab={tab}>
     <header className="exp-header" inert={modalOpen}>
       <div><span className="exp-eyebrow">ISS ITHACA / EXPLORATION PREVIEW</span><h1>Beyond the familiar</h1></div>
@@ -83,6 +87,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
       </div>
+      <button className="exp-button" onClick={() => { setDeploySite(null); setTeamOpen(true) }}>Away team</button>
       {driveReady && <button className="exp-button primary" onClick={() => setReturnConfirm(true)}>Return home</button>}
       <button className="exp-button" onClick={onExit}>Title screen</button>
     </header>
@@ -114,7 +119,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           {command({ type: 'emergency-fuel' }, 'Emergency fuel · 3 days')}
         </div>}
         {fitted(state, 'fuel-recycling') && command({ type: 'recycle-fuel' }, 'Recycle fuel · 3 materials · 1 day')}
-        <div className="exp-preview-note">Playable now: exploration, research, ship refits and the journey home. Tactical missions and ship combat integration are still in development.</div>
+        <div className="exp-preview-note">Playable now: exploration, research, boarding missions, ship refits and the journey home. Ship combat integration and broader mission stories are still in development.</div>
       </aside>
       <section className="exp-main">
         {tab === 'system' && <>
@@ -193,6 +198,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               <div className="exp-reward"><span className="exp-eyebrow">EXPECTED RECOVERY</span><p>{site.reward ? `${site.reward.materials} materials · ${site.reward.credits} credits` : 'A completed survey'}{site.discovery ? ` · ${DISCOVERY_NAMES[site.discovery]}` : ''}</p></div>
               {command({ type: 'recover', locationId: site.id, approach: 'careful' }, `Remote investigation · ${carefulDays(state)} ${carefulDays(state) === 1 ? 'day' : 'days'} · no damage`, true)}
               {command({ type: 'recover', locationId: site.id, approach: 'rapid' }, `Rapid expedition · 1 day · ${recoveryDamage(state, site)} hull damage`)}
+              {['derelict', 'ruins'].includes(site.kind) && <><button className="exp-button" onClick={() => { setDeploySite(site.id); setTeamOpen(true) }}>Board with away team · tactical mission</button><small>Optional: recover the same cargo on foot. Two AP per operative; injuries and casualties persist. Remote investigation remains safe.</small></>}
               <p className="exp-prerequisite">Both approaches recover the same science. Remote instruments avoid damage; rapid retrieval uses any fitted engineering tools to recover additional materials from ruins and derelicts.</p>
             </>}
           </>}
@@ -216,6 +222,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     <footer className="exp-log" aria-live="polite" inert={modalOpen}><span>CAPTAIN’S LOG</span><p>{state.log.at(-1)}</p>
       <details><summary>Earlier entries</summary><ol>{state.log.slice(0, -1).reverse().map((line, i) => <li key={i}>{line}</li>)}</ol></details>
     </footer>
+    {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
     {returnConfirm && state.outcome !== 'home' && <ReturnHomeScene state={state} dispatch={dispatch} onClose={() => setReturnConfirm(false)} />}
     {state.outcome === 'home' && <ExplorationEnding state={state} onExit={onExit} />}

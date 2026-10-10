@@ -1,0 +1,88 @@
+.away-team { max-width:820px; }
+.away-roster { display:grid; grid-template-columns:1fr 1fr; gap:10px; margin:20px 0; }
+.away-person { display:flex; gap:12px; text-align:left; border:1px solid #385965; padding:14px; background:#102733; }
+.away-person[aria-pressed=true] { border-color:#8ae3d0; background:#1d4146; box-shadow:inset 3px 0 #94e9d5; }
+.away-person:disabled { opacity:1; cursor:default; }
+.away-person.lost { opacity:.5; }
+.away-person strong { display:block; font-size:15px; font-weight:500; color:#e2f2f0; }
+.away-person small { font-size:10px; margin-top:6px; }
+.away-monogram { flex:0 0 34px; height:40px; display:grid; place-items:center; border:1px solid #698792; color:#a4dbcf; font-size:13px; }
+.tactical-deck { background:radial-gradient(ellipse at 35% 20%,#14333e,#07121a 70%); }
+.tac-header { padding:26px 4vw 20px; display:flex; align-items:center; gap:30px; border-bottom:1px solid #35505e; }
+.tac-header h1 { margin:8px 0 0; font-size:30px; letter-spacing:-1px; font-weight:400; }
+.tac-header p { margin:5px 0 0; font-size:12px; }
+.tac-turn { margin-left:auto; text-align:right; }
+.tac-turn>span { font-size:10px; color:#8bacae; letter-spacing:2px; }
+.tac-turn b { display:inline-block; font-size:35px; color:#e8d7b4; font-weight:400; margin-left:12px; }
+.tac-turn small { display:block; font-size:10px; color:#98d8c9; }
+.tac-objective { display:flex; align-items:center; gap:22px; padding:15px 4vw; background:#203c3e; border-bottom:1px solid #54706a; }
+.tac-objective>span { font-size:10px; letter-spacing:2px; color:#d6d19d; white-space:nowrap; }
+.tac-objective strong { font-size:12px; font-weight:400; color:#d9ede9; }
+.tac-layout { display:grid; grid-template-columns:minmax(0,1fr) 320px; max-width:1600px; margin:auto; }
+.tac-arena { min-width:0; padding:18px 24px; }
+.tac-mapbar { display:flex; justify-content:space-between; align-items:center; gap:15px; color:#9abbc5; font-size:11px; }
+.tac-mapbar .exp-text-button { margin:0; font-size:11px; }
+.tac-scroll { overflow:auto; border:1px solid #2e4b56; margin-top:10px; background:#091822; }
+.tac-board { display:block; width:100%; min-width:390px; }
+.tac-scroll.expanded .tac-board { min-width:900px; }
+.tac-board [role=button] { cursor:pointer; outline:none; }
+.tac-board [role=button]:focus { stroke:#fff0b0; stroke-width:3px; }
+.tac-legend { display:flex; flex-wrap:wrap; gap:15px; color:#8aabb7; font-size:10px; padding:12px 0; }
+.tac-squad { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:8px; margin-top:6px; }
+.tac-squad button { text-align:left; padding:13px 10px; border:1px solid #2a4958; background:#102833; }
+.tac-squad button[aria-pressed=true] { border-color:#afe5ce; background:#1d4046; }
+.tac-squad small { text-transform:uppercase; font-size:9px; letter-spacing:1px; color:#a6c9c7; }
+.tac-squad strong { display:block; font-size:12px; font-weight:400; margin:9px 0; color:#e6f3f0; }
+.tac-squad span { display:block; font-size:9px; color:#a6c4c9; min-height:24px; }
+.tac-squad progress { display:block; width:100%; height:4px; accent-color:#8addbd; margin-top:6px; }
+.tac-orders { padding:24px; background:#0b1b26; border-left:1px solid #304c59; }
+.tac-orders h2 { font-size:24px; margin-top:10px; }
+.tac-orders p { font-size:11px; line-height:1.7; }
+.tac-orders small { display:block; font-size:10px; line-height:1.7; color:#9db6c2; }
+.tac-move { padding:14px 0; border-block:1px solid #2d4856; margin:18px 0; }
+.tac-move label { font-size:11px; color:#b0c8c7; display:flex; gap:8px; align-items:center; }
+.tac-move input { accent-color:#96ddce; }
+.tac-targets>button { display:flex; justify-content:space-between; width:100%; border:1px solid #79584e; padding:10px; margin:8px 0; color:#ecc9a9; font-size:11px; }
+.tac-targets>button[aria-pressed=true] { background:#48332b; border-color:#ebc794; }
+.tac-targets>button>span { font-size:10px; }
+.tac-shot { padding:14px; background:#29312d; border:1px solid #818165; margin:12px 0; }
+.tac-shot strong { color:#f6deab; font-size:20px; font-weight:400; }
+.tac-shot button { width:100%; margin-top:10px; }
+.tac-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin:15px 0; }
+.tac-actions .exp-button { font-size:10px; padding:10px 5px; }
+.tac-orders .tac-hint { font-size:10px; color:#8faab8; }
+.tac-turn-actions { display:grid; gap:8px; margin:20px 0 12px; border-top:1px solid #35505b; padding-top:18px; }
+.tac-log { padding:20px 4vw; border-top:1px solid #35505b; background:#091821; }
+.tac-log p { font-size:11px; line-height:1.6; margin:7px 0; }
+.tac-log summary { font-size:10px; color:#98b7c4; cursor:pointer; }
+.tac-results { display:grid; place-items:center; padding:30px; }
+.tac-results .exp-modal { max-height:none; }
+@media(min-width:1400px) { .tac-layout { grid-template-columns:minmax(0,1fr) 355px; } .tac-arena { padding:22px 35px; } }
+@media(max-width:1000px) { .tac-layout { grid-template-columns:minmax(0,1fr) 290px; } .tac-arena { padding:14px; } .tac-squad { grid-template-columns:repeat(2,minmax(0,1fr)); } .tac-orders { padding:18px; } }
+@media(max-width:720px) {
+  .tac-header { padding:18px 15px; gap:12px; flex-wrap:wrap; }
+  .tac-header h1 { font-size:23px; } .tac-header>div:first-child { flex:1; } .tac-header>.exp-button { padding:8px 12px; font-size:10px; }
+  .tac-header p { font-size:10px; } .tac-turn b { font-size:25px; }
+  .tac-objective { padding:12px 15px; align-items:flex-start; gap:12px; } .tac-objective strong { font-size:11px; } .tac-objective>span { font-size:9px; }
+  .tac-layout { grid-template-columns:1fr; } .tac-board { min-width:0; } .tac-scroll.expanded .tac-board { min-width:720px; }
+  .tac-orders { border-left:0; border-top:1px solid #34515c; } .tac-orders h2 { font-size:25px; }
+  .tac-actions .exp-button { padding:13px 8px; font-size:11px; }
+  .tac-squad strong { font-size:13px; } .tac-squad span { font-size:10px; }
+  .away-roster { grid-template-columns:1fr; } .away-person { padding:12px; } .away-monogram { display:none; }
+  .tac-results { padding:14px; }
+}
+.tactical-deck .tac-header { padding-block:18px; }
+.tactical-deck .tac-header p { margin:5px 0 0; font-size:11px; }
+.tac-objective { flex-wrap:wrap; }
+.tac-objective strong { flex:1; min-width:200px; }
+.tac-command { display:flex; gap:8px; margin-left:auto; }
+.tac-command .exp-button { padding:8px 12px; white-space:nowrap; }
+.tactical-deck .tac-orders p { margin:12px 0; }
+.tac-destination { display:flex; align-items:center; flex-wrap:wrap; gap:12px; padding:12px; border:1px solid #4d7b78; background:#183a3c; font-size:11px; }
+.tac-destination .exp-button { margin-left:auto; }
+.tac-destination small { flex-basis:100%; }
+.tac-shot-effect { animation:shot-flash .75s ease-out forwards; }
+@keyframes shot-flash { 0% { opacity:1; } 20% { opacity:1; } 100% { opacity:0; } }
+@media(min-width:721px) { .tac-board { max-height:calc(100dvh - 425px); min-height:290px; } .tac-scroll.expanded .tac-board { max-height:none; } }
+@media(max-width:720px) { .tac-command { width:100%; margin:0; } .tac-command .exp-button { flex:1; font-size:10px; text-align:center; } .tac-objective strong { min-width:0; } .tac-destination { font-size:10px; } }
+@media(prefers-reduced-motion:reduce) { .tac-shot-effect { animation:none; opacity:0; } }

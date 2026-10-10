@@ -1,3 +1,5 @@
+import { createMission, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
+import type { Mission, Operative, TacticalAction } from '../tactical/mission.js'
 import { createRng } from '../rng/prng.js'
 import { laneCost } from '../travel/travel.js'
 import { generateGalaxy } from '../worldgen/galaxy.js'
@@ -19,11 +21,18 @@ export interface Campaign {
   built: BuildId[]; equipped: BuildId[]; deepArray: boolean
   driveTest: 'idle' | 'calibrating' | 'complete'
   outcome: 'exploring' | 'home'
+  roster: Operative[]; mission: Mission | null; missionAttempts: number; recruits: number
+  lastMission: Mission | null
   /** Version-1 prefix is replayed with the frozen preview reducer before migration. */
   legacyActions: LegacyAction[] | null
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
+  | { type: 'deploy'; locationId: string; squad: string[] }
+  | { type: 'tactical'; order: TacticalAction }
+  | { type: 'debrief' }
+  | { type: 'rest-team' }
+  | { type: 'recruit'; locationId: string }
   | { type: 'travel'; systemId: SystemId }
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
@@ -58,6 +67,7 @@ export function createCampaign(seed: string): Campaign {
     scans: {}, exploration, findings: [], day: 0, fuel: 80, hull: 100,
     research: { active: null, progress: {}, completed: [], queue: [] },
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
+    roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
     legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
@@ -145,8 +155,24 @@ function contacted(state: Campaign, id: string) {
 export function actionLock(state: Campaign, action: CampaignAction): string | null {
   if (!action || typeof action !== 'object') return 'Invalid action'
   if (state.outcome === 'home') return 'This voyage has returned home'
+  if (state.mission && !['tactical', 'debrief'].includes(action.type)) return 'Extract or finish the away mission first'
   if (state.driveTest === 'calibrating' && !['complete-drive-test', 'abort-drive-test'].includes(action.type)) return 'Finish or abort the prototype test first'
   switch (action.type) {
+    case 'deploy': {
+      const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
+      if (!site || !['derelict', 'ruins'].includes(site.kind) || state.exploration.statuses[site.id] !== 'investigated') return 'Investigate an unresolved derelict or ruin first'
+      if (!Array.isArray(action.squad) || action.squad.length !== 4 || new Set(action.squad).size !== 4) return 'Choose four different operatives'
+      return action.squad.every((id) => state.roster.some((o) => o.id === id && !o.dead && o.injuredUntil <= state.day)) ? null : 'Choose healthy, living operatives'
+    }
+    case 'tactical': return state.mission ? tacticalLock(state.mission, action.order) : 'No away mission in progress'
+    case 'debrief': return state.mission && state.mission.outcome !== 'active' ? null : 'Finish the mission first'
+    case 'rest-team': return state.roster.some((o) => !o.dead && o.injuredUntil > state.day) ? null : 'Everyone is fit for duty'
+    case 'recruit': {
+      const station = contacted(state, action.locationId)
+      if (!station || station.systemId !== state.at) return 'Contact a local station first'
+      if (state.roster.filter((o) => !o.dead).length >= 6) return 'Six living operatives already aboard; injured crew recover with time'
+      return state.exploration.credits >= 20 ? null : 'Requires 20 credits; station contracts can replenish funds'
+    }
     case 'travel': {
       const cost = travelCost(state, action.systemId)
       if (cost === null) return 'Select a connected system, or research Slipstream Navigation for two-lane travel'
@@ -256,6 +282,41 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   let next: Campaign = { ...state, exploration: { ...state.exploration }, actions: [...state.actions, action] }
   let days = 0, message = ''
   switch (action.type) {
+    case 'deploy': {
+      const site = state.world.locations.find((s) => s.id === action.locationId)!
+      next.mission = createMission(`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name,
+        action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat)
+      next.missionAttempts++; message = `Away team deployed to ${site.name}. Recover the core and extract. One campaign day passes when the team returns.`
+      break
+    }
+    case 'tactical':
+      next.mission = reduceMission(state.mission!, action.order)
+      message = next.mission.log.at(-1)!; break
+    case 'debrief': {
+      const mission = state.mission!, site = state.world.locations.find((s) => s.id === mission.locationId)!
+      days = 1
+      next.roster = state.roster.map((operative) => {
+        const unit = mission.units.find((u) => u.id === operative.id)
+        if (!unit) return operative
+        const dead = !mission.rescued.includes(unit.id)
+        return { ...operative, dead, missions: operative.missions + 1,
+          xp: operative.xp + (!dead ? mission.outcome === 'success' ? 3 : 1 : 0),
+          injuredUntil: !dead && unit.hp < unit.maxHp ? state.day + days + (hasTech(state, 'trauma-protocols') ? 2 : 4) : 0 }
+      })
+      if (mission.outcome === 'success') {
+        next.exploration = reduceExploration(state.exploration, state.world, { type: 'resolve', locationId: site.id }, state.at)
+        if (site.discovery) next.findings = [...state.findings, { locationId: site.id, kind: site.discovery, day: state.day + days }]
+      }
+      const lost = mission.units.filter((u) => u.side === 'crew' && !mission.rescued.includes(u.id)).map((u) => u.name)
+      message = `${mission.outcome === 'success' ? `Core recovered: ${site.reward?.materials ?? 0} materials, ${site.reward?.credits ?? 0} credits${site.discovery ? ' and a scientific discovery' : ''}.` : 'No cargo recovered; the site remains available.'} ${lost.length ? `Lost: ${lost.join(', ')}.` : 'All four operatives returned.'} Injured survivors recover aboard ship.`
+      next.lastMission = mission; next.mission = null; break
+    }
+    case 'rest-team': days = 1; message = 'One day of medical care aboard the Ithaca. The laboratory continues its work.'; break
+    case 'recruit': {
+      const recruit = recruitOperative(state.recruits)
+      next.roster = [...state.roster, recruit]; next.recruits++; next.exploration.credits -= 20; days = 1
+      message = `${recruit.name} joins the away team as ${recruit.role}.`; break
+    }
     case 'travel': {
       const system = state.galaxy.systems.find((s) => s.id === action.systemId)!
       next.at = system.id; next.fuel -= travelCost(state, system.id)!; days = 1

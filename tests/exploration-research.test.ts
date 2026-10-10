@@ -35,7 +35,7 @@ describe('research catalogue and work scheduler', () => {
     }
     PROJECT_IDS.forEach((id) => visitNode(id))
     expect(DRIVE_SEQUENCE.reduce((sum, id) => sum + PROJECTS[id].days, 0)).toBe(40)
-    expect(PROJECT_IDS.filter((id) => PROJECTS[id].future)).toHaveLength(8)
+    expect(PROJECT_IDS.filter((id) => PROJECTS[id].future)).toHaveLength(7)
   })
 
   it('preserves paused work, caps the queue at three and validates reorder/removal', () => {
@@ -260,7 +260,7 @@ describe('version-1 preview migration', () => {
     expect(storage.getItem(EXPLORATION_SAVE_KEY)).toBe(raw)
     const continued = apply(migrated, { type: 'research', project: 'drive-diagnostics' })
     saveExploration(continued, storage)
-    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(2)
+    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(3)
     expect(loadExploration(storage).campaign).toEqual(continued)
   })
 })

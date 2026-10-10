@@ -284,3 +284,76 @@ These simulations establish solvability, not a validated 4–8-hour campaign bal
 Tactical missions, ship-combat integration and substantial authored faction arcs remain
 next. The short archive route and repeatable recovery contracts will need pacing review
 alongside those richer encounters.
+
+
+## 16. Tactical boarding increment (October 2026)
+
+Optional boarding is now available after investigating an unresolved derelict or ruin,
+including the starter Silent Courier. The existing remote and rapid recoveries remain
+available. Boarding awards the same one-time cargo and scientific source, never an
+additional copy; combat is not a prerequisite for the Return Drive.
+
+This first tactical slice uses two deterministic **12×10** recovery-deck layouts. The
+smaller introductory board is deliberate; larger 24×18 missions, rescue/infiltration
+objectives and authored faction encounters remain future work. Custodians are autonomous
+site defences, not a substitute for the pending faction relationship system.
+
+### Rules and consequences
+
+- Six distinct named operatives; select four healthy crew. Assault, recon, engineer,
+  medic and heavy roles have usable health, movement, interaction, treatment or weapon
+  differences. These operatives are separate from ship officers.
+- Two AP per turn: move one AP, sprint two, shoot one (once per turn), aim one,
+  overwatch one, reload one, recover the core one, or use a single medkit one.
+- Cardinal pathfinding, solid bulkheads, directional cover, visible hit calculations,
+  shared line of sight and explored-space memory. Enemies outside sight are hidden.
+  Aim grants 20 percentage points and expires after moving or the turn. Overwatch
+  fires once at a moving hostile during the enemy turn; unused orders then expire.
+- Custodians act deterministically, reload, approach when no shot is available and
+  fire at an eligible crew member. Both shots and AI live in the rules engine.
+- Downed operatives may be revived with a nearby medkit and can act next turn. A
+  conscious operative standing in the shuttle zone can pull an adjacent downed
+  crewmate aboard for one AP. Downed crew already inside the zone are extracted.
+- Extraction requires a conscious operative in the shuttle zone. All operatives
+  outside that zone are lost permanently; the UI lists their names and requires a
+  second explicit confirmation. Recovering the core secures it for the team.
+- A complete squad incapacitation ends the mission in defeat. Retreat and defeat
+  leave the site available for another mission or remote recovery.
+- The saved debrief applies cargo, discoveries, casualties, service records and one
+  campaign day exactly once. The lab progresses on that day, with science delivered
+  at its end. Tactical turns themselves do not advance the campaign calendar.
+- Wounded survivors need four campaign days of recovery, or two with **Trauma
+  Protocols**, now usable. Free medical rest is available aboard ship; normal travel
+  and activities also advance recovery. Recruit named replacements at a contacted
+  station for 20 credits and one day, up to six living operatives. Station contracts
+  remain an unlimited source of funding. Dead operatives stay in the roster record.
+- Service XP and mission counts are recorded. Rank bonuses, promotion choices,
+  individual loadouts, grenades, elevation and ship-officer deployment are not yet
+  implemented. Seven research projects still await ship combat or tactical loadouts;
+  the research catalogue now has **22 usable projects**.
+
+The mission interface includes squad selection, an isometric board, reachable tiles,
+path previews, shot modifiers, ammunition/AP/health, short shot feedback, a transcript,
+mobile map enlargement and explicit extraction. Core recovery and casualty outcomes
+persist through reloads. The return-home ending acknowledges lost operatives.
+
+### Save compatibility and validation
+
+Envelope **version 3** adds tactical orders. Accepted version-2 exploration actions
+retain exactly the same gameplay semantics; replay adds the initial named roster and
+empty mission state. Version-1 journals still use the frozen original reducer before
+migration. Version-2 envelopes reject new boarding/trauma actions. Reading a save does
+not rewrite it; the next successful autosave writes version 3. Saves during combat,
+while viewing a debrief and after reward application all replay deterministically.
+
+`npm run tactical:simulate -- 12` completes twelve seeded introductory missions using
+legal public actions and visible targets. Unit tests cover path/AP restrictions, cover
+and sight, shot limits, ammo, overwatch, revival, extraction consent, injuries, losses,
+replacement recruitment, no duplicate reward, save replay and older journal migration.
+Browser checks cover launching from a location, movement, shooting, combat reload,
+cancelling an extraction with losses, safe retreat and completed-mission reload on mobile.
+The existing Return Drive voyage simulations and original campaign remain regression gates.
+
+This establishes a playable recovery-mission slice, not full tactical campaign balance.
+Broader mission stories and map variety, progression/loadouts, faction consequences and
+ship-combat integration remain the next areas of work.
