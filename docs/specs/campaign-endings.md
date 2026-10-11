@@ -1,3 +1,5 @@
+> Classic Voyage proposal. This is not the Open Expedition implementation contract. See [current specification](../SPECIFICATION.md).
+
 # Spec: Campaign-conditional endings — the run that gets remembered
 
 *Harvested from `claude/ithaca-encounters-combat-dxkwdl` (commit `add4f3e`,

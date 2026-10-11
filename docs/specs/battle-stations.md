@@ -1,3 +1,5 @@
+> Classic Voyage proposal. This is not the Open Expedition implementation contract. See [current specification](../SPECIFICATION.md).
+
 # Spec: Officers at battle stations
 
 *Harvested from `claude/ithaca-encounters-combat-dxkwdl` (commit `e77b2a7`,

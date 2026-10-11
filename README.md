@@ -1,73 +1,137 @@
 # Starship Ithaca
 
-A narrative space adventure in the spirit of *Starship Traveller* (Fighting
-Fantasy #4) — but instead of a branching paragraph book, an open, seeded galaxy.
+**Explore strange worlds. Bring your people back. Build a way home.**
 
-You captain a ship thrown far from home by a jump anomaly. Fuel is finite, the
-crew are named and die permanently, and the only thing that actually wins the
-game is **information**: fragments of astrogation lore, gathered from traders,
-ruins, derelicts and prisoners, each one narrowing down which of the galaxy's
-stars hides the way back. Some of those fragments are lies.
+A single-player space expedition for the browser. Captain the ISS Ithaca in a
+seeded galaxy, recover scientific discoveries, lead boarding teams and defend
+survey ships. Research the Return Drive while the voyage continues, then decide
+when you are ready to leave.
 
-When you think you know where home is, you commit everything to one jump.
+![The Silent Courier — a derelict waiting to be explored](public/assets/exploration/silent-courier.webp)
 
-## Exploration redesign preview
+## Play the current game
 
-Choose **Start exploration preview** for persistent locations, scientific discoveries,
-queued research, optional tactical boarding, ship escorts, ship refits and a playable route home. **Resume exploration** continues
-its separate autosave, including voyages begun in the earlier sensor preview.
+Choose **Begin expedition** under **Open Expedition** on the title screen.
+**Resume expedition** continues its browser autosave. Enter a galaxy seed to
+revisit the same generated world.
 
-Start **Drive Diagnostics**, then survey the arrival system and recover the Silent
-Courier's power cell. Follow research leads, explore or acquire station scientific
-records. Construct and test a prototype, complete Drive Stabilisation, and build the
-Return Drive. You choose when to leave; departure works from any system.
+1. Start **Drive Diagnostics** so research advances while you explore.
+2. Survey the arrival system and investigate **The Silent Courier**.
+3. Choose a story response and recover its scientific discovery. Remote recovery
+   is available; tactical boarding is optional.
+4. Follow research leads, visit stations and collect independent spatial or
+   propulsion discoveries.
+5. Research, construct and field-test the prototype. Finish Drive Stabilisation,
+   construct the Return Drive and choose **Return home** when ready.
 
-The catalogue has **29 projects across six branches: 27 usable and two visibly
-upcoming combat technologies**. Research, building and fitting are separate decisions.
-Board derelicts and ruins with four named operatives: use cover, recover the core and
-extract. Injuries, casualties and service records persist; the Away team screen offers
-medical rest and station recruitment. Remote recovery remains a safe alternative.
-At a contacted station, review a survey escort: negotiate, evade or enter a saved
-ship battle with pause, reactor power and compartment targeting. Research improves
-weapons and shields. Broader mission types, tactical loadouts and developed faction
-stories remain in progress. The original **Take command** campaign described below keeps its own save.
-See [the V2 specification and current implementation status](docs/REDESIGN-V2.md).
+The title screen also retains **Classic Voyage**, the earlier deduction-led
+campaign, with its own save. Its clue puzzle and Rift Surges are separate rules.
 
-## Status
+## What is playable
 
-**Foundation complete, R-series underway** — the deduction is playable and
-winnable, and it costs fuel, days and people. Every jump burns fuel and a
-day; wounded officers sit in the medbay by the calendar; the Rift surges on
-its own escalating schedule. Defended evidence takes an away team whose
-composition and issued equipment set your options and your odds; artefacts
-come back unreadable without your science officer; the bridge, consulted,
-gives real answers. Three ways for a run to end: home, the captain dead on
-the ground, or the long silence. The project is now building toward the
-dialogue-first, three-track design in [docs/DESIGN.md](docs/DESIGN.md):
-scenes deliver everything, and the way home takes the place, the engine,
-and the shield.
+| System | Current implementation |
+| --- | --- |
+| Expedition | Seeded galaxy, persistent sites, passive/survey/deep scans, travel, stations and discovery archive |
+| Research | All 29 projects across six branches; one active project, three queue slots, construction and fitting |
+| Encounters | Ten authored templates and the Courier's 143-letter delivery voyage |
+| Boarding | Four-person squads; core recovery, rescue, sabotage and salvage; nine configurations across the three newer operations |
+| Tactical decisions | Cover, line of sight, fog, AP, aim, overwatch, equipment, extraction and persistent injuries/casualties |
+| Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures |
+| Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power and compartment targeting |
+| Presentation | Cinematic location/briefing art, realistic tactical figures, responsive layouts and phone map enlargement |
+| Persistence | Version-7 expedition journals; versions 1–6 supported; Classic Voyage kept separate |
+| Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
+
+This is a playable game under active development. Long faction arcs, a developed
+crew relationship system, rank abilities, directional character animation and
+full-run human balance validation remain ahead. Figures use one pose; layout
+variations include reflected plans. No runtime AI API is required.
+
+## Run locally
+
+Use Node.js 22.12+ on the Node 22 line (CI uses Node 22) and npm.
 
 ```bash
-npm install
-npm run dev                                       # play the Nav Plot
-npm run mystery -- --seed voyager --walkthrough   # inspect a generated puzzle
-npm run mystery -- --sweep 300                    # generation statistics
-npm test
-npm run ship:simulate -- 20                      # complete seeded ship escorts
-npm run tactical:simulate -- 12                  # complete seeded boarding missions
-npm run exploration:simulate -- 20               # complete seeded V2 voyages
-npx playwright install chromium                  # one-time browser setup
-npm run test:e2e                                # original and V2 browser checks
+npm ci
+npm run dev
 ```
 
-## Documentation
+Open the local URL printed by Vite. Saves live in that browser and origin;
+there is no account or cloud-save service. Clearing browser storage removes
+local progress. Replacing an expedition prompts first.
 
-- **[Design document](docs/DESIGN.md)** — systems, mechanics, architecture
-- **[Roadmap](docs/ROADMAP.md)** — build order, milestones, risks
-- **[The mystery and the Nav Plot](docs/MYSTERY.md)** — what M2 does, how it behaves, what it doesn't do yet
+```bash
+npm run build       # TypeScript check + production build into dist/
+npm run preview     # serve the production build locally
+```
 
-## Stack
+## Validate changes
 
-TypeScript · React · Vite · Tailwind · Vitest — with a pure, deterministic,
-seeded rules engine that knows nothing about React. The engine never calls
-`Math.random`: a seed plus an action log must always replay to the same state.
+```bash
+npm test
+npm run typecheck
+npx playwright install chromium
+npm run test:e2e
+npm run exploration:simulate -- 20
+npm run tactical:simulate -- 12
+npm run ship:simulate -- 20
+node --import tsx tools/operation-walkthrough.ts 12
+```
+
+For constrained environments use `npm test -- --maxWorkers=2` and
+`npm run test:e2e -- --workers=2`. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can point
+to an existing compatible Chromium executable. Playwright starts Vite on port 4173.
+
+Latest gameplay validation, **11 October 2026**, at commit
+[`babec95`](https://github.com/henders23/starship-explorer/commit/babec95d1438ff01400bc24e973e0a2311ae5fff):
+**277 tests in 29 files, 28 browser scenarios, production build and desktop/phone
+visual review passed.** This is a dated baseline, not exhaustive testing or final
+balance. Vite still reports a JavaScript chunk-size advisory.
+
+## Design and development
+
+| Document | Purpose |
+| --- | --- |
+| [Game design](docs/DESIGN.md) | Player experience, systems, narrative, art, pacing and quality bar |
+| [Implementation specification](docs/SPECIFICATION.md) | Current contracts, architecture, compatibility and acceptance criteria |
+| [Roadmap](docs/ROADMAP.md) | Prioritised milestones and completion gates |
+| [Next design milestone](docs/NEXT.md) | A connected-story slice: The Long Relay |
+| [Classic design](docs/CLASSIC-DESIGN.md) | The preserved mystery campaign |
+| [Redesign history](docs/REDESIGN-V2.md) | Original proposal and dated implementation notes |
+| [Latest tactical review](docs/TACTICAL-READABILITY.md) | Movement guidance, damage feedback and depth-order validation |
+
+`DESIGN.md` owns experience and scope; `SPECIFICATION.md` owns implementation
+contracts; `ROADMAP.md` owns priority. Historical notes record earlier states.
+Features marked **planned** are not implemented by publishing their design.
+
+```text
+src/engine/exploration/  Expedition, research, stories and ship battle
+src/engine/tactical/     Boarding rules, operations and deck variants
+src/engine/state/        Classic Voyage state and reducer
+src/engine/mystery/      Classic deduction puzzle
+src/ui/                  React views, presentation helpers and persistence
+public/assets/           Shipped static assets
+tests/                  Rules, replay, compatibility and property tests
+e2e/                    Browser scenarios
+tools/                  Seeded campaign and combat pilots
+docs/                   Design, specification and milestone evidence
+```
+
+React 19 · TypeScript · Vite · Tailwind/CSS · Vitest · Playwright. Expedition rules
+are pure seeded reducers. The UI requests actions and presents outcomes; it does
+not decide combat results. Classic Voyage has its own older architecture.
+
+## Contribution and release rules
+
+- Keep mandatory science reachable and optional combat optional.
+- Preserve accepted old journals; introduce new mechanics explicitly and version
+  saves when required. Never silently reinterpret old actions.
+- Test the failure modes a change introduces: invalid orders, repeated rewards,
+  hidden-information leaks and reload boundaries.
+- Review changed screens on desktop and phone, with keyboard and reduced motion.
+- Publish the reviewed, tested tree to `main` and verify deployment status.
+- Record generated-art prompts and provenance in milestone notes. Keep text,
+  controls and tactical information out of raster artwork.
+
+Repository: [henders23/starship-explorer](https://github.com/henders23/starship-explorer).
+The product name is **Starship Ithaca**; the repository remains `starship-explorer`.

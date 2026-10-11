@@ -1,3 +1,5 @@
+> Historical Classic Voyage proposal. For current Open Expedition direction, see [DESIGN.md](DESIGN.md) and [NEXT.md](NEXT.md).
+
 # Experience and narrative proposals
 
 The map mock-up deliberately borrows only the reference's **visual grammar**—a luminous

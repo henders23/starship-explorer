@@ -1,8 +1,9 @@
 # Starship Explorer — Unified Redesign Rules
 
-**Status:** approved design direction; implementation in increments.  
-**Ruleset:** exploration-v2 (in development).  
-**Source of truth:** this file supersedes the *gameplay direction* in `docs/DESIGN.md` for v2. The older document describes the currently playable v1; do not delete it until v2 is playable and migrated.
+> Historical proposal and chronological implementation record. Some early targets
+> and intermediate status notes below are superseded. The current source of truth
+> is [DESIGN.md](DESIGN.md), [SPECIFICATION.md](SPECIFICATION.md) and
+> [ROADMAP.md](ROADMAP.md). Keep these dated notes for rationale and provenance.
 
 ## 1. Player fantasy and pillars
 

@@ -1,139 +1,114 @@
-# State of the Voyage — deployment check and next steps
+# Next design milestone — The Long Relay
 
-*19 Aug 2026 · repo `henders23/starship-explorer` · default branch
-`claude/space-adventure-game-plan-29sgn5` @ 9ac3e7a · 139 tests / 13 suites*
+**Proposed, not implemented · 11 October 2026**
 
-Where the game stands after the R-series build-out, what the deployment check
-found, and the three milestones that take it from feature-complete systems to
-a finished, released game.
+The next step is one memorable, connected story arc. The expedition already has
+working research, recovery, combat and return systems. Its larger weakness is
+that many choices end at the reward screen. A small arc with a remembered person
+and a later consequence is the best test of player interest before adding scale.
 
----
+This brief proposes a continuation of the existing Courier letters. It does not
+change that finished story or add a new requirement for returning home.
 
-## 1. Deployment check — every build green, production nine milestones old
+## The player experience
 
-All eleven pushes of the R-series built successfully on Vercel: every preview
-deployment from R0 through the FTL combat rebuild reports READY, with no build
-failures anywhere in the run. PRs #3 and #4 merged the whole series into the
-repository's default branch.
+The letters reached a relay, but one recipient lives beyond a damaged long-range
+link. A station keeper asks whether the Ithaca can carry a copy to the next node.
+There, a recipient wants a private reply carried back; repairing the relay would
+also reconnect the settlement. The captain can restore the wider link or deliver
+a local copy without spending scarce supplies. On returning, the player hears
+what their chosen approach meant to the people using it.
 
-| Environment | Serving | Status |
-|---|---|---|
-| Production | tracks `main` @ bbfc065 — the **full R-series game**, deployed 19 Aug | **READY** |
-| Default branch | `claude/space-adventure-game-plan-29sgn5` @ 9ac3e7a — full R-series via PRs #3 & #4 | READY |
-| Working branch | `claude/game-cohesion-transitions-29u57t` @ fd37ec2 — all 11 deployments clean | READY |
-| Parallel prototype | `claude/ithaca-encounters-combat-dxkwdl` — to be deleted; its three ideas are specced in R8/R9 below | DELETE |
+Working title: **The Long Relay**. Target length: 15–25 minutes across ordinary
+travel and three short scenes, to be tested. Two new recurring contacts:
 
-**Status 19 Aug (done this session):** `main` was fast-forwarded through the
-default branch plus the doc commit and pushed; Vercel built and promoted it —
-production now serves the full game (deployment `READY`, commit bbfc065).
-Remaining hand-work: **deleting the Ithaca branch needs one click in the
-GitHub UI** (the remote environment's git proxy refuses deletion pushes, and
-the GitHub API surface here has no delete-branch route) — Branches page →
-`claude/ithaca-encounters-combat-dxkwdl` → delete. Its three worthwhile ideas
-are already captured as specs in R8/R9. Branch strategy note for R8: `main`
-is now current, but the repo's *default* branch is still
-`claude/space-adventure-game-plan-29sgn5`; pick one as the branch of record
-(recommend `main`) and change the GitHub default accordingly.
+- **Edda Sol**, station keeper: practical, protective of the people waiting for
+  news, more interested in reliable commitments than heroic promises.
+- **Tarek Sen**, recipient and survey technician: relieved to hear a familiar
+  voice, but wary of letting a public network carry a personal answer.
 
-## 2. Where the game stands — feature-complete systems, thin content
+These are new characters, not retroactively identified as tactical survivors.
+Their names, portraits and roles stay fixed. Rescue callbacks can follow in a
+later arc once stable survivor records are available beyond the last mission.
 
-The R-series delivered the pivoted design: everything arrives through
-**scenes**; the way home takes all **three tracks** (the proven-solvable
-deduction, the rift engine and shielding built from recovered components, and
-the research bench whose translation tiers gate what the ship can read);
-combat is the **FTL-style battle** — rooms, reactor power, four weapon types,
-a thirteen-class enemy fleet — with intelligence still buying the bloodless
-endings. Crew gain skill through use, specialists hire on at stations, runs
-autosave and resume, and every ending pays off with the truth reveal.
+## Three beats
 
-The architecture held: the engine is pure and seeded, a seed plus an action
-log replays exactly (the battle sim runs in the UI and reports one logged
-`combatResolve` action), and the tests cover the systems including the
-extended three-track solvability contract.
+| Beat | Situation and choice | Persistent result |
+| --- | --- | --- |
+| 1. An answer is waiting | After Courier delivery, speak to Edda at a contacted station. Accept the optional request or close it for later. | Bind an origin and reachable destination; show an active objective |
+| 2. The broken link | At the destination, meet Tarek. Repair the shared relay (5 materials, 2 days) or deliver a local copy (no resources, 3 days). | Store the approach; advance research with time; unlock return objective |
+| 3. What came back | Return to Edda and acknowledge the response. | Pay 20 credits once; show a distinct reply and add a branch-specific ending record |
 
-**What that leaves:** the game is now content-bound and balance-bound. One
-scene variant per situation repeats quickly, combat classes share one room
-layout, nobody has played a full run end-to-end, and the finish line is unrun.
+Travel/contact costs are additional and shown through the normal controls. The
+original delivery still pays its original 25 credits. The new arc has no hidden
+bonus, unique required technology or combat gate. Starting and acknowledging take
+no campaign days; closing a scene is not a resource-generating action.
 
-## 3. Next steps
+Repair restores communication for others and gets the local work done sooner,
+but spends supplies the captain may need. Local delivery conserves supplies and
+keeps the exchange personal, but leaves the wider relay damaged. Both are valid.
+The follow-up must acknowledge both benefit and limitation without labelling one
+choice morally correct. No later surprise penalty contradicts the stated terms.
 
-### R8 — Ship it properly — **DONE (19 Aug)**
+Example voice targets, to be revised in the actual scene script:
 
-*Goal: the released thing is the real thing, and the repo can't drift again.*
+> Edda: “Most people ask how old the letters are. You asked where they belonged.”
 
-- ~~**Production cutover.**~~ Done: `main` fast-forwarded, production READY.
-- ~~**Settle the Ithaca branch.**~~ Done: the three ideas live as real specs —
-  `docs/specs/battle-stations.md`, `docs/specs/campaign-endings.md`,
-  `docs/specs/doorway-home.md` — adapted to this engine. The branch itself
-  still needs its one-click deletion in the GitHub UI.
-- ~~**Save versioning policy.**~~ Done: versioned envelope (`src/ui/save.ts`),
-  migration chain, archive-not-delete on mismatch, legacy adoption, tests.
-- ~~**The golden-replay harness.**~~ Done: three complete pilot-driven runs
-  (`tests/fixtures/golden/`), replayed by final-state hash in the suite;
-  `npm run golden:record` regenerates deliberately (`tools/pilot.ts` plays,
-  `tools/record-golden.ts` records).
-- ~~**One Playwright smoke flow in CI.**~~ Done: `.github/workflows/ci.yml`
-  runs typecheck, the full suite (golden replays included), and the
-  title → briefing → scene → collect browser walk (`e2e/smoke.spec.ts`).
+> Tarek: “You can put the relay back together. Give me a minute before you put my
+> answer on it.”
 
-**Done when:** the public URL serves the current game, CI replays a golden
-run, and one branch is the branch. *All true as of 19 Aug; branch-of-record
-note: `main` is current — changing the repo's default branch to `main` is
-still one click in the GitHub UI.*
+Keep scenes around 150–250 words each, broken into short exchanges, with visible
+choice terms. These are targets for this slice, not a requirement to fill space.
+Show the emotional response and then return control to the player.
 
-### R9 — The content milestone
+## Interface and art
 
-*Goal: a full run never shows the player the same scene twice, and the ending
-is the best scene in the game.*
+Add a compact **Active voyage** card with the current objective, named destination
+and a **Locate on chart** action. If the current system is the destination,
+explain that station contact is next rather than suggesting another jump.
+The archive stores completed beats and their results. Return-home confirmation
+can identify unfinished optional work without blocking departure.
 
-- ~~**Scene pool depth**~~ Done 19 Aug: 3–4 beat variants per family with
-  region flavour, and variant *rotation* — a run repeats no scene text until
-  a family outgrows its pool (pinned by the encounters suite).
-- ~~**Mid-mission choice nodes**~~ Done 19 Aug: the crisis — some missions
-  hold at an authored complication per site family, odds printed exactly as
-  rolled, riding the harm ladder; saves resume mid-crisis (schema v3).
-- **The finale**: ~~an arrival scene at the gateway threshold~~ done 19 Aug —
-  the correct Long Jump arrives at the threshold and the transit is the
-  scene's commit option. Remaining: the optional contested transit (per
-  `docs/specs/doorway-home.md`), which wants the campaign-endings flags
-  groundwork first.
-- **Combat presentation depth**: ~~per-class enemy room layouts~~ and ~~a
-  tier-3 flagship class~~ done 19 Aug (seven interior plans, the Ashen
-  Sovereign at surge ≥ 4). Remaining: hi-res exports of favourite catalog
-  ships — an art task, not a code one.
-- ~~**Loss epilogues**~~ Done 19 Aug: the epilogue rulebook
-  (`src/engine/state/epilogue.ts`) shows every ending the lines the run
-  earned, and the loss screens name the dead.
+One relay environment and two consistent contact portraits are the maximum new
+art scope. Use realistic materials, restrained practical lighting and crop-safe
+composition. Keep dialogue and buttons outside art. Reuse an existing asset only
+if it fits the location and does not imply the wrong character. Review desktop
+and 390/320px phone screens before calling the art finished. No tactical expansion,
+new combat animation system or faction reputation meter is required for this slice.
 
-**Done when:** a complete playthrough contains no repeated scene text and the
-gateway arrival is a scene, not a screen-swap.
+## Implementation order
 
-### R10 — Balance, feel, release
+1. Finalise the three scene scripts and consequences; prove each branch has a
+   reason a reasonable player would choose it.
+2. Add explicit opt-in arc state/actions, stable site binding and save-version
+   handling. Keep all existing accepted journals unchanged.
+3. Connect the objective card, chart destination, scenes, archive and homecoming
+   acknowledgement using the engine's state.
+4. Create any necessary art and review it in the actual interface.
+5. Test both branches, all reload boundaries, invalid/repeated orders, zero-store
+   play, deferral and returning home with the arc unfinished.
+6. Observe first-time players, revise confusing or emotionally flat parts, then
+   publish the tested milestone to `main` and verify deployment.
 
-*Goal: a stranger can finish a run, want another, and hear the game.*
+The proposed schema and N01–N10 acceptance criteria are in
+[SPECIFICATION.md](SPECIFICATION.md#10-proposed-next-slice-the-long-relay).
 
-- **Full-run playtests first**: three complete seeds, log stalls/snowballs/
-  boredom before tuning anything. Truth-reveal stats are the telemetry.
-- **The tuning pass**: contact rates and the 12-day grace, damage curves and
-  tier-2 timing, research day costs, component counts, fuel economy, target
-  run length — plus a **short galaxy** (~40 systems) as the first-run mode.
-- **Audio**: scene stingers, a map bed, surge and jump cues.
-- **Onboarding & access**: first-clue nudge on the Nav Plot, colourblind-safe
-  chart markers, keyboard coverage for scenes and battle.
+## Done means
 
-**Done when:** an uncoached player finishes a short-galaxy run and starts a
-second one.
+Both branches are playable with legal actions; every stage survives reload;
+old saves behave identically until explicit opt-in; no reward can be doubled;
+phone and keyboard users can find the next step; the ending recalls the actual
+choice. The noncombat Return Drive route still works.
 
-## 4. Risks and open questions
+Automation can establish those functional gates. Human observation must establish
+whether players care: aim for four of five new players finding the next objective
+without help and at least three recalling a person's response. If testers are
+not available, publish only with that evidence gap stated; do not claim the
+interest target is achieved. Fix confusion before expanding the arc system.
 
-| Risk | Why it matters | Mitigation |
-|---|---|---|
-| Content volume | Scene writing is now the schedule | Templates + casting only; pool grows every milestone |
-| Balance debt | Every number set by judgement, not play | Playtests before tuning; golden replays lock behaviour first |
-| Two-branch drift | main vs. default already diverged once | R8 settles one branch of record |
-| Battle sim outside engine | `combatResolve` trusts the UI's report (clamped) | Accepted for single-player; revisit if runs are shared competitively |
+## After this slice
 
-**Open questions:** ironman by default or accept save-scumming; one Long Jump
-failure survivable or two; whether the Ithaca finale's no-withdraw battle fits
-the "every fight avoidable" pillar, or the contested gate should always keep a
-bloodless route.
+Use what players remember to guide the next work: crew progression and one rescue
+follow-up, then the first faction-linked arc. Add tactical enemies/role abilities
+and directional animation once they support those situations. Broad release also
+requires long-journal safety, performance measurement and complete-run playtests.

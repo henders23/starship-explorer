@@ -1,3 +1,5 @@
+> Classic Voyage proposal. This is not the Open Expedition implementation contract. See [current specification](../SPECIFICATION.md).
+
 # Spec: The Doorway Home — a contested-gate finale
 
 *Harvested from `claude/ithaca-encounters-combat-dxkwdl` (commit `add4f3e`).
