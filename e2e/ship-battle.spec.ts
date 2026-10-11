@@ -1,5 +1,7 @@
 import { expect, test } from '@playwright/test'
 import { escortContact, runEscort } from '../tools/ship-walkthrough.js'
+import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
+import { contactArtForClass } from '../src/ui/ship-contact-art.js'
 import { createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { EXPLORATION_SAVE_KEY, saveExploration } from '../src/ui/exploration-save.js'
@@ -15,6 +17,10 @@ test('station escort contact, negotiation, one-time reward and saved report', as
   await page.getByTestId('location-station').first().click()
   await page.getByRole('button', { name: 'Review escort contact' }).click()
   await expect(page.getByRole('heading', { name: 'A ship across our bow.' })).toBeVisible()
+  const ship=SHIP_BY_ID[contact.shipBattle!.classId]!
+  const image=page.getByTestId('contact-recon-art')
+  await expect(image).toHaveAttribute('src',contactArtForClass(ship.id,ship.sprite))
+  expect(await image.evaluate((img:HTMLImageElement)=>img.complete && img.naturalWidth>0)).toBe(true)
   await page.getByRole('button', { name: 'Hail the contact', exact: true }).click()
   await page.screenshot({ path: info.outputPath('escort-contact.png'), fullPage: true })
   await page.reload()
