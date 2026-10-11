@@ -214,14 +214,15 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           <div className="exp-officer"><img src="/assets/portraits/26_helen_morozova.png" alt="Helen Morozova" /><span>Helen Morozova<small>Science officer</small></span></div>
           <p>{state.exploration.statuses[site.id] === 'detected' ? 'We have a fix on the location. Investigate it to establish contact, assess the conditions and identify what can be recovered.' : site.name === 'The Silent Courier' ? 'Its crew shut down everything except the power cell. That cell has kept a tiny navigation beacon alive for decades. If we map its emissions, we can calibrate our sensors to recognise similar technology.' : SCENES[site.kind]}</p>
           {state.exploration.statuses[site.id] === 'detected' ? command({ type: 'investigate', locationId: site.id }, site.kind === 'station' ? 'Establish contact · 1 day' : 'Investigate · 1 day', true) : <>
-            {site.services.length > 0 ? <div className="exp-service-list"><h3>Station services</h3>
+            {site.services.length > 0 ? <div className="exp-service-list">
+              <LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
+              <h3>Station services</h3>
               {command({ type: 'service', locationId: site.id, service: 'refuel' }, `Refuel +20 · ${stationPrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'repair' }, `Repair +20 · 5 materials + ${stationPrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
               {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
               {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <div className="exp-relay"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</div>}
-              <LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
               <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />
               <small>Services remain available after you leave. Contracts provide renewable supplies.</small>
               {hasTech(state, 'contextual-translation') && <><h3>Scientific records</h3><small>A station supplies one independent spatial source. Seek a second station or an expedition for another.</small>
