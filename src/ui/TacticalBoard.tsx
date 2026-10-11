@@ -67,6 +67,10 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       <radialGradient id="tac-warm-light"><stop stopColor="#ffa763" stopOpacity=".22"/><stop offset="1" stopColor="#ffa763" stopOpacity="0"/></radialGradient>
       <radialGradient id="tac-frame-vignette"><stop offset=".48" stopColor="#000" stopOpacity="0"/><stop offset="1" stopColor="#000" stopOpacity=".72"/></radialGradient>
       <linearGradient id="tac-danger-beacon"><stop stopColor="#ffe7ab"/><stop offset=".3" stopColor="#f28d55"/><stop offset="1" stopColor="#6e281c"/></linearGradient>
+      <filter id="tac-noise" x="0" y="0" width="100%" height="100%">
+        <feTurbulence type="fractalNoise" baseFrequency=".17" numOctaves="2" seed="11" stitchTiles="stitch"/>
+        <feColorMatrix type="saturate" values="0"/>
+      </filter>
     </defs>
     <rect width="720" height="420" fill="#061018"/>
     <rect width="720" height="420" fill="url(#deck-glow)"/>
@@ -79,6 +83,13 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       <g className="tac-beacon"><circle cx="111" cy="45" r="17" fill="url(#tac-warm-light)"/><rect x="107" y="41" width="8" height="5" rx="1" fill="url(#tac-danger-beacon)"/></g>
       <g className="tac-beacon"><circle cx="633" cy="315" r="22" fill="url(#tac-warm-light)"/><rect x="629" y="312" width="9" height="5" rx="1" fill="url(#tac-danger-beacon)"/></g>
       <path d="M 41 196 L 400 387 L 699 228 L 699 236 L 400 395 L 41 204 Z" fill="#030a11" stroke="#344b59" strokeWidth="2"/>
+      <g opacity=".5" strokeLinecap="square">
+        {Array.from({length:9},(_,i)=><g key={i}>
+          <path d={`M ${24+i*17} ${106-i*8.5} l 5 -2.5`} stroke="#9bb3b8" strokeWidth="1.2"/>
+          <path d={`M ${592+i*10} ${292+i*5} l 5 2.5`} stroke="#ae8f70" strokeWidth="1.1"/>
+        </g>)}
+      </g>
+      <path d="M 38 200 L 399 391 L 699 232" stroke="#4d6970" strokeWidth="7" fill="none" opacity=".2"/>
       <path d="M 41 202 L 400 394 L 699 235" stroke="#c79a61" strokeWidth="1.4" strokeDasharray="18 8 3 8" opacity=".65" fill="none"/>
     </g>
     <BoardTiles m={m} unitId={unitId} sprint={sprint} destination={destination} onDestination={onDestination}/>
@@ -107,6 +118,7 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       {(!m.operation||m.operation.kind==='sabotage') && m.seen.includes(m.objective.y*m.width+m.objective.x) && <text x={point(m.objective).x} y={point(m.objective).y+21} textAnchor="middle" fill="#ffd184" fontSize={9}>{m.recovered?'SECURED':m.operation?'UPLINK':'CORE'}</text>}
     </g>
     {m.lastShot && m.rolls>loadedRolls && <g key={`shot-${m.rolls}`} className="tac-shot-effect" pointerEvents="none"><line x1={point(m.lastShot.from).x} y1={point(m.lastShot.from).y-15} x2={point(m.lastShot.to).x} y2={point(m.lastShot.to).y-15} stroke={m.lastShot.hit?'#eafed0':'#e8a17a'} strokeWidth={3}/><circle cx={point(m.lastShot.to).x} cy={point(m.lastShot.to).y-15} r={12} fill="none" stroke="#ffdea0"/><text x={point(m.lastShot.to).x} y={point(m.lastShot.to).y-58} textAnchor="middle" fill="#fff2d1" fontSize={15}>{m.lastShot.hit?`−${m.lastShot.damage}`:'MISS'}</text></g>}
+    <g className="tac-grain" pointerEvents="none" opacity=".075"><rect x="0" y="0" width="720" height="420" filter="url(#tac-noise)" /></g>
     {m.operation?.kind==='salvage' && <g pointerEvents="none" className="tac-heat-boundary"><path d="M 460 100 L 160 260" stroke="#f5b47b" strokeDasharray="4 5" strokeWidth={1.5}/><text x={447} y={99} fill="#ffd3a1" fontSize={9}>HEAT ZONE →</text></g>}
     <text x={23} y={391} fill="#69cbbd" fontSize={10}>SHUTTLE ←</text><text x={470} y={391} fill="#7fa0ae" fontSize={9}>{m.operation?.variant?DECK_NAMES[m.operation.kind][m.operation.variant-1]!.toUpperCase():'RECOVERY DECK'} / 12 × 10</text>
   </svg>
@@ -134,6 +146,9 @@ function BoardTiles({ m, unitId, sprint, destination, onDestination }: { m: Miss
           const d: Record<string, Point> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } }; if (d[e.key]) { e.preventDefault(); document.getElementById(`tile-${p.x + d[e.key]!.x}-${p.y + d[e.key]!.y}`)?.focus() } }} />
       {known && tile === 'floor' && <g pointerEvents="none" opacity={lit ? 1 : .42}>
         <polygon points={diamond(p)} fill="url(#deck-fine-metal)"/>
+        {(p.x * 13 + p.y * 17) % 7 === 0 && <polygon points={diamond(p)} fill="url(#deck-grating)" opacity=".65" />}
+        {(p.x * 5 + p.y * 3) % 8 === 0 && <g strokeWidth=".9" strokeOpacity=".65" stroke={inExtraction(p)?'#9ce4c7':'#9daaad'}><path d={`M ${q.x-11} ${q.y-1} L ${q.x-3} ${q.y-5} M ${q.x+6} ${q.y+4} L ${q.x+14} ${q.y}`}/><path d={`M ${q.x-11} ${q.y+1} L ${q.x-3} ${q.y-3}`} strokeOpacity=".2"/></g>}
+        {(p.x * 9 + p.y * 7) % 12 === 0 && <path d={`M ${q.x-9} ${q.y-2} l 7 4 M ${q.x+6} ${q.y-6} l 7 4`} stroke="#d8a575" strokeWidth={1} strokeOpacity=".4" />}
         <path d={`M ${q.x-20} ${q.y-2} L ${q.x} ${q.y+8} L ${q.x+20} ${q.y-2}`} fill="none" stroke="#a3bdc4" strokeOpacity={.18} strokeWidth={.7}/>
         <circle cx={q.x-20} cy={q.y-1} r={.95} fill="#acc7cb" opacity=".55"/>
         <circle cx={q.x+20} cy={q.y-1} r={.95} fill="#acc7cb" opacity=".55"/>

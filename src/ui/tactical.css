@@ -163,7 +163,7 @@
 .tac-board .tac-environment { filter:drop-shadow(0 2px 5px #07131c); }
 .tac-animated-unit { will-change:transform; }
 .tac-animated-unit.moving .tac-foot-shadow { animation:tac-shadow-stride 180ms ease-in-out infinite alternate; }
-.tac-animated-unit.moving .tac-soldier-sprite { animation:tac-soldier-stride 180ms ease-in-out infinite alternate; transform-box:fill-box; transform-origin:center bottom; }
+
 .tac-figure.firing .tac-soldier-sprite { animation:tac-rifle-recoil 190ms ease-out both; transform-box:fill-box; transform-origin:center center; }
 .tac-muzzle-flash { animation:tac-flash 230ms ease-out both; }
 .tac-selection-ring { animation:tac-ring-breathe 2s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
@@ -191,4 +191,31 @@
   .tac-muzzle-flash,.tac-selection-ring,.tac-shield,.tac-beacon,
   .tac-shot-effect line,.tac-shot-effect circle {animation:none!important}
   .tac-muzzle-flash {opacity:0}
+}
+
+/* Frame-animated locomotion for the original realistic single-pose renders.
+   Gait clips shift the left and right legs separately instead of sliding a
+   rigid bitmap. The upper body counterbalances; the gameplay board does not. */
+.tac-visual-body image { filter:drop-shadow(0 2px 1px #02070b); }
+.tac-animated-unit.moving .tac-gait-left { animation:tac-left-step 350ms ease-in-out infinite; transform-box:fill-box; transform-origin:50% 0; }
+.tac-animated-unit.moving .tac-gait-right { animation:tac-right-step 350ms ease-in-out infinite; transform-box:fill-box; transform-origin:50% 0; }
+.tac-animated-unit.moving .tac-torso { animation:tac-torso-counterbalance 350ms ease-in-out infinite; transform-box:fill-box; transform-origin:50% 80%; }
+.tac-figure.firing .tac-visual-body { animation:tac-rifle-recoil 190ms ease-out both; transform-box:fill-box; transform-origin:center; }
+@keyframes tac-left-step { 0%,100%{transform:translate(-2px,0) rotate(-3deg)} 50%{transform:translate(1px,-3px) rotate(3deg)} }
+@keyframes tac-right-step { 0%,100%{transform:translate(1px,-3px) rotate(3deg)} 50%{transform:translate(-2px,0) rotate(-3deg)} }
+@keyframes tac-torso-counterbalance { 0%,100%{transform:translateY(0) rotate(-1deg)} 50%{transform:translateY(-2px) rotate(1deg)} }
+.tac-quickbar { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)) minmax(138px,1.15fr); gap:6px; border:1px solid #334f5c; border-top:0; padding:9px; background:#071923; box-shadow:0 15px 25px #0004; }
+.tac-quickbar button { display:flex; gap:10px; align-items:center; justify-content:center; border:1px solid #466574; background:linear-gradient(#173342,#0b1d29); color:#d8edf1; font-size:10px; letter-spacing:1px; padding:10px 7px; min-height:58px; transition:background .12s ease,border-color .12s ease; }
+.tac-quickbar button:not(:disabled):hover,.tac-quickbar button:focus-visible { background:#244b5a; border-color:#b2dfed; outline:1px solid #a7d8e2; }
+.tac-quickbar button:disabled { cursor:not-allowed; opacity:.38; }
+.tac-quickbar button b { font-family:Arial,sans-serif; font-size:28px; font-weight:300; line-height:1; color:#acdced; }
+.tac-quickbar button span { display:flex; flex-direction:column; gap:4px; text-align:left; }
+.tac-quickbar button small { font-size:8px; color:#99b9c2; letter-spacing:.4px; }
+.tac-quickbar .tac-quick-end { background:linear-gradient(#29413f,#182e2c); border-color:#71938e; }
+.tac-quickbar .tac-quick-end b { color:#d9d0aa; }
+@media(max-width:980px) { .tac-quickbar {grid-template-columns:repeat(5,minmax(0,1fr))} .tac-quickbar button {flex-direction:column;gap:4px;} .tac-quickbar button span,.tac-quickbar button small {text-align:center;} .tac-quickbar button b {font-size:22px;} }
+@media(max-width:420px) { .tac-quickbar {padding:5px; gap:4px;} .tac-quickbar button {padding:8px 2px;min-height:60px;font-size:8px;letter-spacing:0;} .tac-quickbar button small {font-size:7px;} }
+@media(prefers-reduced-motion:reduce) {
+.tac-animated-unit.moving .tac-gait-left,.tac-animated-unit.moving .tac-gait-right,
+.tac-animated-unit.moving .tac-torso,.tac-figure.firing .tac-visual-body {animation:none!important}
 }

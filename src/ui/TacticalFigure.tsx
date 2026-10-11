@@ -6,7 +6,18 @@ export function TacticalFigure({ unit, firing = false }: { unit: TacticalUnit; f
   const ally = unit.side === 'crew'
   return <g className={`tac-figure ${ally ? 'ally' : 'enemy'} ${firing ? 'firing' : ''}`}>
     <rect className="tac-figure-hitbox" x={-16} y={-54} width={32} height={58} fill="transparent" pointerEvents="all" />
-    <image className="tac-soldier-sprite" href={figureAsset(unit.side)} x={-32} y={-58} width={64} height={64} pointerEvents="none" />
+    {/* Split the one-pose art into an upper body and two movable leg silhouettes.
+        All three clips are exact partitions of the original bitmap at rest. */}
+    <defs>
+      <clipPath id={`tac-torso-${unit.id}`}><rect x={-32} y={-58} width={64} height={39}/></clipPath>
+      <clipPath id={`tac-leg-left-${unit.id}`}><rect x={-32} y={-19} width={32} height={26}/></clipPath>
+      <clipPath id={`tac-leg-right-${unit.id}`}><rect x={0} y={-19} width={32} height={26}/></clipPath>
+    </defs>
+    <g className="tac-visual-body">
+      <g className="tac-gait-left" clipPath={`url(#tac-leg-left-${unit.id})`}><image href={figureAsset(unit.side)} x={-32} y={-58} width={64} height={64} pointerEvents="none"/></g>
+      <g className="tac-gait-right" clipPath={`url(#tac-leg-right-${unit.id})`}><image href={figureAsset(unit.side)} x={-32} y={-58} width={64} height={64} pointerEvents="none"/></g>
+      <g className="tac-torso" clipPath={`url(#tac-torso-${unit.id})`}><image href={figureAsset(unit.side)} x={-32} y={-58} width={64} height={64} pointerEvents="none"/></g>
+    </g>
     {firing && <g className="tac-muzzle-flash" pointerEvents="none"><path d={ally ? 'M 20 -29 L 31 -37 L 28 -27 L 38 -22 L 24 -21 Z' : 'M -20 -29 L -30 -36 L -28 -25 L -38 -19 L -22 -19 Z'} fill="#ffe5a6" stroke="#f2a761" strokeWidth=".8"/></g>}
     {unit.overwatch && <path d="M -19 7 L 0 14 L 19 7" fill="none" stroke="#f3d594" strokeWidth={2}/>}
   </g>
