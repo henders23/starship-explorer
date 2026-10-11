@@ -22,6 +22,9 @@ function UnitFigure({unit,m,chosen,onChoose,firing}:{unit:TacticalUnit;m:Mission
     const element=node.current
     if(!element||!before||(unit.x===before.unit.x&&unit.y===before.unit.y))return
     motion.current?.cancel()
+    // Face the direction of the projected move, not always screen-right.
+    const horizontal=point(unit).x-point(before.unit).x
+    if(Math.abs(horizontal)>1)element.dataset.facing=horizontal<0?'left':'right'
     if(window.matchMedia('(prefers-reduced-motion: reduce)').matches)return
     const travelled=pathTo(before.mission,before.unit,{x:unit.x,y:unit.y},false)
     const stops:Point[]=[{x:before.unit.x,y:before.unit.y},...(travelled?.length?travelled:[{x:unit.x,y:unit.y}])]

@@ -219,3 +219,6 @@
 .tac-animated-unit.moving .tac-gait-left,.tac-animated-unit.moving .tac-gait-right,
 .tac-animated-unit.moving .tac-torso,.tac-figure.firing .tac-visual-body {animation:none!important}
 }
+
+.tac-animated-unit[data-facing="left"] .tac-visual-body {transform:scaleX(-1); transform-box:fill-box; transform-origin:center;}
+.tac-animated-unit[data-facing="left"] .tac-muzzle-flash {transform:scaleX(-1);transform-box:fill-box;transform-origin:center;}
