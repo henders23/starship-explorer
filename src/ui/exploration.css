@@ -246,7 +246,7 @@
 .exp-atlas-tools button { width:34px;height:34px;border:1px solid #496a78;background:#0a2130;color:#d8f8fa;font:20px/1 Arial,sans-serif;cursor:pointer; }
 .exp-atlas-tools button:disabled {opacity:.35;cursor:default;}
 .exp-atlas-tools button:focus-visible,.exp-atlas-tools button:hover:not(:disabled) {outline:1px solid #d1f2ef;background:#1e4658;}
-.exp-atlas-readout { position:absolute; z-index:1; left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:18px;padding:20px 21px 13px;background:linear-gradient(0deg,#03101cf5,#061521b8 80%,#05162200);pointer-events:none; }
+.exp-atlas-readout { position:absolute; z-index:1; left:0;right:0;bottom:35px;display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:18px;padding:20px 21px 13px;background:linear-gradient(0deg,#03101cf5,#061521b8 80%,#05162200);pointer-events:none; }
 .exp-atlas-readout span {display:flex;flex-direction:column;gap:6px;min-width:0;}
 .exp-atlas-readout span:last-child {text-align:right;align-items:flex-end;}
 .exp-atlas-readout strong {font-size:10px;font-weight:500;letter-spacing:1.6px;color:#d4f0f2;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;max-width:100%;}
