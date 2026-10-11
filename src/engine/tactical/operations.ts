@@ -1,8 +1,10 @@
 import type { Point } from './mission.js'
+import type { DeckVariant } from './variants.js'
 export const OPERATION_KINDS = ['rescue', 'sabotage', 'salvage'] as const
 export type OperationKind = typeof OPERATION_KINDS[number]
 export interface Survivor extends Point { id: string; name: string; leader: string | null; evacuated: boolean }
 export interface Operation {
+  variant?: DeckVariant
   kind: OperationKind; survivors: Survivor[]; crates: (Point & { collected: boolean })[]
   alarm: boolean; reinforcement: boolean
 }

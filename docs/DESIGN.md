@@ -1,448 +1,308 @@
-# Starship Ithaca — Game Design Document
-
-> You are the captain of a ship that is very far from home, with a crew you
-> live alongside, a drive that cannot make the jump, and no chart that means
-> anything. Somewhere out there is the way back — and the knowledge, the
-> engine and the shielding it takes to survive it. Go and find them.
-
-**Genre:** narrative space adventure / dialogue-driven exploration RPG
-**Inspiration:** *Starship Traveller* (Fighting Fantasy #4), with the branching
-paragraph book replaced by an open, seeded galaxy — and the paragraphs replaced
-by scenes between people.
-**Platform:** Web app — TypeScript + React (Vite), headless rules engine
-**Map:** procedurally generated per seed, populated from a hand-authored content pool
-**Win condition:** three tracks, all required — deduce *where* home is, build the
-*engine* that can reach it, and build the *shield* that survives the rift.
-
----
-
-## 1. The pitch
-
-The *Ithaca* enters a jump anomaly and comes out somewhere the star
-charts do not describe. A five-panel intro comic plays that transit before the
-briefing: Cpt. Alexander Vale, Lt. Helen Morozova and Chief Gabriel Cross take
-the ship into an engineered aperture, the field inverts halfway through, and
-the drive and the astrogation core are gone by the time it lets go of them.
-Those three are pinned in the roster generator, so the faces in the comic are
-the faces at the stations for the rest of the voyage. Familiar space is reachable — the anomaly has a far
-end — but nobody aboard knows which of ninety stars it hides behind, and the
-drive that was dragged through it could not make the return transit even if
-they did.
-
-You live on the ship. The game happens in conversation: arrive at a new world
-and *something happens* — an officer notices a signal, an alien hails the ship,
-a landing party finds something half-buried — and the scene plays out between
-faces you know, with choices that matter. Out of those scenes comes everything
-the voyage runs on:
-
-- **Accounts** of the anomaly, which narrow down where home is. Some are lies.
-- **Technology** — salvage, wreckage, and alien science that becomes the rift
-  engine and rift shielding the return jump demands.
-- **Understanding** — research that unlocks the rest: you cannot use what an
-  alien tells you until you can understand the alien.
-
-When all three are in hand — the place, the engine, the shield — you commit
-everything to one jump. The game grades how much of your ship and your people
-you brought home.
-
-**The fantasy:** being a competent captain of a wounded ship, living among a
-crew of individuals, and assembling the way home piece by piece from
-conversations, ruins and wrecks.
-
----
-
-## 2. Design pillars
-
-1. **Everything arrives through a scene.** Clues, technology, recruits,
-   fights, research prompts — the delivery mechanism is dialogue between
-   characters with portraits and choices, never a bare button. The ship is a
-   place; the crew are the interface.
-2. **Information is the treasure.** Fuel and guns are means; knowledge is the
-   end. Every system in the game should be able to answer "…and how does this
-   help me get home?"
-3. **The crew are people, not stats.** Names, faces, voices, permanent deaths —
-   and growth: crew gain experience, and new faces can be recruited at
-   stations. Losing your xenolinguist is a strategic wound; finding a better
-   one is a strategic win.
-4. **Deduction the player performs, not the character.** The game never says
-   "you have found 7/10 clues". It gives you evidence and a plotting table, and
-   *you* work out where home is. Being wrong must be genuinely possible.
-5. **Legible systems, hidden content.** Rules are transparent and shown as
-   numbers and odds. The galaxy's contents are not.
-
----
-
-## 3. The core loop
-
-```
-        ┌────────────────────────────────────────────────────────┐
-        │                                                        │
-        ▼                                                        │
-  ┌───────────┐  burn fuel  ┌────────────┐   a scene fires  ┌────┴─────┐
-  │ STAR MAP  │────────────▶│   ARRIVE   │─────────────────▶│ ENCOUNTER │
-  │ choose a  │             │ somewhere  │  someone notices │ dialogue, │
-  │ system    │             │    new     │  something…      │ choices,  │
-  └───────────┘             └────────────┘                  │ missions  │
-        ▲                                                   └────┬──────┘
-        │                     spend crew, days, fuel             │
-        │                     gain accounts, tech, recruits      │
-        │                                                        ▼
-        │                ┌──────────────────┐         ┌──────────────────┐
-        └────────────────│    NAV PLOT      │◀───────▶│  RESEARCH BENCH  │
-          new candidates │ file accounts,   │ unlocks │ translate, study,│
-                         │ eliminate stars, │ reading │ build the engine │
-                         │ decide who lied  │         │ and the shield   │
-                         └────────┬─────────┘         └────────┬─────────┘
-                                  │  location known            │ engine + shield built
-                                  └──────────────┬─────────────┘
-                                                 ▼
-                                          THE LONG JUMP
-                                         (win or disaster)
-```
-
-**Session shape:** a run is 4–8 hours, 40–80 jumps. The player should play
-their first scene within two minutes, file their first account within ten, and
-have all three tracks visibly moving by the first hour.
-
----
-
-## 4. The three tracks
-
-Getting home requires all three. They are pursued through the same activity —
-flying somewhere and playing the scene that fires there — so the player is
-never grinding one bar; any landing can advance any track.
-
-### 4.1 Navigational — *where is it?*
-
-The deduction. Accounts of the anomaly are constraints over star systems; the
-candidate set is every system consistent with what the player trusts; some
-accounts are lies, catchable only through contradiction and corroboration.
-This is the spine of the game and is specified in §5.
-
-### 4.2 Technological — *what can reach it?*
-
-The return transit needs two things no yard sells:
-
-- **The rift engine.** Built from recovered components — an intact drive core
-  from a wreck, alien machining, exotic fuel handling. Components are scene
-  payloads: they are found in derelicts, traded for, dug out of ruins.
-- **The rift shielding.** The anomaly tears unprotected hulls apart.
-  Shield-frame components are found the same way, disproportionately in the
-  hazardous places.
-
-Components are discovered through scenes and *assembled* through research
-projects (§6). The Long Jump is refused until both are built — and the plot
-screen says exactly what is still missing.
-
-### 4.3 Understanding — *can we even read what we have?*
-
-A research track that gates the other two:
-
-- **Translation.** Alien accounts and inscriptions arrive unreadable. Comms
-  research raises the ship's translation tier; each tier makes another band of
-  sources legible. An untranslated account is held but dark — the player can
-  see what they are missing.
-- **Analysis.** Some components cannot be identified, and some accounts cannot
-  be fully assessed, below a given science tier.
-
-Research costs days and needs the right people (§7): the science officer's
-skill sets the pace, and specialist recruits accelerate it. The science
-officer *proposes* research through scenes — a portrait, a pitch, options —
-rather than the player reading a menu.
-
-**Solvability rule:** understanding is gated by *time and crew*, never by
-findable materials — so no seed can strand the player unable to read the only
-evidence that remains. The generator's contract (§5.2) is extended so that
-every run can find the place, the engine parts, and the shield parts.
-
----
-
-## 5. The mystery: accounts, constraints and deduction
-
-Unchanged in substance from the first design, and already implemented with a
-proven generator. Summarised here; see [MYSTERY.md](./MYSTERY.md) for the
-measured behaviour.
-
-### 5.1 Model
-
-At worldgen the generator picks one **Gateway system**. Every account is a
-**constraint** — a predicate over star systems (direction, proximity, star
-type, features, region, isolation, faction adjacency, anomaly). The player's
-candidate set is every system satisfying all constraints they currently
-*trust*. Accounts carry authored prose, a source, a shown-but-noisy confidence,
-and a hidden truth flag.
-
-### 5.2 Generation contract
-
-The generator proves the puzzle before shipping it: solvable (true accounts
-resolve to exactly the Gateway), non-trivial, not a slog, falsifiable (2–4
-lies, each consistent with a decoy), catchable (every lie exposable with at
-most two honest accounts), and reachable within the fuel budget.
-
-**Extended for the three tracks:** engine and shield components must be placed
-and reachable, and enough accounts must be legible at achievable translation
-tiers that the deduction can proceed while research catches up. Verified by
-the 10k-seed property test.
-
-### 5.3 Where accounts and components come from
-
-| Source | Scene shape | Yields |
-|---|---|---|
-| Alien trader | Negotiation; options improve with comms tier | Accounts (they lie for profit), components for barter |
-| Derelict hulk | Away mission through the wreck | Log-core accounts, engine components, fuel salvage |
-| Ruins | Away mission; translation-gated | Inscription accounts, shield components |
-| Holdouts / castaways | Talk or force; how you go in decides how it ends | Accounts, occasionally a recruit |
-| Listening post | Away mission; may be rigged | Signal accounts, comms components |
-| Faction station | Docking scenes | Recruits, refit, components for trade |
-| Crew memory | An officer speaks up on arrival somewhere relevant | Accounts, free but vague |
-
-### 5.4 The Nav Plot (the deduction UI)
-
-The game's signature screen, unchanged: evidence board with Trust/Doubt
-filing, live candidate list and map overlay, contradiction detection (the only
-way to catch liars), corroboration, and the commit button. **Never show a
-progress bar** — the candidate count is the progress bar, and it can go up
-when you doubt something. The plot screen also shows the technological track's
-state plainly: what is built, what is missing, where the trail points.
-
-The chart runs full bleed: nothing takes a column out of the sky permanently.
-It is drawn outward from the galactic core, so the voyage reads **left to
-right** — the Shallows the ship arrived in at the left edge, the Rift Margin
-at the right, and the ship starting in the left tenth or so with the frontier
-ahead of it. The sector is generated as a long, shallow wedge for exactly this
-reason (§4 worldgen: roughly 1000 ly of radial band across a quarter-radian
-arc), so the chart is drawn at true scale on both axes — a lane twice as long
-on the chart is twice as long in the sky and costs about twice the fuel.
-
-Stars are hexagonal glyphs. Amber is the deduction — a star still consistent
-with everything trusted, breathing on a slow pulse so the remaining field can
-be found without reading a name; nothing is amber until something has actually
-been ruled out. Blue is the ship and the course it would fly, cyan is evidence
-still waiting to be collected, red is a star the reserve was already bet on,
-and everything else is catalogue grey. Stars the tank can no longer reach fade
-out of the field.
-
-The title block, the search and zoom controls and the legend float over the
-sky. The **inspector** docks to the right on selection: the star's catalogue
-entry, its standing in the plot, any account that came from it, what the trip
-costs, and every order the ship can carry out there — travel, respond, scoop,
-refit, and the Long Jump. The **plot bar** along the foot is the score: the
-stars still standing, listed and clickable, and the state of the technological
-track. The evidence board rises over that bar on request and drops away again.
-
-The first time the chart is pointed at a star the ship has not reached, the
-officer whose department it falls to remarks on the place — one line, once per
-star per voyage, out of an authored pool written against what a system *is*
-(its features, its class of sun, its region, whether it is a junction or a
-dead end or empty). Each of the ninety systems in a sky is dealt its own line,
-fixed by the seed. The remarks are astrography and shipboard temper only:
-none of them says anything about the plot, so a captain who reads all ninety
-is no closer to the way home than one who dismisses them.
-The first time a captain takes the station, a one-slide briefing explains the
-layout, the marks and the movement keys — it is reachable afterwards from the
-"?" beside the zoom, and it teaches navigation only, never the answer.
-
-### 5.5 Committing: the Long Jump
-
-Charging the jump costs a large fixed fuel reserve, and requires the rift
-engine and shielding built.
-
-- **Correct →** ending, graded (§10).
-- **Wrong →** the ship is flung to a far corner of the map with almost nothing
-  in the tank and a scarred drive. Survivable perhaps twice. Never a game over
-  by itself — the game over is running out of the means to keep looking.
-
----
-
-## 6. Encounters: the scene engine
-
-The delivery mechanism for the whole game.
-
-### 6.1 Shape
-
-A **scene** is: a trigger, a cast, a sequence of beats, and a set of options.
-
-- **Triggers:** arriving at a system with content; docking at a station;
-  returning from a mission; a research threshold; a rift surge; an officer
-  with something to say.
-- **Cast:** drawn from the roster (portraits the player knows) plus scene
-  figures — a trader, a castaway, a voice on the wideband.
-- **Beats:** authored prose with casting slots (names, places, the payload),
-  presented as dialogue with portraits — the briefing scene's presentation,
-  generalised.
-- **Options:** 2–4, each a real decision: an approach with visible odds, a
-  cost in days or fuel, a requirement (a fit officer, a skill, a translation
-  tier, a piece of gear), or a refusal. Options dispatch engine actions;
-  scenes never contain rules of their own.
-
-### 6.2 Authoring model
-
-Scene *templates* are authored; the seed *casts* them. A template knows its
-shape ("derelict, first contact, something is still drawing power") and its
-slots; worldgen binds it to a system, a payload (account, component, recruit),
-and a cast. Content grows by adding templates, never by touching engine code.
-This is the same authored-prose-over-procedural-placement bet the mystery
-already makes, and it is the project's main content cost — the template pool
-grows every milestone.
-
-### 6.3 Missions are scenes
-
-An away mission is a scene whose options are the approaches, with the odds
-printed on them, and whose team is chosen in the scene. Harm follows the
-established ladder (escorts, then hands, then officers, then — only leading in
-person — the captain). Injuries persist; the medbay runs on the calendar.
-
----
-
-## 7. Crew
-
-### 7.1 Model
-
-The founding roster: the captain (the player) and department officers —
-security, science, medical — with names, portraits and skills, above small
-pools of unnamed security staff and crew hands. A generic gains a name and a
-face on promotion into a dead officer's chair.
-
-**Growth beyond the founding four:**
-
-- **Recruitment.** Stations and scenes offer specialists — a gunner, a
-  linguist, a rift-physicist, an engineer. Recruits join the roster as named
-  people with portraits and their own skills.
-- **Experience.** Officers and specialists gain skill through use: missions
-  led, research completed, battles fought. Skill feeds every system that
-  reads it — mission odds, research pace, combat effectiveness, negotiation
-  options.
-
-### 7.2 Crew as the interface
-
-Officers speak when there is something to say: arrival scenes, research
-proposals, warnings. **Consult the Bridge** remains: each fit officer gives a
-working opinion from real state — the nearest unexamined thread, the medbay
-docket, what the boards show. The bridge is the quest log.
-
-### 7.3 Injury and death
-
-Away missions and ship combat hurt people. Injured crew sit in the medbay by
-the calendar (faster with a fit medical officer); dead crew are dead, named in
-the epilogue. There is no morale meter and no mutiny — the cost of a bad
-landing is the people it costs.
-
----
-
-## 8. Galaxy, travel and the map
-
-- 70–110 systems, jump lanes, regions, seeded generation — as built.
-- **Fuel is the master clock.** Scooping at gas giants and draining swept
-  derelicts refills it; lanes burn it; a scarred drive burns 30% more.
-- **The Rift Surge schedule** is the soft pressure clock: seeded, escalating,
-  and forecastable by a good science officer. Surges vent fuel, injure crew,
-  and scar the drive.
-- **Stranded** remains a loss: no affordable lane, nothing to scoop, the
-  reserve out of reach.
-- **Presentation:** the chart is the strategic view; each system opens into a
-  **system view** with its planets rendered — the place scenes visibly happen.
-  The map should be worth staring at: it is where the player lives between
-  scenes.
-
----
-
-## 9. Ship-to-ship combat
-
-FTL-style: real-time with pause, rooms, power and weapon variety — and still
-avoidable and legible.
-
-- **Contact opens with a posture scene:** hail, evade, or engage — with the
-  odds and the stakes stated. Tolls can be paid; intelligence ends fights
-  before they start.
-- **Battle is a room-based simulation.** The Ithaca's compartments
-  (engines, shields, two weapon rooms, launch bay, sensors, helm) hold power
-  from a fixed reactor budget; the enemy's compartments are clickable
-  targets. Weapons charge in real time and hold or auto-fire: the pulse
-  laser is dependable, missiles ignore shields but spend a persistent
-  magazine, the ion disruptor strips shields and disables rooms, the focus
-  beam carves bare hull but never a raised shield. The launch bay flies
-  drones; sensors, powered, reveal the enemy's weapon charge; breaking off
-  charges the drive while they keep shooting.
-- **Enemy variety is a catalog.** Ship classes cut from the fleet art, per
-  faction archetype and in two tiers — the rift's escalation brings out the
-  heavier hulls. Raiders swarm and break; patrols sit behind layered
-  shields; polity hulls carry ion and beams.
-- **Destroying the enemy is enough.** No boarding, no capture logistics.
-- **Surrender happens to the informed:** intelligence on a faction takes a
-  hurt patrol's colours mid-battle. Raiders never yield.
-- Hull damage and spent missiles persist; yards repair and restock; a hulled
-  ship is an ending.
-- **Architecture:** the battle simulation runs in the UI; the engine stays
-  deterministic. Contacts, ship classes, posture dialogue and rewards are
-  engine rules, and the battle's outcome enters the action log as a
-  `combatResolve` action — a replayed log carries the result the way it
-  carries every other player decision.
-
-There is **no separate infantry combat system**. Ground violence resolves
-inside scenes with the mission odds machinery.
-
----
-
-## 10. Endings
-
-Graded on arrival, not just pass/fail, with the epilogue naming individual
-crew and what became of them — the payoff for permadeath.
-
-- **Home** — graded by who and what made it back
-- **The long silence** — stranded: no fuel, no leads, no way to make more
-- **The captain did not come back** — lost leading from the front
-- **Lost with all hands** — the ship destroyed
-
----
-
-## 11. Technical architecture
-
-Unchanged in principle; the engine remains pure, seeded and deterministic.
-
-- **The engine is pure.** `(state, action) → (state, events)`; all randomness
-  from a seeded PRNG; a seed plus an action log always replays identically.
-- **The UI renders state and dispatches actions.** If a number is computed in
-  a component, that is a bug.
-- **Scenes are content, validated at build time.** Templates live in typed
-  content modules; the caster binds them at worldgen; choices dispatch
-  ordinary actions, so replay covers dialogue too.
-- **Events drive the fiction.** The reducer emits events; scenes and the log
-  render them.
-- **Testing:** unit tests per system; the 10k-seed solvability property test
-  (extended to all three tracks); golden replays.
-
----
-
-## 12. Presentation
-
-Text-forward, chart-heavy, faces everywhere:
-
-- **Scene overlay** — portraits, beats, options; the game's most-used surface.
-- **Star map & system view** — SVG chart plus rendered planets.
-- **Nav Plot** — the evidence board; the signature screen.
-- **Research bench** — the tree, the projects, the officer's proposals.
-- **Combat** — schematic, range strip, legible numbers.
-- **The ship** — the cutaway hub, room views, the roster.
-
-Aesthetic: amber/green CRT, thin rules, generous whitespace — *Alien*'s
-MU-TH-UR by way of a paperback. Prose in second person, present tense, terse.
-
----
-
-## 13. Open questions
-
-1. **Save scumming.** Ironman-by-default with a casual toggle, or accept it?
-2. **Long Jump attempts.** Survivable twice, or once?
-3. **Run length.** A "short galaxy" option (40 systems, fewer components) is
-   cheap and worth prototyping.
-4. **Scene fatigue.** If every arrival fires a scene, arrivals at empty
-   systems must stay quiet — silence needs to stay meaningful.
-
----
-
-## 14. Scope guard
-
-The failure mode for this project is building the galaxy simulation and never
-building the game. The scenes and the mystery are the game. No colonies, no
-fleets, no economy simulation, no second tactical combat system. One ship, one
-crew, one way home.
+# Starship Ithaca — full game design
+
+**Design of record · 11 October 2026 · Open Expedition / exploration-v2**
+
+This document describes the intended complete experience and distinguishes it
+from the implemented baseline. [SPECIFICATION.md](SPECIFICATION.md) defines current
+rules and engineering contracts; [ROADMAP.md](ROADMAP.md) defines build order.
+The mystery-led design is preserved in [CLASSIC-DESIGN.md](CLASSIC-DESIGN.md).
+This document supersedes the direction/status summaries in [REDESIGN-V2.md](REDESIGN-V2.md).
+
+## 1. The game we are making
+
+You captain the ISS Ithaca after a transit leaves it far from familiar space.
+Home is something your crew can build a route to. Every system offers a question:
+what is worth learning, who needs help, and what can you risk before moving on?
+The pleasure lies in making a voyage that belongs to this crew.
+
+**Genre:** single-player narrative exploration with strategic ship management,
+optional turn-based boarding and real-time ship combat with pause.
+**Platform:** desktop and mobile browsers; mouse, touch and keyboard.
+**Audience:** players who enjoy discovery, readable tactics and human science
+fiction. Boarding requires no reflex skill.
+**Product scope:** self-contained browser game; no account, multiplayer, paid
+progression, live service or runtime generative dialogue is currently designed.
+
+The emotional movement is **disorientation → competence → attachment → a chosen
+homecoming**. A player should remember a person they helped and a difficult
+choice at least as clearly as a weapon upgrade.
+
+## 2. Pillars and boundaries
+
+| Pillar | Design consequence |
+| --- | --- |
+| Discovery drives progress | Science comes from exploring, observing, exchanging and helping |
+| One ship, named people | Persistent injuries, losses and remembered deeds give decisions weight |
+| Several routes forward | Combat is optional; independent science sources and recovery services prevent ordinary setbacks becoming dead ends |
+| Legible systems | Show costs, prerequisites and known risks before commitment; label uncertainty |
+| Consequences outlast scenes | Places and characters react to what happened; this is the next major content investment |
+| Restraint supports wonder | Quiet arrivals and readable screens leave room for a surprising encounter |
+
+Out of scope: colonies, fleets, grand-strategy diplomacy, salary/rations/morale
+meters, a universal countdown, unlimited procedural dialogue and compulsory
+battles on every jump. Do not reintroduce Classic Voyage's false-account puzzle
+or Rift Surges into Open Expedition. Do not expand the map merely to add volume.
+
+## 3. Baseline and ambition
+
+| Area | Implemented | Planned or unresolved |
+| --- | --- | --- |
+| World | Default 90-system seeded galaxy, stable sites, scans and revisits | Complete-run pacing; richer regional identities |
+| Progress | 29 usable projects, queue, fitting, prototype test and return | Narrative framing of milestones; human balance data |
+| Stories | Ten templates; complete Courier delivery side voyage | Connected arcs, recurring contacts and callbacks |
+| Ground | Core recovery plus rescue/sabotage/salvage; four of six operatives; nine newer operation configurations | Distinct enemies, deeper role choices and earned progression |
+| Space | Saved station escorts, negotiation/evasion and compartment battles | Faction-specific encounters and signposted regional danger |
+| Crew | Named roles, equipment, injuries, casualties and service XP | Relationships, rank abilities and off-duty presence |
+| Art | Cinematic stills, realistic single-pose figures, lit vector decks and depth sorting | Directional poses, impact/movement animation and richer ship scenes |
+| Endings | Voluntary homecoming and voyage acknowledgements | Personal payoffs grounded in connected story records |
+
+The expedition is independently playable, but its content and balance are still
+in development. A system in Classic Voyage is not evidence that its equivalent
+exists in the expedition.
+
+## 4. Loops and pacing
+
+The short loop: inspect a place, understand options, commit, see the result and
+choose whether to continue. The expedition loop: plan travel, discover sites,
+recover science/resources, improve the Ithaca and pursue leads. The long loop:
+assemble the Return Drive and decide what to finish before leaving.
+
+Keep three clocks distinct:
+
+- **Campaign days:** travel/expeditions advance research and injury recovery.
+- **Tactical turns:** AP and local hazards; campaign time advances on debrief.
+- **Battle seconds:** simulated ship combat, controllable with pause; campaign
+  time advances when the encounter report is acknowledged.
+
+Provisional experience targets, not measured claims:
+
+| Segment | Target | Player outcome |
+| --- | --- | --- |
+| Opening | First 10–15 minutes | Start research, survey, recover a discovery, identify the next lead |
+| Site scene | 2–5 minutes | Understand a situation, choose, see a consequence |
+| Boarding | Roughly 10–20 minutes | Solve a changing problem and make an extraction decision |
+| Connected arc | 15–25 minutes across visits | Remember a person and a later consequence |
+| Session | 20–40 minutes | Complete a satisfying discovery/objective and stop safely |
+
+Total campaign length is not yet a validated promise. Measure full legal runs
+and first-time players before changing research time. Preserve station work as
+a recovery route while avoiding a campaign best played by repeating contracts.
+
+## 5. Opening and onboarding
+
+Open Expedition is the primary title entry. Its first goal is **start Drive
+Diagnostics and investigate the Silent Courier**. Explain the return goal in one
+sentence, then let the player act. Retain the guaranteed station, resource field
+and accessible exotic-energy source in the starting system.
+
+Teach survey → investigation → recovery → useful research through action.
+Introduce boarding as an optional route with a clear objective and a way out.
+Do not require understanding all six research branches before the first choice.
+Future opening scenes should show Morozova's curiosity and the crew's uncertainty
+through a brief exchange. Cinematics must be skippable and leave the first action
+obvious. Resuming must not replay onboarding or old combat effects.
+
+## 6. World and exploration
+
+Locations include stations, worlds, ruins, derelicts, resource fields, anomalies,
+outposts and signals. Knowledge progresses from undetected to detected,
+investigated and resolved. Resolving cargo does not erase a pending story or a
+station's services. Revisits communicate what changed and what remains possible.
+
+Passive sensors reveal obvious contacts. Survey reveals further opportunities;
+deep scans require equipment and expose buried/faint sites. Mandatory scientific
+sources remain survey-accessible. Named findings retain their source: two
+independent observations cannot be replaced by buying the same record twice.
+
+Generated geography supports authored stories. Future arcs bind to stable,
+reachable sites with explicit fallbacks and never shuffle between visits. Do not
+hide a required beat behind a scan the player cannot unlock. Do not despawn
+essential science because an unrelated story ended.
+
+## 7. Economy, research and homecoming
+
+Fuel governs routes, materials construction/field supplies, credits services and
+exchanges, and hull expedition damage. Discoveries are knowledge, not currency.
+Magazines belong to encounters rather than adding a strategic ammunition economy.
+
+The mandatory research sequence is:
+
+1. Drive Diagnostics — 4 base days.
+2. Exotic Energy Storage — 6 days and an exotic-energy finding.
+3. Spatial Field Dynamics — 8 days and two independent spatial/propulsion sources.
+4. Prototype Return Drive — 10 days, then construction and a controlled test.
+5. Drive Stabilisation — 12 days after the test, then final drive construction.
+
+The 40 base research days run alongside activity. One project is active; three
+can wait in the queue. Switching preserves work. The next eligible queued project
+can start, while blocked prerequisites remain visible.
+
+Research unlocks capability, construction spends resources, and fitting occupies
+a slot. Building automatically fits when space permits; otherwise the item is
+stored. The lab explains these states. Optional weapons, shields and translation
+must not become hidden requirements for victory.
+
+Prototype testing offers a slower remote route or a faster route costing hull;
+it can be aborted and retried. After constructing the final drive, home is
+available from any system outside an active encounter. No mandatory final battle.
+Emergency fuel, renewable station work, safe recovery and recruitment keep a
+wounded expedition viable. Setbacks cost time, options or people, not an
+unexplained forced restart.
+
+## 8. Narrative, factions and crew
+
+Existing choices combine time/resource consequences with an archive record.
+The Courier asks whether to carry 143 letters or leave a beacon. Carrying them
+leads to another system's relay and an acknowledgement. Extend this model into
+connected content rather than adding many isolated reward buttons.
+
+Each future arc needs a person with a concrete need, two defensible approaches,
+an immediate result and a later response. A difficult choice is more than a good
+answer with a fee. A grateful person can still disagree. Avoid interchangeable
+speeches about destiny or a consequence that exists only in flavour text.
+
+Voice direction: Morozova notices evidence and uncertainty; Cross considers what
+equipment and people can bear; Vale's choices express the player's priorities.
+These are writing intentions, not a claim of a complete relationship simulation.
+Recurring civilians need stable identities and distinct concerns. Never use a
+lost or abandoned person as an unexplained returning speaker.
+
+Factions currently supply geographic context. The intended future model separates
+standing, understanding and access. Prove one arc with explicit local consequences
+before adding global reputation meters or five simultaneous faction storylines.
+
+Six named operatives form a reserve roster; four deploy. Roles affect health,
+movement, damage, interaction or healing. Injured survivors recover and stations
+provide replacements. XP is recorded but grants no rank bonus yet. Future
+progression should offer a few role-specific choices without making replacements
+unusable. Ship-officer deployment and expanded squads remain deferred.
+
+## 9. Boarding
+
+The current board is a 12×10 grid presented isometrically. Two AP per operative
+create tradeoffs between moving, shooting, sprinting and preparation. Movement
+uses known floor; cover protects directionally; line of sight blocks fire. Range,
+visibility, cover and insufficient AP must be understandable as different limits.
+
+| Objective | Main decision | Pressure and exit |
+| --- | --- | --- |
+| Core recovery | Find a route to the objective and back | Guards; clearing every enemy is unnecessary |
+| Rescue | Divide escorts or keep the group protected | Physically bring civilians to the shuttle; partial rescue allowed |
+| Sabotage | Prepare the retreat before disabling the uplink | Alarm, pursuing guards and one reserve |
+| Salvage | Take another case or leave with secured cargo | Turn-based heat deeper in the deck; partial extraction allowed |
+
+Movement previews show AP and exposure to guards visible now, explicitly excluding
+unseen enemies and future movement. Heat previews show actual destination damage.
+Last-order feedback explains hits, misses, shield absorption, health loss and
+incapacitation. Neither preview nor animation may alter simulation state.
+
+Extraction is a meaningful objective. Revive or evacuate downed operatives when
+possible; confirm people left behind explicitly. Success claims site cargo and
+bonus once. Withdrawal without the objective permits a retry or remote recovery.
+Roster consequences still apply. A later arc must respect partial outcomes.
+
+Future additions should deepen a decision: distinct enemy behaviour, role
+interaction or an environmental choice. Larger boards, six-person deployments,
+elevation and grenades from the original proposal are deferred hypotheses, not
+promised features. Readability and phone usability take priority over map size.
+
+## 10. Ship encounters
+
+Current encounters are optional station escorts. Contact offers negotiation,
+payment, evasion, engagement or refusal. Combat manages eight reactor power,
+compartment targets and repairs, with laser/missile/ion/beam differences.
+Pause provides time to understand the situation. Damage should explain its effect.
+Escape and surrender are real outcomes; defeat disables the ship and incurs a
+recovery cost. Hull damage persists.
+
+Broader conflict is future work. An interception needs a reason and, where
+appropriate, a credible noncombat option. Frequent ambushes and repetitive
+combat dialogue would undermine exploration.
+
+## 11. Art, motion and sound
+
+Grounded, worn science fiction: navy space, ivory equipment, muted copper
+machinery, restrained teal information lights. Materials look usable and touched
+by people. Realistic stills establish scale, place and emotion; the tactical
+information layer stays crisp and independent of artwork.
+
+- **Environments:** coherent lighting, a clear focal point and crop-safe composition.
+  Preserve people and objectives at phone aspect ratios.
+- **Figures:** consistent orthographic camera, scale, light and ground contact;
+  separate crew, machines and civilians by silhouette as well as colour. Future
+  poses must match the actual board perspective.
+- **Decks:** distinct floors, cover and walls, rear-to-front sorting, status marks
+  above scenery and reliable fog concealment.
+- **Interface:** strong hierarchy and restrained telemetry; decorative detail must
+  not compete with an active order or consequential choice.
+- **Motion, planned:** brief movement, recoil, impact and extraction beats that
+  never gate input or determine simulation time. Reduced motion keeps immediate
+  state feedback while removing travel/recoil effects.
+- **Expedition audio, planned:** quiet ambience and specific interaction/hazard
+  cues, independent mute/volume, no autoplay dependency and no repetitive spoken
+  damage reports. All essential information remains understandable silently.
+
+Create new raster art for a defined screen need. Inspect it at shipping size,
+record prompts/provenance, compress files and inspect alpha edges. Keep labels,
+hit odds and controls outside raster images. Single-pose figures are the current
+baseline, not finished character animation.
+
+## 12. Interface and accessibility
+
+Current stations: Current system, Galaxy chart, Research lab and Discoveries,
+plus Away team and encounter screens. The command area shows resources, save
+status and the next research goal. Story and tactical objectives should be
+reachable without losing the relevant map or choice context.
+
+Requirements: keyboard-operable controls, visible focus, labelled disabled
+reasons, text/symbol support for colour, no essential hover-only information and
+readable contrast. Target at least 44×44 CSS pixels for critical controls; audit
+rather than assume current compliance. Respect reduced motion and retain usable
+layouts at 320px. Map panning is intentional; page-level horizontal overflow is not.
+
+Autosave failure must be visible. Replacing progress requires confirmation.
+Art/dialogue must not shift destructive controls under the pointer. A full
+screen-reader audit remains outstanding; SVG labels alone do not establish it.
+
+## 13. Persistence and engineering principles
+
+The expedition uses serialisable seeded state and accepted-action journals.
+Reducers own outcomes. Presentation cannot consume combat randomness, award
+cargo, advance turns or change identity. Reload reproduces equipment, objectives,
+encounters and resource totals.
+
+Version-7 expedition journals support earlier versions through explicit rules.
+Classic saves use a separate format/key. New features cannot reinterpret accepted
+old actions. Retain fixtures; introduce changed semantics through explicit actions
+or versioned rules/content. No backend is needed for current scope. Local saves
+are not cross-device backup; export/import is a future option. Measure the bundle
+advisory and journal-length ceiling before a broad public release.
+
+## 14. Quality and playtesting
+
+Automation checks correctness; people establish whether decisions are interesting.
+Each milestone needs legal-order replays, adversarial boundaries and visual review.
+Passing tests alone do not establish commercial polish or final balance.
+
+For the next slice, observe at least five new players if available. Without
+coaching, ask them to identify the next objective, explain their choice and recall
+a person's response. Record hesitation, missed controls, low-value repetition and
+misunderstood consequences. Proposed first gate: four of five find the next step,
+at least three recall a consequence, nobody loses progress to a bug. This is a
+small-sample iteration criterion, not evidence already collected.
+
+Release quality also requires full noncombat and combat-inclusive campaigns,
+casualty/poverty recovery, old-save replay, keyboard/phone review, measured load
+performance and no unexplained progression block.
+
+## 15. Next design milestone
+
+Build **The Long Relay**, an optional continuation of the Courier story: two
+recurring contacts, one substantial decision and a later response, supported by
+a compact active-objective view and a persistent record. It tests whether the
+existing systems can produce attachment and anticipation. [NEXT.md](NEXT.md)
+defines the slice and its acceptance gates.
+
+Then invest in crew progression and faction arcs, followed by combat variety
+and presentation. Give players a reason to care about the next place before
+adding more places or equipment.

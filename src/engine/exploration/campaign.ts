@@ -1,5 +1,6 @@
 import { OPERATION_KINDS } from '../tactical/operations.js'
 import type { OperationKind } from '../tactical/operations.js'
+import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
 import { createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
@@ -38,7 +39,7 @@ export interface Campaign {
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
-  | { type: 'deploy-operation'; locationId: string; squad: string[]; kind: OperationKind }
+  | { type: 'deploy-operation'; locationId: string; squad: string[]; kind: OperationKind; variant?: DeckVariant }
   | { type: 'loadout'; operativeId: string; weapon: OperativeLoadout['weapon']; gadget: OperativeLoadout['gadget'] }
   | { type: 'story'; locationId: string; choiceId: string }
   | { type: 'deliver-letters'; locationId: string }
@@ -218,6 +219,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     case 'ship-debrief': return state.shipBattle?.phase === 'report' ? null : 'Finish the encounter first'
     case 'deploy': case 'deploy-operation': {
       if (action.type === 'deploy-operation' && !OPERATION_KINDS.includes(action.kind)) return 'Unknown operation'
+      if (action.type === 'deploy-operation' && action.variant !== undefined && ![1,2,3].includes(action.variant)) return 'Unknown deck plan'
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
       if (!site || !['derelict', 'ruins'].includes(site.kind) || state.exploration.statuses[site.id] !== 'investigated') return 'Investigate an unresolved derelict or ruin first'
       if (!Array.isArray(action.squad) || action.squad.length !== 4 || new Set(action.squad).size !== 4) return 'Choose four different operatives'
@@ -393,7 +395,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'deploy': case 'deploy-operation': {
       const site = state.world.locations.find((s) => s.id === action.locationId)!
       const args = [`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name, action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat, state.loadouts] as const
-      next.mission = action.type === 'deploy-operation' ? createOperation(...args, action.kind) : createMission(...args)
+      next.mission = action.type === 'deploy-operation' ? createOperation(...args, action.kind, action.variant) : createMission(...args)
       next.exploration.materials -= boardingLoadoutCost(state, action.squad)
       next.missionAttempts++; message = action.type === 'deploy-operation' ? `${action.kind} operation deployed to ${site.name}. One campaign day passes on debrief.` : `Away team deployed to ${site.name}. Recover the core and extract. One campaign day passes when the team returns.`
       break

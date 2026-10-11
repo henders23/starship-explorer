@@ -1,8 +1,9 @@
 # Starship Explorer — Unified Redesign Rules
 
-**Status:** approved design direction; implementation in increments.  
-**Ruleset:** exploration-v2 (in development).  
-**Source of truth:** this file supersedes the *gameplay direction* in `docs/DESIGN.md` for v2. The older document describes the currently playable v1; do not delete it until v2 is playable and migrated.
+> Historical proposal and chronological implementation record. Some early targets
+> and intermediate status notes below are superseded. The current source of truth
+> is [DESIGN.md](DESIGN.md), [SPECIFICATION.md](SPECIFICATION.md) and
+> [ROADMAP.md](ROADMAP.md). Keep these dated notes for rationale and provenance.
 
 ## 1. Player fantasy and pillars
 
@@ -460,3 +461,17 @@ escorts, sabotage with pursuing reserves, and salvage with partial extraction an
 turn-based heat. Three new layouts, cinematic briefing images, bonus rewards and
 save envelope version 6 supersede the earlier one-objective boarding limitation.
 The original core mission and older save journals retain their rules.
+
+## Tactical atmosphere and deck variety — 11 October 2026
+
+See [TACTICAL-ATMOSPHERE.md](TACTICAL-ATMOSPHERE.md): three realistic transparent
+figures, detailed deck panels and lighting, three configurations per operation,
+stable survivor identities, quick crew selection and phone map/orders navigation.
+Version 7 explicitly records deck variants while retaining version-6 mission rules.
+
+## Tactical readability — 11 October 2026
+
+See [TACTICAL-READABILITY.md](TACTICAL-READABILITY.md): movement/AP/exposure and heat
+previews, route and target lines, clear last-order damage feedback, and scenery
+that correctly draws in front of more distant figures. No mission rules or save
+versions change in this increment.
