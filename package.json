@@ -16,7 +16,9 @@
     "test:e2e": "playwright test",
     "ship:simulate": "node --import tsx tools/ship-walkthrough.ts",
     "tactical:simulate": "node --import tsx tools/tactical-walkthrough.ts",
-    "exploration:simulate": "node --import tsx tools/exploration-walkthrough.ts"
+    "exploration:simulate": "node --import tsx tools/exploration-walkthrough.ts",
+    "art:render": "node tools/art/render-atlas.mjs",
+    "survivor:simulate": "node --import tsx tools/survivor-walkthrough.ts"
   },
   "dependencies": {
     "react": "^19.2.8",
@@ -29,8 +31,10 @@
     "@types/node": "^22.10.2",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.4",
+    "@types/three": "^0.186.0",
     "@vitejs/plugin-react": "^6.0.5",
     "tailwindcss": "^4.3.3",
+    "three": "^0.186.1",
     "tsx": "^4.19.2",
     "typescript": "^5.7.2",
     "vite": "^8.2.1",

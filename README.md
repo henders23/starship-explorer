@@ -33,19 +33,35 @@ campaign, with its own save. Its clue puzzle and Rift Surges are separate rules.
 | --- | --- |
 | Expedition | Seeded galaxy, persistent sites, passive/survey/deep scans, travel, stations and discovery archive |
 | Research | All 29 projects across six branches; one active project, three queue slots, construction and fitting |
-| Encounters | Ten authored templates and the Courier's 143-letter delivery voyage |
-| Boarding | Four-person squads; core recovery, rescue, sabotage and salvage; nine configurations across the three newer operations |
+| Encounters | Ten authored templates, Courier letters, The Long Relay and Someone left behind (a rescued survivor’s follow-up) |
+| Boarding | Four-person squads; core recovery, rescue, sabotage, salvage and fragile-recorder extraction; nine standard operation configurations plus the recorder vault |
 | Tactical decisions | Cover, line of sight, fog, AP, aim, overwatch, equipment, extraction and persistent injuries/casualties |
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures |
 | Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power and compartment targeting |
-| Presentation | Cinematic location/briefing art, realistic tactical figures, responsive layouts and phone map enlargement |
-| Persistence | Version-7 expedition journals; versions 1–6 supported; Classic Voyage kept separate |
+| Presentation | Interactive galactic atlas; six overhead warships; eight-direction rig-rendered crew and custodians; modular metallic decks; phone map enlargement |
+| Persistence | Version-9 expedition journals; versions 1–8 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
 This is a playable game under active development. Long faction arcs, a developed
-crew relationship system, rank abilities, directional character animation and
-full-run human balance validation remain ahead. Figures use one pose; layout
-variations include reflected plans. No runtime AI API is required.
+crew relationship system, rank abilities, photorealistic character fidelity and
+full-run human balance validation remain ahead. Character frames come from consistent
+articulated rigs; they are still stylised. Layout variations include reflected plans.
+No runtime AI API or 3D renderer is required by the game.
+
+## Play the survivor follow-up
+
+Rescue at least one surveyor through a new **Rescue** deployment and acknowledge
+the debrief. At a contacted station, accept **Someone left behind** from that
+actual survivor. Follow the marked destination, investigate it, then choose
+**Prepare recorder recovery**. The carrier moves two tiles per AP and cannot
+sprint. Lifting the recorder wakes two reserve custodians; hand it to another
+operative by setting it down and lifting it again. Bring it to the shuttle or
+withdraw without it, then return to the original station for the survivor’s reply.
+Evidence pays 24 credits once. This return visit awards no normal site cargo.
+
+Old rescue logs recorded counts only; they are not assigned invented identities.
+Your next rescue enables the new request. The Return Drive remains available
+regardless of optional mission progress.
 
 ## Run locally
 
@@ -82,11 +98,10 @@ For constrained environments use `npm test -- --maxWorkers=2` and
 `npm run test:e2e -- --workers=2`. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can point
 to an existing compatible Chromium executable. Playwright starts Vite on port 4173.
 
-Latest gameplay validation, **11 October 2026**, at commit
-[`babec95`](https://github.com/henders23/starship-explorer/commit/babec95d1438ff01400bc24e973e0a2311ae5fff):
-**277 tests in 29 files, 28 browser scenarios, production build and desktop/phone
-visual review passed.** This is a dated baseline, not exhaustive testing or final
-balance. Vite still reports a JavaScript chunk-size advisory.
+Latest implementation: **12 October 2026**. See
+[the animation and survivor milestone](docs/ANIMATED-BOARDING-AND-SURVIVORS.md)
+for exact scope, validation, reproduction and real game captures. Vite still reports
+a JavaScript chunk-size advisory. Human balance and visual-quality playtesting remain open.
 
 ## Design and development
 

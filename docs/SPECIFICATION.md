@@ -395,3 +395,22 @@ sweeps, old-journal comparisons and both-branch browser flows. No synthetic rewa
 injection as evidence of a playable arc. Save gates must reject arc orders under
 pre-feature envelopes. New art consists only of two contact portraits and one
 relay scene if existing assets cannot meet the composition/identity need.
+
+## 11. Implemented survivor callback and directional animation (12 October 2026)
+
+**Someone left behind** adds `accept-survivor`, `deploy-recorder`,
+`close-survivor`, and tactical `drop-recorder` orders. Save envelope 9 accepts
+older journals unchanged. New rescue deployments explicitly opt into named
+survivor tracking; historical rescues retain their original counts.
+
+A local contacted station binds one actual rescued survivor and one reachable
+recorder site. A separate tactical visit imposes carrier speed, transfer/drop,
+and two alarm-triggered reinforcements. Success requires a conscious carrier
+inside extraction. Retreat/loss are valid branch outcomes, never evidence
+success. The original station pays 24 credits once for evidence; other branches
+pay zero. No normal site reward is applied by the special debrief.
+
+Animation consumes canonical state but introduces no AP, damage, RNG or campaign
+clock changes. All seven rig atlases contain eight unmirrored directions. See
+[implementation and evidence](ANIMATED-BOARDING-AND-SURVIVORS.md) for pose schema,
+asset reproduction, acceptance coverage and remaining fidelity limitations.

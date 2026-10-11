@@ -1,3 +1,4 @@
+import { SurvivorObjective, SurvivorStation, SurvivorArchive } from './SurvivorVoyage.js'
 import { ExplorationStory, LettersObjective } from './ExplorationStory.js'
 import { LongRelayObjective, LongRelayStation, LongRelayArchive } from './LongRelay.js'
 import { ExpeditionGalaxyChart } from './ExpeditionGalaxyChart.js'
@@ -117,6 +118,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span className="exp-eyebrow">CAPTAIN’S NEXT STEP</span>
         <h2>{advice}</h2><p>{adviceText}</p>
         <button className="exp-button" onClick={() => setTab('lab')}>Open research lab</button>
+        <SurvivorObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
         <LongRelayObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
         <LettersObjective state={state} />
         <div className="exp-rule" />
@@ -184,7 +186,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'archive' && <>
           <div className="exp-section-heading"><div><span className="exp-eyebrow">SCIENCE ARCHIVE</span><h2>What we brought back</h2></div><span>{state.findings.length} distinct sources</span></div>
           <LettersObjective state={state} />
-          <LongRelayArchive state={state} />
+          <LongRelayArchive state={state} /><SurvivorArchive state={state} />
           {state.stories.length > 0 && <section className="exp-captains-record"><h3>Captain’s record</h3>{state.stories.map((record) => {
             const place = state.world.locations.find((s) => s.id === record.locationId)!
             const story = storyAt(state.seed, place)!, choice = story.choices.find((c) => c.id === record.choiceId)!
@@ -215,7 +217,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           <p>{state.exploration.statuses[site.id] === 'detected' ? 'We have a fix on the location. Investigate it to establish contact, assess the conditions and identify what can be recovered.' : site.name === 'The Silent Courier' ? 'Its crew shut down everything except the power cell. That cell has kept a tiny navigation beacon alive for decades. If we map its emissions, we can calibrate our sensors to recognise similar technology.' : SCENES[site.kind]}</p>
           {state.exploration.statuses[site.id] === 'detected' ? command({ type: 'investigate', locationId: site.id }, site.kind === 'station' ? 'Establish contact · 1 day' : 'Investigate · 1 day', true) : <>
             {site.services.length > 0 ? <div className="exp-service-list">
-              <LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
+              <SurvivorStation state={state} siteId={site.id} dispatch={dispatch} /><LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
               <h3>Station services</h3>
               {command({ type: 'service', locationId: site.id, service: 'refuel' }, `Refuel +20 · ${stationPrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'repair' }, `Repair +20 · 5 materials + ${stationPrice(state)} credits · 1 day`)}
@@ -236,6 +238,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               <p className="exp-prerequisite">Both approaches recover the same science. Remote instruments avoid damage; rapid retrieval uses any fitted engineering tools to recover additional materials from ruins and derelicts.</p>
             </>}
           </>}
+          {state.survivorArc?.stage==='accepted'&&state.survivorArc.destinationId===site.id&&state.exploration.statuses[site.id]!=='detected'&&<section className="relay-conversation"><h3>Someone left behind</h3><p>The recorder is beyond a broken service partition. Recover it carefully, or withdraw. Carrying it limits movement to two tiles per AP and wakes two security reserves.</p><button className="exp-button" onClick={()=>{setDeploySite(site.id);setTeamOpen(true)}}>Prepare recorder recovery</button><small>No normal cargo or science from this return visit. Report to the survivor afterwards.</small></section>}
           <button className="exp-text-button" onClick={() => setSelectedSite(null)}>Leave this location</button>
         </> : <><span className="exp-eyebrow">SYSTEM OPERATIONS</span><h2>A place worth stopping.</h2><p>Select a contact to investigate it. A survey reveals quieter signals; a deep scan can uncover places your current instruments miss.</p><p>Locations persist when you travel. There is no countdown forcing you to leave.</p></>)}
         {tab === 'galaxy' && <><span className="exp-eyebrow">SELECTED DESTINATION</span><h2>{target.name}</h2><p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}</p>

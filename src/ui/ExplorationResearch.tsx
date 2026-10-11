@@ -1,3 +1,4 @@
+import { survivorSummary } from '../engine/exploration/survivor-arc.js'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { actionLock, buildLock, fitted, hasTech, researchProgress, researchRate, researchRequirements } from '../engine/exploration/campaign.js'
@@ -122,6 +123,7 @@ export function DriveTestScene({ state, dispatch }: { state: Campaign; dispatch:
 export function ReturnHomeScene({ state, dispatch, onClose }: { state: Campaign; dispatch: (action: CampaignAction) => void; onClose: () => void }) {
   return <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Return home confirmation">
     <span className="exp-eyebrow">ISS ITHACA / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Activating it ends this voyage. You can also stay and continue exploring.</p>
+    {state.survivorArc&&state.survivorArc.stage!=='complete'&&<p>Someone left behind remains unfinished. You may return home without completing this request.</p>}
     {state.relayArc && state.relayArc.stage!=='complete' && <p>The Long Relay remains unfinished. Returning home leaves Edda or Tarek waiting for a reply; this optional mission does not block departure.</p>}
     <ResearchAction state={state} dispatch={dispatch} action={{ type: 'return-home' }} primary>Activate Return Drive</ResearchAction>
     <button className="exp-button" onClick={onClose}>Keep exploring</button>
@@ -135,6 +137,7 @@ export function ExplorationEnding({ state, onExit }: { state: Campaign; onExit: 
     <div className="exp-ending-stats"><span><b>{state.visited.length}</b>systems visited</span><span><b>{state.findings.length}</b>scientific sources</span><span><b>{state.research.completed.length}</b>projects completed</span></div>
     <p>{state.findings.some((f) => f.sourceName) ? 'The knowledge shared by distant stations travelled home with you.' : 'The observations and recovered machinery that made the journey possible are secured in the science archive.'}</p>
     {state.stories.length > 0 && <p>Your captain’s record holds {state.stories.length} decisions made beyond charted space.{state.lettersDelivered ? ' And 143 letters reached the people who had waited for them.' : state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') ? ' The Courier’s undelivered letters come home with you; their journey can finally end.' : ''}</p>}
+    {state.survivorArc&&<p>{state.survivorArc.survivor.name}: {survivorSummary(state.survivorArc)} {state.survivorArc.stage!=='complete'?'The station conversation remains unfinished.':'The survivor heard your report.'}</p>}
     {state.relayArc && <p>{state.relayArc.stage==='complete' ? state.relayArc.approach==='repair' ? 'The Long Relay is working again. Tarek’s answer reached Edda, and the communities along the line have their connection back.' : 'Edda received Tarek’s private reply. The wider line remains broken, but the words meant for one family reached them.' : state.relayArc.stage==='accepted' ? 'Edda’s message remains aboard, unanswered. The promised visit to Tarek will have to wait.' : 'Tarek’s reply is still aboard. Edda never received the answer she hoped for.'}</p>}
     {state.completedOperations.length > 0 && <p>{state.completedOperations.length} boarding contracts completed. {state.completedOperations.reduce((n,o) => n + o.survivors,0)} rescued surveyors have another chance to see their families.</p>}
     {state.escortCompleted.length > 0 && <p>{state.escortCompleted.length} survey tenders reached their destinations under the Ithaca’s protection.</p>}

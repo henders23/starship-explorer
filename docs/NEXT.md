@@ -118,3 +118,16 @@ requires long-journal safety, performance measurement and complete-run playtests
 The implementation lives in `src/engine/exploration/arcs.ts`, with persistent state and action validation in `campaign.ts`; dialogue and the active objective are in `src/ui/LongRelay.tsx`. The canonical save envelope is version 8. Both resource branches, legal travel, reloading and completion are covered by `tests/long-relay.test.ts` and `e2e/long-relay.spec.ts`. No old voyage starts the arc without the player's decision.
 
 The next content milestone should be a **rescue-survivor callback** that makes an earlier crew extraction matter later in the galaxy, followed by one faction-linked encounter. For combat visual quality, track [cinematic combat work](https://github.com/henders23/starship-explorer/issues/18). These should remain optional until the previous stage has been playtested for comprehension.
+
+## 12 October follow-up
+
+**Someone left behind** is now implemented, with actual survivor identity,
+fragile-recorder carrying, two alarm-triggered reserves and evidence/withdrawal/
+loss closeouts. Directional rig-rendered soldiers and modular deck assets have
+also replaced the clipped-leg approximation. See
+[the milestone record](ANIMATED-BOARDING-AND-SURVIVORS.md).
+
+Next: observe first-time players on this short arc, improve character/deck art
+towards the cinematic reference and animate civilian escorts, then design one
+faction-linked consequence. Do not mark issue #18's fidelity target complete
+from automated tests alone.

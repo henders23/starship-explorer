@@ -30,6 +30,7 @@ export interface TacticalUnit extends Point {
   ap: number; ammo: number; magazine: number; damage: number; move: number; aimed: boolean; fired: boolean; overwatch: boolean; medkit: boolean
 }
 export interface Mission {
+  recorder?: { position:Point; carrierId:string|null; alarmTurn:number|null; reinforcements:number }
   operation?: Operation
   seed: string; locationId: string; name: string; width: number; height: number; tiles: Tile[]
   objective: Point; recovered: boolean; units: TacticalUnit[]; seen: number[]; turn: number; rolls: number
@@ -37,6 +38,7 @@ export interface Mission {
   outcome: 'active' | 'success' | 'retreat' | 'defeat'; rescued: string[]; log: string[]
 }
 export type TacticalAction =
+  | { type: 'drop-recorder'; unitId:string }
   | { type: 'move'; unitId: string; x: number; y: number; sprint?: boolean }
   | { type: 'shoot'; unitId: string; targetId: string }
   | { type: 'aim' | 'overwatch' | 'reload' | 'interact'; unitId: string }
@@ -161,6 +163,24 @@ export function createOperation(seed: string, locationId: string, name: string, 
       crates: kind === 'salvage' ? [{x:5,y:3,collected:false},{x:8,y:5,collected:false},{x:10,y:7,collected:false}] : []},
     log:[OPERATION_BRIEFINGS[kind].voice]})
 }
+/** Separate opt-in contract; no changes to any historical operation journal. */
+export function createRecorderMission(seed:string, locationId:string, name:string, squad:Operative[], loadouts:Record<string,OperativeLoadout>):Mission {
+  const m=createMission(seed,locationId,name,squad,0,loadouts)
+  m.tiles=Array.from({length:120},()=> 'floor')
+  for(const [x,y] of [[4,1],[5,1],[6,1],[4,7],[5,7],[6,7],[8,3],[8,4],[8,6]])m.tiles[y!*12+x!]='wall'
+  for(const [x,y] of [[3,3],[5,5],[7,2],[9,7]])m.tiles[y!*12+x!]='half'
+  m.objective={x:9,y:2};m.recorder={position:{...m.objective},carrierId:null,alarmTurn:null,reinforcements:0}
+  m.units.filter(u=>u.side==='hostile').forEach((u,i)=>{u.x=7+i*3;u.y=4+i;u.name=i?'Archive custodian':'Watch custodian'})
+  m.log=['Sofia: “The recorder has a broken shock mount. Carry it gently: two tiles per action, no sprint. Lifting it wakes two reserve units, one every two enemy turns. We can leave it and withdraw.”']
+  return reveal({...m,seen:[]})
+}
+function updateRecorder(m:Mission) {
+  const r=m.recorder;if(!r)return
+  const carrier=m.units.find(u=>u.id===r.carrierId)
+  if(carrier){r.position={x:carrier.x,y:carrier.y};if(carrier.hp<=0){r.carrierId=null;m.log.push('Recorder dropped beside the downed carrier. Another operative can recover it.')}}
+  m.objective={...r.position}
+  m.recovered=!!r.carrierId&&!!carrier&&carrier.hp>0&&inExtraction(carrier)
+}
 export function operationReward(m: Mission): { materials: number; credits: number } {
   if (!m.operation || m.outcome !== 'success') return {materials:0,credits:0}
   const count = m.operation.kind === 'rescue' ? m.operation.survivors.filter((s) => s.evacuated).length : m.operation.crates.filter((c) => c.collected).length
@@ -168,6 +188,11 @@ export function operationReward(m: Mission): { materials: number; credits: numbe
 }
 export function operationStatus(m: Mission): string {
   const op = m.operation
+  if(m.recorder){
+    const r=m.recorder,carrier=m.units.find(u=>u.id===r.carrierId)
+    if(m.outcome!=='active')return m.outcome==='success'?'Recorder and evidence safely aboard. Report to the survivor at the station.':'The recorder remains behind. Report honestly to the survivor at the station.'
+    return `${r.carrierId?`${carrier!.name} carries the recorder: 2 tiles per AP, no sprint.`:'Reach the amber recorder; recover it or withdraw.'} ${r.alarmTurn===null?'Security reserves wake when it is lifted.':`${r.reinforcements}/2 security reserves deployed; a reserve arrives every two enemy turns after pickup.`} Bring the carrier into the shuttle zone, then extract.`
+  }
   if (!op) return m.recovered ? 'Core secured. Bring the team to the teal shuttle zone.' : 'Reach the amber core and recover it. Killing every custodian is optional.'
   if (m.outcome !== 'active') {
     if (op.kind === 'rescue') return `${op.survivors.filter((s) => s.evacuated).length}/2 civilians reached the shuttle. ${op.survivors.filter((s) => !s.evacuated).map((s) => s.name).join(' and ')}${op.survivors.some((s) => !s.evacuated) ? ' remained outside.' : 'Both surveyors are safely aboard.'}`
@@ -187,7 +212,7 @@ function salvageTarget(m: Mission, u: TacticalUnit) {
   return m.operation?.crates.find((c) => !c.collected && distance(u,c) <= (u.role === 'engineer' ? 2 : 1) && lineOfSight(m,u,c))
 }
 export function interactionLabel(m: Mission): string {
-  return m.operation?.kind === 'rescue' ? 'Guide survivor' : m.operation?.kind === 'sabotage' ? 'Disable uplink' : m.operation?.kind === 'salvage' ? 'Collect cargo case' : 'Recover core'
+  return m.recorder ? 'Lift recorder' : m.operation?.kind === 'rescue' ? 'Guide survivor' : m.operation?.kind === 'sabotage' ? 'Disable uplink' : m.operation?.kind === 'salvage' ? 'Collect cargo case' : 'Recover core'
 }
 function updateOperation(m: Mission) {
   const op = m.operation
@@ -225,7 +250,9 @@ export function tacticalLock(m: Mission, action: TacticalAction): string | null 
   switch (action.type) {
     case 'move': {
       if (action.sprint !== undefined && typeof action.sprint !== 'boolean') return 'Invalid movement order'
+      if(m.recorder?.carrierId===u.id && action.sprint)return 'Recorder is fragile: carrier cannot sprint'
       const path = pathTo(m, u, action)
+      if(m.recorder?.carrierId===u.id && path && path.length>2)return 'Recorder carrier can move only 2 tiles per AP'
       return !path?.length || path.length > u.move * cost ? 'Choose a reachable, explored floor tile' : null
     }
     case 'shoot': {
@@ -237,7 +264,9 @@ export function tacticalLock(m: Mission, action: TacticalAction): string | null 
     case 'aim': return u.aimed || u.fired ? 'Aim before firing; aim does not stack' : null
     case 'reload': return u.ammo === u.magazine ? 'Magazine full' : null
     case 'overwatch': return u.fired || u.overwatch || !u.ammo ? 'Requires ammunition and an unused shot' : null
+    case 'drop-recorder': return m.recorder?.carrierId===u.id ? null : 'This operative is not carrying the recorder'
     case 'interact':
+      if(m.recorder)return m.recorder.carrierId ? 'The recorder already has a carrier' : distance(u,m.recorder.position)>1||!lineOfSight(m,u,m.recorder.position) ? 'Stand beside the recorder' : null
       if (m.operation?.kind === 'rescue') return rescueTarget(m,u) ? null : 'Reach an unescorted survivor with an operative who is not already escorting'
       if (m.operation?.kind === 'salvage') return salvageTarget(m,u) ? null : 'Reach an uncollected case (engineer: within two tiles)'
       return m.recovered ? 'Core already secured' : distance(u, m.objective) > (u.role === 'engineer' ? 2 : 1) || !lineOfSight(m, u, m.objective) ? 'Move next to the core (engineer: within two tiles)' : null
@@ -266,6 +295,11 @@ function fire(m: Mission, shooter: TacticalUnit, target: TacticalUnit) {
   m.log.push(`${shooter.name} → ${target.name}: ${hit ? `${shooter.damage - absorbed} damage${absorbed ? ` + ${absorbed} absorbed` : ''}${target.hp === 0 ? target.side === 'crew' ? ' · DOWNED' : ' · disabled' : ''}` : 'miss'} (${info.chance}%).`)
 }
 function enemyTurn(m: Mission) {
+  const r=m.recorder
+  if(r&&r.alarmTurn!==null&&r.reinforcements<2&&m.turn-r.alarmTurn>=r.reinforcements*2){
+    const spawn=[{x:11,y:1},{x:11,y:8},{x:10,y:0}].find(p=>tileAt(m,p)==='floor'&&!m.units.some(u=>u.hp>0&&u.x===p.x&&u.y===p.y))
+    if(spawn){m.units.push({id:`recorder-reserve-${r.reinforcements}`,name:'Archive reserve',role:'heavy',side:'hostile',...spawn,hp:5,maxHp:5,ap:2,ammo:4,magazine:4,damage:2,move:3,aimed:false,fired:false,overwatch:false,medkit:false});r.reinforcements++;m.log.push(`Archive reserve ${r.reinforcements}/2 entered from the far airlock.`)}
+  }
   if (m.operation?.kind === 'sabotage' && m.operation.alarm && !m.operation.reinforcement) {
     const spawn = [{x:11,y:0},{x:11,y:9},{x:10,y:0}].find((p) => !m.units.some((u) => u.hp > 0 && u.x === p.x && u.y === p.y))
     if (spawn) {
@@ -305,12 +339,13 @@ function enemyTurn(m: Mission) {
 }
 export function reduceMission(state: Mission, action: TacticalAction): Mission {
   if (tacticalLock(state, action)) return state
-  let m: Mission = { ...state, units: state.units.map((u) => ({ ...u })), log: [...state.log], ...(state.operation ? {operation: {...state.operation, survivors:state.operation.survivors.map((s) => ({...s})), crates:state.operation.crates.map((c) => ({...c}))}} : {}) }
+  let m: Mission = { ...state, ...(state.recorder?{recorder:{...state.recorder,position:{...state.recorder.position}}}:{}), units: state.units.map((u) => ({ ...u })), log: [...state.log], ...(state.operation ? {operation: {...state.operation, survivors:state.operation.survivors.map((s) => ({...s})), crates:state.operation.crates.map((c) => ({...c}))}} : {}) }
   if (action.type === 'end-turn') enemyTurn(m)
   else if (action.type === 'extract') {
     m.rescued = m.units.filter((u) => u.side === 'crew' && inExtraction(u)).map((u) => u.id)
     m.outcome = m.recovered ? 'success' : 'retreat'
-    if (m.operation) m.log.push(`${operationStatus(m)} ${m.recovered ? 'Operation complete.' : 'Withdrawal without a reward.'}`)
+    if(m.recorder)m.log.push(operationStatus(m))
+    else if (m.operation) m.log.push(`${operationStatus(m)} ${m.recovered ? 'Operation complete.' : 'Withdrawal without a reward.'}`)
     else m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Ithaca.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
   } else {
     const u = m.units.find((unit) => unit.id === action.unitId)!
@@ -326,8 +361,10 @@ export function reduceMission(state: Mission, action: TacticalAction): Mission {
     if (action.type === 'aim') u.aimed = true
     if (action.type === 'overwatch') u.overwatch = true
     if (action.type === 'reload') u.ammo = u.magazine
+    if(action.type==='drop-recorder'){m.recorder!.carrierId=null;m.recorder!.position={x:u.x,y:u.y};m.log.push(`${u.name} sets the recorder down. It can be handed to an adjacent operative.`)}
     if (action.type === 'interact') {
-      if (m.operation?.kind === 'rescue') { const s = rescueTarget(m,u)!; s.leader = u.id; m.log.push(`${u.name}: “${s.name}, stay behind me. We are taking you home.”`) }
+      if(m.recorder){m.recorder.carrierId=u.id;m.recorder.alarmTurn??=m.turn;m.log.push(`${u.name} lifts the recorder. Security alarm active. Carrier cannot sprint; move two tiles per AP.`)}
+      else if (m.operation?.kind === 'rescue') { const s = rescueTarget(m,u)!; s.leader = u.id; m.log.push(`${u.name}: “${s.name}, stay behind me. We are taking you home.”`) }
       else if (m.operation?.kind === 'salvage') { salvageTarget(m,u)!.collected = true; m.log.push(`${u.name}: “Case secured. We can leave now, or push for the next one.”`) }
       else if (m.operation?.kind === 'sabotage') { m.recovered = true; m.operation.alarm = true; for (const e of m.units.filter((u) => u.side === 'hostile')) e.move = 4; m.log.push('Sofia: “Uplink down. They are coming. Back to the shuttle!”') }
       else { m.recovered = true; m.log.push(`${u.name}: “Core is secure. Let’s get everyone out.”`) }
@@ -344,6 +381,6 @@ export function reduceMission(state: Mission, action: TacticalAction): Mission {
       t.x = u.x; t.y = u.y; m.log.push(`${u.name} pulls ${t.name} into the shuttle zone.`)
     }
   }
-  updateOperation(m); m = reveal(m); m.log = m.log.slice(-60)
+  updateRecorder(m); updateOperation(m); m = reveal(m); m.log = m.log.slice(-60)
   return m
 }
