@@ -17,6 +17,16 @@ for (const width of [1440, 390]) test(`capture live boarding combat at ${width}p
   await page.getByRole('button', { name: /Custodian 1.*HP/ }).click()
   await page.getByRole('button', { name: 'Fire · 1 AP', exact: true }).click()
   await expect(page.getByRole('status', { name: 'Last order' })).toContainText(/Shot hit|Shot missed/)
+  // The game scrolls its own deck. Capture the tactical viewport, not the
+  // order inspector simply because Playwright scrolled to the Fire button.
+  await page.evaluate(() => {
+    document.scrollingElement?.scrollTo(0,0)
+    const deck=document.querySelector<HTMLElement>('.tactical-deck')
+    if(deck)deck.scrollTop=0
+  })
   await page.screenshot({ path: info.outputPath(`mid-mission-${width}.png`), fullPage: true, animations: 'disabled' })
+  await expect(page.getByRole('navigation',{name:'Tactical quick actions'})).toBeVisible()
+  await page.locator('.tac-quickbar').scrollIntoViewIfNeeded()
+  await page.screenshot({ path: info.outputPath(`mid-mission-controls-${width}.png`), animations:'disabled' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
