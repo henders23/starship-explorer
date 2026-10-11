@@ -467,3 +467,10 @@ See [TACTICAL-ATMOSPHERE.md](TACTICAL-ATMOSPHERE.md): three realistic transparen
 figures, detailed deck panels and lighting, three configurations per operation,
 stable survivor identities, quick crew selection and phone map/orders navigation.
 Version 7 explicitly records deck variants while retaining version-6 mission rules.
+
+## Tactical readability — 11 October 2026
+
+See [TACTICAL-READABILITY.md](TACTICAL-READABILITY.md): movement/AP/exposure and heat
+previews, route and target lines, clear last-order damage feedback, and scenery
+that correctly draws in front of more distant figures. No mission rules or save
+versions change in this increment.

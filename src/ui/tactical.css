@@ -139,3 +139,15 @@
 @media(max-width:720px) { .tac-mobile-jump { display:block; } .tac-orders>.tac-mobile-jump { margin:0 0 22px; min-height:42px; } .tac-arena:focus,.tac-orders:focus { outline:1px solid #85c7c7; outline-offset:-2px; } }
 
 .tac-pan-hint { display:block; margin:8px 0; color:#bad5d8; font-size:11px; }
+.tac-move-preview { flex-basis:100%; padding:14px; background:#0d2730; border:1px solid #567c7e; }
+.tac-move-preview strong { color:#bcf2dc; font-size:14px; }
+.tac-move-preview p { font-size:12px; line-height:1.6; margin:10px 0; }
+.tac-move-preview>span { display:block; font-size:11px; line-height:1.8; color:#e5d3b5; }
+.tac-move-preview small { display:block; margin-top:12px; color:#acc5ce; line-height:1.5; }
+.tac-move-preview .tac-danger { color:#ffd2a5; border-left:2px solid #df975f; padding-left:10px; }
+.tac-feedback { padding:12px 4vw; background:#112a31; border-bottom:1px solid #395b65; display:flex; flex-wrap:wrap; align-items:center; gap:8px 22px; color:#bdd7dd; font-size:11px; line-height:1.6; }
+.tac-feedback>strong { color:#e6d2a7; font-size:12px; }
+.tac-feedback>span { max-width:580px; }
+@media(max-width:720px) { .tac-feedback { padding:12px 15px; gap:6px; } .tac-feedback>strong,.tac-feedback>span { flex-basis:100%; } .tac-move-preview { padding:12px; } }
+
+.tac-destination>.exp-text-button { margin:0; min-height:36px; }
