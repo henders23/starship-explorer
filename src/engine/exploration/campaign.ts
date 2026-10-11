@@ -1,4 +1,6 @@
 import { OPERATION_KINDS } from '../tactical/operations.js'
+import { relayDestination } from './arcs.js'
+import type { RelayArc, RelayAction } from './arcs.js'
 import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
@@ -20,6 +22,8 @@ import type { Campaign as LegacyCampaign, CampaignAction as LegacyAction } from 
 
 export interface Finding { locationId: string; kind: DiscoveryKind; day: number; systemId?: string; sourceName?: string }
 export interface Campaign {
+  /** Absent from legacy saves until the captain explicitly accepts the quest. */
+  relayArc?: RelayArc
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -39,6 +43,7 @@ export interface Campaign {
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
+  | RelayAction
   | { type: 'deploy-operation'; locationId: string; squad: string[]; kind: OperationKind; variant?: DeckVariant }
   | { type: 'loadout'; operativeId: string; weapon: OperativeLoadout['weapon']; gadget: OperativeLoadout['gadget'] }
   | { type: 'story'; locationId: string; choiceId: string }
@@ -206,6 +211,33 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return state.at === state.galaxy.start ? 'Find a relay station in another system' : null
     }
 
+    case 'start-arc': {
+      if (action.arcId !== 'long-relay') return 'Unknown side voyage'
+      if (state.relayArc) return 'The Long Relay has already been accepted'
+      if (!state.lettersDelivered) return 'Deliver the Silent Courier letters first'
+      const origin=contacted(state,action.locationId)
+      if (!origin || origin.systemId!==state.at) return 'Speak to a contacted local station'
+      return relayDestination(state.galaxy,state.world,state.seed,origin.id) ? null : 'No reachable reply station is available'
+    }
+    case 'arc-choice': {
+      if (action.arcId !== 'long-relay') return 'Unknown side voyage'
+      const arc=state.relayArc
+      if (!arc) return 'Accept The Long Relay first'
+      if (action.beatId === 'relay') {
+        if (arc.stage!=='accepted') return 'This relay decision is already recorded'
+        const station=contacted(state,arc.destinationStationId)
+        if (!station || station.systemId!==state.at) return 'Contact Tarek’s destination station first'
+        if (action.choiceId!=='repair' && action.choiceId!=='local-copy') return 'Unknown relay decision'
+        return action.choiceId==='repair' && state.exploration.materials < 5 ? 'Requires 5 materials to repair the shared relay' : null
+      }
+      if (action.beatId === 'reply') {
+        if (action.choiceId!=='acknowledge') return 'Unknown reply decision'
+        if (arc.stage!=='relay-resolved') return 'Carry the reply back before acknowledging it'
+        const station=contacted(state,arc.originStationId)
+        return station?.systemId===state.at ? null : 'Return to Edda’s original station'
+      }
+      return 'Unknown story stage'
+    }
     case 'escort': {
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
@@ -360,6 +392,32 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       days = 1; next.lettersDelivered = true; next.exploration.credits += 25
       message = 'The last post: the relay accepts all 143 letters. One recipient answers before we undock: “We kept the light on too.” Delivery commission: 25 credits.'; break
 
+    case 'start-arc': {
+      const destinationStationId=relayDestination(state.galaxy,state.world,state.seed,action.locationId)!
+      next.relayArc={version:1,id:'long-relay',originStationId:action.locationId,destinationStationId,
+        stage:'accepted',approach:null,records:[{beatId:'start',choiceId:'accept',day:state.day}]}
+      const destination=state.world.locations.find((site)=>site.id===destinationStationId)!
+      message='The Long Relay: Edda entrusts the Ithaca with an undelivered reply. Destination: '+destination.name+'.'
+      break
+    }
+    case 'arc-choice': {
+      const arc=state.relayArc!
+      if (action.beatId==='relay') {
+        days=action.choiceId==='repair'?2:3
+        if (action.choiceId==='repair') next.exploration.materials-=5
+        next.relayArc={...arc,stage:'relay-resolved',approach:action.choiceId,
+          records:[...arc.records,{beatId:'relay',choiceId:action.choiceId,day:state.day+days}]}
+        message=action.choiceId==='repair'
+          ? 'The Long Relay: the shared communications line works again. Tarek’s private reply is aboard; return to Edda.'
+          : 'The Long Relay: Tarek’s private reply is aboard. The shared line remains damaged; return to Edda.'
+      } else {
+        next.exploration.credits+=20
+        next.relayArc={...arc,stage:'complete',
+          records:[...arc.records,{beatId:'reply',choiceId:'acknowledge',day:state.day}]}
+        message='The Long Relay: Edda receives Tarek’s reply. Delivery commission: 20 credits.'
+      }
+      break
+    }
     case 'escort': {
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
