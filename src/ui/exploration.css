@@ -260,7 +260,7 @@
   .exp-atlas-tools button {width:32px;height:32px;}
   .exp-atlas .exp-atlas-svg {min-height:165px}
   .exp-atlas-readout {position:relative;padding:10px 9px;gap:6px;background:#071823;grid-template-columns:1fr 1.4fr;}
-  .exp-atlas-readout span:last-child {display:none;}
+  .exp-atlas-readout span:last-child {display:flex;grid-column:1/-1;text-align:left;align-items:flex-start;border-top:1px solid #35536a;padding-top:7px;}
   .exp-atlas-readout strong {font-size:8px;letter-spacing:.5px}
   .exp-atlas-readout small {font-size:8px;}
   .exp-atlas-hint {padding:8px 10px!important;font-size:9px!important;}
