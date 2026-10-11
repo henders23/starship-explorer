@@ -2,7 +2,7 @@ import { describe,expect,it } from 'vitest'
 import { createCampaign, actionLock, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import { relayDestination, relayLaneDistance } from '../src/engine/exploration/arcs.js'
 import { acceptedRelay, relayDecisionReady, relayReplyReady, legal } from '../tools/long-relay-walkthrough.js'
-import { EXPLORATION_SAVE_KEY, loadExploration, saveExploration } from '../src/ui/exploration-save.js'
+import { loadExploration, saveExploration } from '../src/ui/exploration-save.js'
 import type { Campaign, CampaignAction } from '../src/engine/exploration/campaign.js'
 function saveAndLoad(state:Campaign,version?:number) {
   let raw=''
@@ -28,7 +28,7 @@ describe('The Long Relay optional mission',()=>{
   })
   it.each(['repair','local-copy'] as const)('completes %s with exactly-once cost, time and credits',approach=>{
     let state=relayDecisionReady('long-relay-'+approach)
-    const arc=state.relayArc!,remaining=state.exploration.materials,day=state.day,credits=state.exploration.credits
+    const remaining=state.exploration.materials,day=state.day,credits=state.exploration.credits
     const action:CampaignAction={type:'arc-choice',arcId:'long-relay',beatId:'relay',choiceId:approach}
     state=legal(state,action)
     expect(state.relayArc?.approach).toBe(approach)
@@ -60,7 +60,7 @@ describe('The Long Relay optional mission',()=>{
     expect(reduceCampaign({...ready,exploration:{...ready.exploration,materials:0}},relay)).toEqual({...ready,exploration:{...ready.exploration,materials:0}})
     const wrong={...relay,choiceId:'other'} as CampaignAction
     expect(reduceCampaign(ready,wrong)).toBe(ready)
-    const wrongArc={...relay,arcId:'else'} as CampaignAction
+    const wrongArc={...relay,arcId:'else'} as unknown as CampaignAction
     expect(reduceCampaign(ready,wrongArc)).toBe(ready)
     const finish:CampaignAction={type:'arc-choice',arcId:'long-relay',beatId:'reply',choiceId:'acknowledge'}
     expect(reduceCampaign(ready,finish)).toBe(ready)
