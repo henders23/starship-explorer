@@ -1,0 +1,13 @@
+.relay-objective,.relay-conversation {border:1px solid #567887;background:linear-gradient(135deg,#112c39,#091d2b);padding:17px;margin:17px 0;box-shadow:inset 3px 0 #cda675;}
+.relay-objective h3,.relay-conversation h3 {font-size:20px;color:#f0e4c9;margin:10px 0;font-weight:500;}
+.relay-objective p,.relay-conversation p {font-size:12px;line-height:1.75;color:#c6dce0;}
+.relay-destination {background:#061923;padding:12px;border:1px solid #4a6979;display:flex;flex-direction:column;gap:5px;}
+.relay-destination strong {font-size:13px;font-weight:500;color:#f5d9a0;}
+.relay-destination small,.relay-choice small,.relay-objective>small,.relay-conversation>small {font-size:10px;line-height:1.65;color:#a9c1c9;}
+.relay-speaker {display:block;margin:12px 0 8px;color:#d7b87d;text-transform:uppercase;letter-spacing:1.4px;font-size:10px;}
+.relay-choice {margin:13px 0;}
+.relay-choice .exp-button {width:100%;text-align:left;margin:0 0 5px;}
+.relay-choice small {display:block;}
+.relay-archive ol {padding-left:20px;color:#c2d7dc;font-size:12px;line-height:1.9;}
+.relay-archive li {margin:6px 0;}
+@media(max-width:720px){.relay-objective,.relay-conversation {padding:14px;margin:12px 0;}.relay-objective h3,.relay-conversation h3{font-size:18px;}}
