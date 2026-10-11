@@ -151,3 +151,44 @@
 @media(max-width:720px) { .tac-feedback { padding:12px 15px; gap:6px; } .tac-feedback>strong,.tac-feedback>span { flex-basis:100%; } .tac-move-preview { padding:12px; } }
 
 .tac-destination>.exp-text-button { margin:0; min-height:36px; }
+
+/* Cinematic deck polish: every layer remains below the readable tactical markers. */
+.tactical-deck { background:#07111a radial-gradient(ellipse at 45% 0%,#193844,#060c14 72%); }
+.tactical-deck .tac-header { background:linear-gradient(110deg,#0e2633,#081923 68%,#1e292e); box-shadow:0 10px 26px #0003; }
+.tactical-deck .tac-header h1 { color:#f6f0e5; letter-spacing:.015em; font-weight:500; }
+.tactical-deck .tac-objective { background:linear-gradient(90deg,#213a40,#10262f); border-bottom-color:#78949170; box-shadow:inset 4px 0 #e4b771; }
+.tac-arena { background:linear-gradient(160deg,#112b34,#071923 38%,#0a1a23); }
+.tac-scroll { border:1px solid #486470; border-radius:4px; box-shadow:0 25px 44px #0008,inset 0 0 0 1px #91b8c019; }
+.tac-board { background:#07131b; }
+.tac-board .tac-environment { filter:drop-shadow(0 2px 5px #07131c); }
+.tac-animated-unit { will-change:transform; }
+.tac-animated-unit.moving .tac-foot-shadow { animation:tac-shadow-stride 180ms ease-in-out infinite alternate; }
+.tac-animated-unit.moving .tac-soldier-sprite { animation:tac-soldier-stride 180ms ease-in-out infinite alternate; transform-box:fill-box; transform-origin:center bottom; }
+.tac-figure.firing .tac-soldier-sprite { animation:tac-rifle-recoil 190ms ease-out both; transform-box:fill-box; transform-origin:center center; }
+.tac-muzzle-flash { animation:tac-flash 230ms ease-out both; }
+.tac-selection-ring { animation:tac-ring-breathe 2s ease-in-out infinite; transform-box:fill-box; transform-origin:center; }
+.tac-shield { animation:tac-shield-breathe 2.8s ease-in-out infinite; }
+.tac-beacon { animation:tac-beacon-pulse 2.2s ease-in-out infinite alternate; }
+.tac-shot-effect line { stroke-linecap:round; stroke-dasharray:4 7; animation:tac-tracer 360ms linear both; }
+.tac-shot-effect circle { transform-box:fill-box; transform-origin:center; animation:tac-impact 420ms ease-out both; }
+@keyframes tac-soldier-stride { 0% {transform:translateY(-1px) rotate(-1.5deg) scaleY(.985)} 100% {transform:translateY(-4px) rotate(1.5deg) scaleY(1.02)} }
+@keyframes tac-shadow-stride { from {opacity:.8;transform:scaleX(1)} to {opacity:.4;transform:scaleX(.77)} }
+@keyframes tac-rifle-recoil { 0% {transform:translate(0)} 35% {transform:translate(-4px,2px) rotate(-5deg)} 100% {transform:translate(0)} }
+@keyframes tac-flash { 0% {opacity:1;transform:scale(1)} 100% {opacity:0;transform:scale(.4)} }
+@keyframes tac-ring-breathe { 0%,100% {opacity:.56;transform:scale(1)} 50% {opacity:1;transform:scale(1.075)} }
+@keyframes tac-shield-breathe { 0%,100% {opacity:.55} 50% {opacity:1} }
+@keyframes tac-beacon-pulse { from {opacity:.35} to {opacity:.9} }
+@keyframes tac-tracer { from {stroke-dashoffset:35;opacity:1} to {stroke-dashoffset:0;opacity:0} }
+@keyframes tac-impact { from {opacity:1;transform:scale(.35)} to {opacity:0;transform:scale(1.6)} }
+@media(min-width:721px) {
+  .tac-board { max-height:min(72dvh,680px); min-height:390px; }
+  .tac-scroll.expanded .tac-board { max-height:none; }
+  .tac-layout { max-width:1850px; }
+}
+@media(prefers-reduced-motion:reduce) {
+  .tac-soldier-sprite,.tac-animated-unit.moving .tac-soldier-sprite,
+  .tac-animated-unit.moving .tac-foot-shadow,.tac-figure.firing .tac-soldier-sprite,
+  .tac-muzzle-flash,.tac-selection-ring,.tac-shield,.tac-beacon,
+  .tac-shot-effect line,.tac-shot-effect circle {animation:none!important}
+  .tac-muzzle-flash {opacity:0}
+}

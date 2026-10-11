@@ -2,11 +2,12 @@ import type { TacticalUnit } from '../engine/tactical/mission.js'
 
 export const figureAsset = (side: TacticalUnit['side']) => `/assets/exploration/tactical-${side === 'crew' ? 'operative' : 'custodian'}.webp`
 /** Status marks stay vector-sharp; bitmap detail never carries gameplay information. */
-export function TacticalFigure({ unit }: { unit: TacticalUnit }) {
+export function TacticalFigure({ unit, firing = false }: { unit: TacticalUnit; firing?: boolean }) {
   const ally = unit.side === 'crew'
-  return <g className={`tac-figure ${ally ? 'ally' : 'enemy'}`}>
+  return <g className={`tac-figure ${ally ? 'ally' : 'enemy'} ${firing ? 'firing' : ''}`}>
     <rect className="tac-figure-hitbox" x={-16} y={-54} width={32} height={58} fill="transparent" pointerEvents="all" />
-    <image href={figureAsset(unit.side)} x={-32} y={-58} width={64} height={64} pointerEvents="none" />
+    <image className="tac-soldier-sprite" href={figureAsset(unit.side)} x={-32} y={-58} width={64} height={64} pointerEvents="none" />
+    {firing && <g className="tac-muzzle-flash" pointerEvents="none"><path d={ally ? 'M 20 -29 L 31 -37 L 28 -27 L 38 -22 L 24 -21 Z' : 'M -20 -29 L -30 -36 L -28 -25 L -38 -19 L -22 -19 Z'} fill="#ffe5a6" stroke="#f2a761" strokeWidth=".8"/></g>}
     {unit.overwatch && <path d="M -19 7 L 0 14 L 19 7" fill="none" stroke="#f3d594" strokeWidth={2}/>}
   </g>
 }
