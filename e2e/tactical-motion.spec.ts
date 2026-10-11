@@ -34,3 +34,18 @@ test('operatives animate along tile paths and capture real walking frames',async
   }
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
+
+test('selected soldiers remain pointer-clickable during ambient effects',async({page})=>{
+  const state=deployBoarding('stable-selection')
+  let saved=''
+  saveExploration(state,{getItem:()=>null,removeItem:()=>{},setItem:(_,value)=>{saved=value}})
+  await page.addInitScript(({key,saved})=>localStorage.setItem(key,saved),{key:EXPLORATION_SAVE_KEY,saved})
+  await page.goto('/')
+  await page.getByRole('button',{name:'Resume expedition'}).click()
+  await expect(page.getByTestId('tactical-unit-operative-0')).toBeVisible()
+  // The selected ring continues pulsing; the hitbox must not expand or move.
+  for(const label of ['Select Mara Chen','Select Idris Okonkwo','Select Mara Chen']){
+    await page.getByRole('button',{name:label,exact:true}).click({timeout:5000})
+  }
+  await expect(page.locator('.tac-orders h2')).toHaveText('Mara Chen')
+})
