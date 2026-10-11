@@ -4,7 +4,7 @@ import type { Mission, TacticalAction } from '../src/engine/tactical/mission.js'
 import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { completeBoarding, deployBoarding } from '../tools/tactical-walkthrough.js'
-import { EXPLORATION_SAVE_KEY, loadExploration, saveExploration } from '../src/ui/exploration-save.js'
+import { EXPLORATION_SAVE_KEY, loadExploration, saveExploration, EXPLORATION_SAVE_VERSION } from '../src/ui/exploration-save.js'
 
 const mission = () => createMission('tactical-unit', 'site', 'Silent Courier', initialRoster().slice(0, 4), 0)
 function apply(m: Mission, a: TacticalAction) { expect(tacticalLock(m, a)).toBeNull(); return reduceMission(m, a) }
@@ -156,6 +156,6 @@ describe('boarding campaign integration and migration', () => {
     mem.setItem(EXPLORATION_SAVE_KEY, raw)
     expect(loadExploration(mem)).toEqual({ campaign: old, error: null }); expect(mem.getItem()).toBe(raw)
     expect(old.roster).toEqual(initialRoster())
-    saveExploration(old, mem); expect(JSON.parse(mem.getItem()!).version).toBe(7)
+    saveExploration(old, mem); expect(JSON.parse(mem.getItem()!).version).toBe(EXPLORATION_SAVE_VERSION)
   })
 })
