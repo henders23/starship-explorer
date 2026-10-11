@@ -256,7 +256,7 @@
 @keyframes exp-target-pulse {0%,100% {opacity:.48} 50%{opacity:1}}
 @media(prefers-reduced-motion:reduce) {.exp-atlas .exp-atlas-route,.exp-atlas .exp-atlas-target{animation:none!important}}
 @media(max-width:640px) {
-  .exp-atlas-tools {top:7px;right:7px;}
+  .exp-atlas-tools {position:relative;top:auto;right:auto;justify-content:flex-end;border:0;border-top:1px solid #35536a;border-radius:0;padding:6px;background:#071823;}
   .exp-atlas-tools button {width:32px;height:32px;}
   .exp-atlas .exp-atlas-svg {min-height:165px}
   .exp-atlas-readout {position:relative;padding:10px 9px;gap:6px;background:#071823;grid-template-columns:1fr 1.4fr;}
