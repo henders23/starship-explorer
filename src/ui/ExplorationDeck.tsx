@@ -1,4 +1,5 @@
 import { ExplorationStory, LettersObjective } from './ExplorationStory.js'
+import { ExpeditionGalaxyChart } from './ExpeditionGalaxyChart.js'
 import { storyAt } from '../engine/exploration/stories.js'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -168,7 +169,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'galaxy' && <>
           <div className="exp-section-heading"><div><span className="exp-eyebrow">NAVIGATION</span><h2>Galaxy chart</h2></div>
             <label className="exp-search">Find system<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or region" /></label></div>
-          <GalaxyChart state={state} selected={selectedSystem} onSelect={setSelectedSystem} />
+          <ExpeditionGalaxyChart state={state} selected={selectedSystem} onSelect={setSelectedSystem} />
           <p className="exp-chart-key"><span>◆ Ithaca</span> <span>● Visited</span> <span>○ Unvisited</span> Select a system to inspect its route.</p>
           <div className="exp-chart-list">
             {[...state.galaxy.systems].sort((a, b) => Number(!neighbourIds.includes(a.id)) - Number(!neighbourIds.includes(b.id))).filter((s) => `${s.name} ${REGION_NAMES[s.region]}`.toLowerCase().includes(query.toLowerCase())).map((system) =>
@@ -257,25 +258,3 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   </main>
 }
 
-function GalaxyChart({ state, selected, onSelect }: { state: Campaign; selected: string; onSelect: (id: string) => void }) {
-  const systems = state.galaxy.systems
-  const minX = Math.min(...systems.map((s) => s.x)), maxX = Math.max(...systems.map((s) => s.x))
-  const minY = Math.min(...systems.map((s) => s.y)), maxY = Math.max(...systems.map((s) => s.y))
-  const point = (id: string) => {
-    const s = systems.find((system) => system.id === id)!
-    return { x: 35 + (s.x - minX) / (maxX - minX) * 830, y: 45 + (s.y - minY) / (maxY - minY) * 350 }
-  }
-  return <svg className="exp-map" viewBox="0 0 900 440" aria-label="Exploration galaxy map">
-    {state.galaxy.lanes.map(([a, b]) => { const p = point(a), q = point(b); return <line key={`${a}-${b}`} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className={a === state.at || b === state.at ? 'adjacent' : ''} /> })}
-    {systems.map((s) => {
-      const p = point(s.id), current = s.id === state.at, chosen = s.id === selected
-      return <g key={s.id} role="button" tabIndex={0} aria-label={`Select ${s.name}`} onClick={() => onSelect(s.id)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.id) } }}>
-        <circle cx={p.x} cy={p.y} r={14} fill="transparent" />
-        <circle cx={p.x} cy={p.y} r={current ? 7 : 4} className={current ? 'current' : state.visited.includes(s.id) ? 'visited' : 'unvisited'} />
-        {chosen && <circle cx={p.x} cy={p.y} r={12} className="selected-ring" />}
-        {(current || chosen) && <text x={p.x} y={p.y - 20} textAnchor={p.x < 100 ? 'start' : p.x > 800 ? 'end' : 'middle'}>{current ? 'ITHACA · ' : ''}{s.name}</text>}
-      </g>
-    })}
-  </svg>
-}
