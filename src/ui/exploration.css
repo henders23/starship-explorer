@@ -226,3 +226,42 @@
 .app-shell .start-screen { overflow-y:auto; }
 .start-screen .start-copy { position:relative; bottom:auto; left:auto; padding:clamp(28px,8vh,90px) 7%; box-sizing:content-box; }
 @media(max-width:640px) { .start-screen .start-copy { padding:32px 22px; max-width:calc(100% - 44px); } .start-screen .start-copy h1 { font-size:42px; } }
+
+/* Cinematic navigation atlas, preserving seeded systems and actual lane graph. */
+.exp-atlas { position:relative; isolation:isolate; border:1px solid #426478; background:#040c16; overflow:hidden; box-shadow:0 24px 55px #0007; }
+.exp-atlas .exp-atlas-svg { width:100%; height:auto; display:block; min-height:0; aspect-ratio:900/440; background:#050e18; border:none; touch-action:none; cursor:grab; }
+.exp-atlas .exp-atlas-svg:active {cursor:grabbing}
+.exp-atlas .exp-atlas-lanes line { stroke-width:1.3; vector-effect:non-scaling-stroke; }
+.exp-atlas .exp-atlas-lanes .ordinary {stroke:#7f9cb4; stroke-opacity:.37;}
+.exp-atlas .exp-atlas-lanes .nearby {stroke:#75c8dd; stroke-opacity:.65;}
+.exp-atlas .exp-atlas-lanes .route {stroke:#6fe5f4;stroke-opacity:.85;stroke-width:2.8;}
+.exp-atlas .exp-atlas-route {stroke:#97f6fa;stroke-width:2;stroke-linecap:round;stroke-dasharray:4 9;animation:exp-route-flow 7s linear infinite;filter:drop-shadow(0 0 4px #6dd8f5);vector-effect:non-scaling-stroke;}
+.exp-atlas .exp-atlas-star { cursor:pointer;outline:none; }
+.exp-atlas .exp-atlas-star:focus-visible .exp-atlas-hit {stroke:#fbe2a2;stroke-width:2;}
+.exp-atlas .exp-atlas-star:hover .exp-atlas-hit {stroke:#a4dbe5;stroke-width:1;stroke-opacity:.8;}
+.exp-atlas .exp-atlas-target {stroke:#f4ca87;stroke-width:1.5;stroke-dasharray:3 3;animation:exp-target-pulse 2s ease-in-out infinite;}
+.exp-atlas .exp-atlas-label {font-family:Arial,system-ui,sans-serif;font-size:12px;letter-spacing:.11em;fill:#edf8fa;stroke:#03121d;stroke-width:3.5;stroke-linejoin:round;paint-order:stroke;dominant-baseline:central;}
+.exp-atlas .exp-atlas-ithaca {filter:drop-shadow(0 0 3px #78e9fb) drop-shadow(0 4px 2px #02080a);}
+.exp-atlas-tools { position:absolute; z-index:2; top:14px; right:14px; display:flex; gap:4px; padding:5px; border:1px solid #53798a;background:#031321d9;backdrop-filter:blur(9px);border-radius:3px; }
+.exp-atlas-tools button { width:34px;height:34px;border:1px solid #496a78;background:#0a2130;color:#d8f8fa;font:20px/1 Arial,sans-serif;cursor:pointer; }
+.exp-atlas-tools button:disabled {opacity:.35;cursor:default;}
+.exp-atlas-tools button:focus-visible,.exp-atlas-tools button:hover:not(:disabled) {outline:1px solid #d1f2ef;background:#1e4658;}
+.exp-atlas-readout { position:absolute; z-index:1; left:0;right:0;bottom:0;display:grid;grid-template-columns:1fr 1.2fr 1fr;gap:18px;padding:20px 21px 13px;background:linear-gradient(0deg,#03101cf5,#061521b8 80%,#05162200);pointer-events:none; }
+.exp-atlas-readout span {display:flex;flex-direction:column;gap:6px;min-width:0;}
+.exp-atlas-readout span:last-child {text-align:right;align-items:flex-end;}
+.exp-atlas-readout strong {font-size:10px;font-weight:500;letter-spacing:1.6px;color:#d4f0f2;text-overflow:ellipsis;white-space:nowrap;overflow:hidden;max-width:100%;}
+.exp-atlas-readout small {font-size:9px;color:#93b1c1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;}
+.exp-atlas-hint {margin:0!important;padding:9px 18px!important;border-top:1px solid #3f6672;background:#061722;color:#a0bcc9!important;font-size:10px!important;letter-spacing:.015em;}
+@keyframes exp-route-flow {to {stroke-dashoffset:-260}}
+@keyframes exp-target-pulse {0%,100% {opacity:.48} 50%{opacity:1}}
+@media(prefers-reduced-motion:reduce) {.exp-atlas .exp-atlas-route,.exp-atlas .exp-atlas-target{animation:none!important}}
+@media(max-width:640px) {
+  .exp-atlas-tools {top:7px;right:7px;}
+  .exp-atlas-tools button {width:32px;height:32px;}
+  .exp-atlas .exp-atlas-svg {min-height:165px}
+  .exp-atlas-readout {position:relative;padding:10px 9px;gap:6px;background:#071823;grid-template-columns:1fr 1.4fr;}
+  .exp-atlas-readout span:last-child {display:none;}
+  .exp-atlas-readout strong {font-size:8px;letter-spacing:.5px}
+  .exp-atlas-readout small {font-size:8px;}
+  .exp-atlas-hint {padding:8px 10px!important;font-size:9px!important;}
+}
