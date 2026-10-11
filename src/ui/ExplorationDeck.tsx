@@ -117,8 +117,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span className="exp-eyebrow">CAPTAIN’S NEXT STEP</span>
         <h2>{advice}</h2><p>{adviceText}</p>
         <button className="exp-button" onClick={() => setTab('lab')}>Open research lab</button>
-        <LettersObjective state={state} />
         <LongRelayObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
+        <LettersObjective state={state} />
         <div className="exp-rule" />
         <span className="exp-eyebrow">NEIGHBOURING SYSTEMS</span>
         <div className="exp-neighbours">
