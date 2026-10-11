@@ -140,3 +140,11 @@
   .space-battle .space-log p { margin:3px 0; font-size:10px; }
   .space-surrender { position:fixed; top:150px; left:3vw; right:3vw; z-index:5; box-shadow:0 10px 30px #000; }
 }
+
+/* High-detail overhead recognition render on the contact screen only. Tactical
+   battle hull overlays keep their validated targeting art and hitboxes. */
+.ship-contact-art {background:radial-gradient(ellipse at 50% 41%,#244051 0,#0c1d2c 55%,#060e18 96%);isolation:isolate;}
+.ship-contact-art::before {content:'';position:absolute;inset:7% 10%;pointer-events:none;opacity:.32;background-image:radial-gradient(#d5e8f2 1px,transparent 1px);background-size:48px 54px;mask-image:radial-gradient(ellipse,transparent 10%,black 85%);}
+.ship-contact-art .reconstructed {position:relative;z-index:1;width:85%;max-height:470px;max-width:480px;object-fit:contain;mix-blend-mode:normal;filter:drop-shadow(0 0 24px #5b98ad52) drop-shadow(0 22px 24px #000b);}
+.ship-contact-art>span {z-index:2;left:16px;right:16px;text-align:center;color:#b3cbd6;}
+@media(max-width:700px){.ship-contact-art .reconstructed{max-height:320px;width:88%;}}
