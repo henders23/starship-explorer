@@ -1,4 +1,5 @@
 import { ExplorationStory, LettersObjective } from './ExplorationStory.js'
+import { LongRelayObjective, LongRelayStation, LongRelayArchive } from './LongRelay.js'
 import { ExpeditionGalaxyChart } from './ExpeditionGalaxyChart.js'
 import { storyAt } from '../engine/exploration/stories.js'
 import { useEffect, useRef, useState } from 'react'
@@ -117,6 +118,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <h2>{advice}</h2><p>{adviceText}</p>
         <button className="exp-button" onClick={() => setTab('lab')}>Open research lab</button>
         <LettersObjective state={state} />
+        <LongRelayObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
         <div className="exp-rule" />
         <span className="exp-eyebrow">NEIGHBOURING SYSTEMS</span>
         <div className="exp-neighbours">
@@ -182,6 +184,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'archive' && <>
           <div className="exp-section-heading"><div><span className="exp-eyebrow">SCIENCE ARCHIVE</span><h2>What we brought back</h2></div><span>{state.findings.length} distinct sources</span></div>
           <LettersObjective state={state} />
+          <LongRelayArchive state={state} />
           {state.stories.length > 0 && <section className="exp-captains-record"><h3>Captain’s record</h3>{state.stories.map((record) => {
             const place = state.world.locations.find((s) => s.id === record.locationId)!
             const story = storyAt(state.seed, place)!, choice = story.choices.find((c) => c.id === record.choiceId)!
@@ -218,6 +221,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
               {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
               {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <div className="exp-relay"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</div>}
+              <LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
               <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />
               <small>Services remain available after you leave. Contracts provide renewable supplies.</small>
               {hasTech(state, 'contextual-translation') && <><h3>Scientific records</h3><small>A station supplies one independent spatial source. Seek a second station or an expedition for another.</small>

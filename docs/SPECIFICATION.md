@@ -326,9 +326,9 @@ keyboard focus, reduced motion, no page errors, image decoding and overflow.
 Publish the tested tree, verify remote `main`, then deployment status. Do not
 reinterpret a green deployment as proof that every CI check has passed.
 
-## 10. Proposed next slice: The Long Relay
+## 10. Implemented next slice: The Long Relay
 
-**Not implemented.** [NEXT.md](NEXT.md) contains the scene/choice brief. This
+**Implemented in version 8.** [NEXT.md](NEXT.md) contains the original scene/choice brief. This
 section defines the minimal implementation contract, avoiding a generic quest
 framework before one real arc works.
 
@@ -338,7 +338,7 @@ until an explicit `start-arc` action; do not auto-activate during replay of old
 check against the then-current main branch.
 
 ```ts
-// Proposed types; not present in the shipping source.
+// Current types in the shipping source.
 type RelayStage = 'accepted' | 'relay-resolved' | 'complete';
 type RelayApproach = 'repair' | 'local-copy';
 interface RelayArc {
