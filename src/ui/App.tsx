@@ -14,12 +14,22 @@ import { LoadoutScreen } from './LoadoutScreen.js'
 import { ShipHub } from './ShipHub.js'
 import { StartScreen } from './StartScreen.js'
 import { useGame, useNavPlot } from './store.js'
+import { MuteButton, useSound } from './sound.js'
 import { createCampaign } from '../engine/exploration/campaign.js'
 import type { Campaign } from '../engine/exploration/campaign.js'
 import { ExplorationDeck } from './ExplorationDeck.js'
 import { loadExploration } from './exploration-save.js'
+import type { ExplorationSave } from './exploration-save.js'
+import { browserStorage } from './save.js'
 
 export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
+
+function readExplorationSave(): ExplorationSave {
+  const storage = browserStorage()
+  if (!storage) return { campaign: null, error: null }
+  try { return loadExploration(storage) }
+  catch { return { campaign: null, error: 'Exploration autosave is unavailable in this browser.' } }
+}
 
 const NAV_ITEMS: Array<{ id: Screen; label: string; code: string }> = [
   { id: 'ship', label: 'Ship Overview', code: '01' },
@@ -39,10 +49,8 @@ export function App() {
   const [screen, setScreen] = useState<Screen>('ship')
   const [phase, setPhase] = useState<Phase>('title')
   const [exploration, setExploration] = useState<Campaign | null>(null)
-  const [explorationSave, setExplorationSave] = useState(() => {
-    try { return loadExploration(window.localStorage) }
-    catch { return { campaign: null, error: 'Exploration autosave is unavailable in this browser.' } }
-  })
+  const [explorationSave, setExplorationSave] = useState(readExplorationSave)
+  const [storageBlocked] = useState(() => browserStorage() === null)
   const ambientRef = useRef<HTMLAudioElement | null>(null)
   const themeRef = useRef<HTMLAudioElement | null>(null)
 
@@ -54,6 +62,7 @@ export function App() {
     themeRef.current = theme
     theme.loop = true
     theme.volume = 0.34
+    theme.muted = useSound.getState().muted
 
     let armed = false
     const start = () => {
@@ -83,6 +92,11 @@ export function App() {
     }
   }, [])
 
+  const muted = useSound((s) => s.muted)
+  useEffect(() => {
+    for (const audio of [themeRef.current, ambientRef.current]) if (audio) audio.muted = muted
+  }, [muted])
+
   useEffect(() => {
     const navigate = (event: Event) => {
       const next = (event as CustomEvent<Screen>).detail
@@ -104,6 +118,7 @@ export function App() {
     ambientRef.current = ambient
     ambient.loop = true
     ambient.volume = 0.1
+    ambient.muted = useSound.getState().muted
     void ambient.play().catch(() => {})
   }
 
@@ -146,7 +161,7 @@ export function App() {
 
   if (phase === 'exploration' && exploration) {
     return <ExplorationDeck initial={exploration} onExit={() => {
-      try { setExplorationSave(loadExploration(window.localStorage)) } catch { /* storage unavailable */ }
+      setExplorationSave(readExplorationSave())
       setPhase('title')
     }} />
   }
@@ -155,7 +170,7 @@ export function App() {
     return (
       <div className="crt app-shell h-full">
         <StartScreen onBegin={begin} onResume={resume}
-          explorationSaved={!!explorationSave.campaign} explorationError={explorationSave.error}
+          explorationSaved={!!explorationSave.campaign} explorationError={explorationSave.error} storageBlocked={storageBlocked}
           onExplore={(seed, resumeSaved) => {
             const campaign = resumeSaved ? explorationSave.campaign : createCampaign((seed || `explore-${Date.now().toString(36)}`).slice(0, 200))
             if (!campaign) return
@@ -233,6 +248,7 @@ function Header({ screen, onScreen }: { screen: Screen; onScreen: (screen: Scree
       <div className="header-telemetry flex shrink-0 items-center gap-3">
         <ResearchChip />
         <FuelGauge />
+        <MuteButton className="border-rule text-ink-dim hover:text-ink border px-2 py-1 text-[10px]" />
         {jumps.length > 0 && (
           <span className="text-alarm-dim text-[10px]">
             {jumps.length} failed {jumps.length === 1 ? 'attempt' : 'attempts'}

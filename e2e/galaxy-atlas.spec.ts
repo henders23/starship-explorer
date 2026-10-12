@@ -25,7 +25,7 @@ for(const width of [1440,390])test(`new galaxy atlas draws real generated world 
   const firstOther=chart.locator('.exp-atlas-star:not(.is-current)').first()
   await firstOther.click()
   await expect(chart.getByTestId('galaxy-route')).toBeVisible()
-  await expect(chart.getByText(/LANE HOPS/)).toBeVisible()
+  await expect(chart.getByText(/^\d+ JUMPS? · \d+ FUEL$/)).toBeVisible()
   const box=await chart.locator('svg').boundingBox()
   if(!box)throw new Error('Atlas has no visible viewport')
   const beforePan=await camera.getAttribute('transform')

@@ -321,7 +321,7 @@ scenarios plus build/visual review. For documentation-only updates, verify sourc
 facts, commands, links and Markdown diffs; do not imply the gameplay suite was
 rerun if it was not. Human playtesting and performance profiling remain separate.
 
-For changed UI: inspect 1440px desktop, 390px phone and 320px narrow layout,
+For changed UI: inspect 1366×768, 1440×900 and 1920×1080 laptop/desktop layouts,
 keyboard focus, reduced motion, no page errors, image decoding and overflow.
 Publish the tested tree, verify remote `main`, then deployment status. Do not
 reinterpret a green deployment as proof that every CI check has passed.
@@ -414,3 +414,27 @@ Animation consumes canonical state but introduces no AP, damage, RNG or campaign
 clock changes. All seven rig atlases contain eight unmirrored directions. See
 [implementation and evidence](ANIMATED-BOARDING-AND-SURVIVORS.md) for pose schema,
 asset reproduction, acceptance coverage and remaining fidelity limitations.
+
+## 12. Laptop boarding presentation
+
+Laptop/desktop is the target platform; phone play is not an acceptance target.
+Legacy narrow-screen checks may remain to catch accidental regressions.
+
+1. An optional `TacticalObserver` receives detached snapshots for enemy moves,
+   shots (including overwatch), reloads, reserves and heat. Enabling observation
+   must produce exactly the same resulting mission, RNG rolls and log.
+2. Playback exists only in React state. A single journal order is dispatched and
+   saved immediately; reload/title/skip cannot replay or duplicate that order.
+3. Only visible movement/reloading earns a playback frame. Reserve warnings may
+   appear without exposing their position. Shots affecting crew remain reported.
+4. Commands are guarded while playback runs. Speed toggles 1×/2×. Escape and Skip
+   return control; reduced motion bypasses playback or stops it when enabled.
+5. A fatal turn shows its damage before the debrief. No UI timer determines
+   injuries, extraction, turn count, heat or reinforcement cadence.
+6. At 1366×768 and larger, primary orders and four squad cards remain visible;
+   the detailed orders panel scrolls. Enlarge map gives the deck the panel's width.
+7. Rig assets remain 38 frames × 8 facings, with no new runtime renderer.
+   Archive scenery is placed on actual cover tiles; hull dressing is outside the
+   playable grid. Save version remains 9.
+
+Evidence and reproduction: [LAPTOP-BOARDING.md](LAPTOP-BOARDING.md).

@@ -6,6 +6,7 @@ import { TacticalFigure, TacticalStatus } from './TacticalFigure.js'
 import { point, diamond } from './isometric.js'
 import { facing, FRAMES, poseFrame, reaction, restPose, routeBetween } from './tactical-animation.js'
 import type { Pose } from './tactical-animation.js'
+import { DeckArchitecture } from './DeckArchitecture.js'
 import { sceneOrder } from './tactical-scene.js'
 
 /**
@@ -13,7 +14,7 @@ import { sceneOrder } from './tactical-scene.js'
  * remains serialisable and is never delayed by sprite motion or reduced motion.
  * The moving sprite follows the actual A* / BFS tile route where available.
  */
-function UnitFigure({unit,m,chosen,onChoose,firing}:{unit:TacticalUnit;m:Mission;chosen:boolean;onChoose:()=>void;firing:boolean}) {
+function UnitFigure({unit,m,chosen,onChoose,firing,speed}:{unit:TacticalUnit;m:Mission;chosen:boolean;onChoose:()=>void;firing:boolean;speed:number}) {
   const p=point(unit),ally=unit.side==='crew'
   const node=useRef<SVGGElement>(null)
   const previous=useRef<{mission:Mission;unit:TacticalUnit}|null>(null)
@@ -37,14 +38,14 @@ function UnitFigure({unit,m,chosen,onChoose,firing}:{unit:TacticalUnit;m:Mission
           const sprint=before.unit.ap-unit.ap>=2
           element.dataset.gait=sprint?'sprint':'walk';element.classList.add('moving')
           const frames=route.current.map((step,i)=>({offset:i/(route.current.length-1),transform:`translate(${point(step).x}px, ${point(step).y}px)`}))
-          const animation=element.animate(frames,{duration:(route.current.length-1)*(sprint?115:170),easing:'linear'})
+          const animation=element.animate(frames,{duration:(route.current.length-1)*(sprint?115:170)/speed,easing:'linear'})
           motion.current=animation
           void animation.finished.catch(()=>{}).then(()=>{if(motion.current===animation){element.classList.remove('moving');motion.current=null}})
         }
       }
       if(firing&&m.lastShot&&m.rolls!==before.mission.rolls)direction.current=facing(unit,m.lastShot.to,direction.current)
     }
-  },[m,unit,firing])
+  },[m,unit,firing,speed])
   useEffect(()=>{
     const element=node.current!,rig=element.querySelector<HTMLElement>('.tac-rig')!,media=window.matchMedia('(prefers-reduced-motion: reduce)')
     const update=()=>{
@@ -55,7 +56,7 @@ function UnitFigure({unit,m,chosen,onChoose,firing}:{unit:TacticalUnit;m:Mission
         const duration=Number(animation.effect?.getTiming().duration)||1,t=Number(animation.currentTime)||0
         const cursor=Math.min(route.current.length-1,t/duration*(route.current.length-1)),i=Math.min(route.current.length-2,Math.floor(cursor))
         const a=route.current[i]!,b=route.current[i+1]!,fraction=cursor-i
-        direction.current=facing(a,b,direction.current);pose=element.dataset.gait==='sprint'?'sprint':'walk';elapsed=t;loop=true
+        direction.current=facing(a,b,direction.current);pose=element.dataset.gait==='sprint'?'sprint':'walk';elapsed=now*speed;loop=true
         screen=point({x:a.x+(b.x-a.x)*fraction,y:a.y+(b.y-a.y)*fraction});depth=a.x+a.y+(b.x+b.y-a.x-a.y)*fraction
       }else if(transient.current&&!media.matches){
         const event=transient.current;elapsed=now-event.start
@@ -75,7 +76,7 @@ function UnitFigure({unit,m,chosen,onChoose,firing}:{unit:TacticalUnit;m:Mission
     const reduce=()=>{if(media.matches){motion.current?.cancel();motion.current=null;element.classList.remove('moving');transient.current=null;cancelAnimationFrame(ticker.current);update()}}
     media.addEventListener('change',reduce);update()
     return ()=>{cancelAnimationFrame(ticker.current);media.removeEventListener('change',reduce)}
-  },[m,unit])
+  },[m,unit,speed])
   useEffect(()=>{
     const element=node.current
     // React's development StrictMode replays passive effects on reordered
@@ -94,7 +95,7 @@ function UnitFigure({unit,m,chosen,onChoose,firing}:{unit:TacticalUnit;m:Mission
   </g>
 }
 
-export function TacticalBoard({m,unitId,sprint,destination,onDestination,selected,targetId,onSelect,onTarget,loadedRolls}:{m:Mission;unitId:string;sprint:boolean;destination:Point|null;onDestination:(p:Point)=>void;selected:string;targetId:string|null;onSelect:(id:string)=>void;onTarget:(id:string)=>void;loadedRolls:number}) {
+export function TacticalBoard({m,unitId,sprint,destination,onDestination,selected,targetId,onSelect,onTarget,loadedRolls,activeActor,playbackSpeed=1}:{m:Mission;unitId:string;sprint:boolean;destination:Point|null;onDestination:(p:Point)=>void;selected:string;targetId:string|null;onSelect:(id:string)=>void;onTarget:(id:string)=>void;loadedRolls:number;activeActor?:string;playbackSpeed?:number}) {
   const crew=m.units.filter((u)=>u.side==='crew'),unit=m.units.find((u)=>u.id===unitId)!
   const path=destination?pathTo(m,unit,destination):null
   const legal=destination && !tacticalLock(m,{type:'move',unitId,...destination,sprint})
@@ -137,6 +138,7 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       <path d="M 38 200 L 399 391 L 699 232" stroke="#4d6970" strokeWidth="7" fill="none" opacity=".2"/>
       <path d="M 41 202 L 400 394 L 699 235" stroke="#c79a61" strokeWidth="1.4" strokeDasharray="18 8 3 8" opacity=".65" fill="none"/>
     </g>
+    <DeckArchitecture m={m}/>
     <BoardTiles m={m} unitId={unitId} sprint={sprint} destination={destination} onDestination={onDestination}/>
     {path && <g pointerEvents="none" data-testid="movement-route"><polyline points={[unit,...path].map((p)=>`${point(p).x},${point(p).y}`).join(' ')} fill="none" stroke={legal?'#c3fff0':'#edb18f'} strokeWidth={2} strokeDasharray={legal?undefined:'4 4'}/>{path.map((p,i)=><circle key={i} cx={point(p).x} cy={point(p).y} r={2.5} fill={legal?'#c3fff0':'#edb18f'}/>)}</g>}
     <g data-testid="depth-objects">{sceneOrder(m).map((item)=>{
@@ -145,14 +147,14 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       if(item.kind==='obstacle')node=<Obstacle m={m} p={item.p}/>
       if(item.kind==='unit') {
         const u=m.units[item.index]!,ally=u.side==='crew'
-        node=<UnitFigure unit={u} m={m} firing={!!(m.lastShot&&m.rolls>loadedRolls&&m.lastShot.from.x===u.x&&m.lastShot.from.y===u.y)} chosen={ally?selected===u.id:targetId===u.id} onChoose={()=>ally?onSelect(u.id):onTarget(u.id)}/>
+        node=<UnitFigure speed={playbackSpeed} unit={u} m={m} firing={!!(m.lastShot&&m.rolls>loadedRolls&&m.lastShot.from.x===u.x&&m.lastShot.from.y===u.y)} chosen={activeActor?activeActor===u.id:ally?selected===u.id:targetId===u.id} onChoose={()=>ally?onSelect(u.id):onTarget(u.id)}/>
       }
       if(item.kind==='survivor')node=<g pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><ellipse rx={15} ry={8} fill="#242331" stroke="#edc4fa"/><image href="/assets/exploration/tactical-survivor.webp" x={-30} y={-53} width={60} height={60}/></g>
       if(item.kind==='crate') {
         const c=m.operation!.crates[item.index]!
         node=<g pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><path d="M -12 0 L -12 -16 L 0 -22 L 12 -16 L 12 0 L 0 6 Z" fill={c.collected?'#263e43':'#b58b45'} stroke={c.collected?'#4e6465':'#ffe0a2'}/></g>
       }
-      if(item.kind==='objective'&&!(m.recorder?.carrierId))node=<g pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><path d="M -11 0 L 0 -23 L 11 0 L 0 7 Z" fill={m.recovered?'#2a5960':'#ffd184'} stroke="#fbe6b6"/></g>
+      if(item.kind==='objective'&&!(m.recorder?.carrierId))node=<g pointerEvents="none" transform={`translate(${p.x} ${p.y})`}>{m.recorder?<><ellipse rx={16} ry={8} fill="#dda45122" stroke="#ddb66b" strokeDasharray="2 3"/><path d="M -10 -3 L 2 -9 L 12 -4 L 12 4 L 0 10 L -10 4 Z" fill="#ad8248" stroke="#ffdc96"/><path d="M -10 -3 L 0 3 L 12 -4 M 0 3 L 0 10 M -4 -6 L -4 -11 L 3 -14 L 7 -12 L 7 -7" fill="none" stroke="#fff0b2" strokeWidth="1"/></>:<path d="M -11 0 L 0 -23 L 11 0 L 0 7 Z" fill={m.recovered?'#2a5960':'#ffd184'} stroke="#fbe6b6"/>}</g>
       return <g key={item.id} data-object-id={item.id} data-depth={item.p.x+item.p.y}>{node}</g>
     })}</g>
     {target && <g pointerEvents="none" data-testid="target-line"><line x1={point(unit).x} y1={point(unit).y-22} x2={point(target).x} y2={point(target).y-22} stroke={canShoot?'#e9c48c':'#d88d7a'} strokeWidth={1.5} strokeDasharray="5 5"/><circle cx={point(target).x} cy={point(target).y-22} r={18} fill="none" stroke={canShoot?'#e9c48c':'#d88d7a'}/></g>}
@@ -162,16 +164,16 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       {m.operation?.crates.map((c,i)=><text key={i} x={point(c).x} y={point(c).y+20} fontSize={9} fill="#efdbb2" textAnchor="middle">{c.collected?'SECURED':`CASE ${i+1}`}</text>)}
       {(!m.operation||m.operation.kind==='sabotage') && m.seen.includes(m.objective.y*m.width+m.objective.x) && <text x={point(m.objective).x} y={point(m.objective).y+21} textAnchor="middle" fill="#ffd184" fontSize={9}>{m.recorder?m.recorder.carrierId?'CARRIED':'RECORDER':m.recovered?'SECURED':m.operation?'UPLINK':'CORE'}</text>}
     </g>
-    {m.lastShot && m.rolls>loadedRolls && <g key={`shot-${m.rolls}`} className="tac-shot-effect" pointerEvents="none"><line x1={point(m.lastShot.from).x} y1={point(m.lastShot.from).y-15} x2={point(m.lastShot.to).x} y2={point(m.lastShot.to).y-15} stroke={m.lastShot.hit?'#eafed0':'#e8a17a'} strokeWidth={3}/><circle cx={point(m.lastShot.to).x} cy={point(m.lastShot.to).y-15} r={12} fill="none" stroke="#ffdea0"/><text x={point(m.lastShot.to).x} y={point(m.lastShot.to).y-58} textAnchor="middle" fill="#fff2d1" fontSize={15}>{m.lastShot.hit?`−${m.lastShot.damage}`:'MISS'}</text></g>}
-    <g className="tac-grain" pointerEvents="none" opacity=".075"><rect x="0" y="0" width="720" height="420" filter="url(#tac-noise)" /></g>
+    {m.lastShot && m.rolls>loadedRolls && <g key={`shot-${m.rolls}`} className="tac-shot-effect" pointerEvents="none"><circle className="tac-muzzle" cx={point(m.lastShot.from).x} cy={point(m.lastShot.from).y-15} r={4} fill="#fff4c1"/><line x1={point(m.lastShot.from).x} y1={point(m.lastShot.from).y-15} x2={point(m.lastShot.to).x} y2={point(m.lastShot.to).y-15} stroke={m.lastShot.hit?'#eafed0':'#e8a17a'} strokeWidth={3}/><circle cx={point(m.lastShot.to).x} cy={point(m.lastShot.to).y-15} r={12} fill="none" stroke="#ffdea0"/><text x={point(m.lastShot.to).x} y={point(m.lastShot.to).y-58} textAnchor="middle" fill="#fff2d1" fontSize={15}>{m.lastShot.hit?'HIT':'MISS'}</text></g>}
+    <g className="tac-grain" pointerEvents="none" opacity=".018"><rect x="0" y="0" width="720" height="420" filter="url(#tac-noise)" /></g>
     {m.operation?.kind==='salvage' && <g pointerEvents="none" className="tac-heat-boundary"><path d="M 460 100 L 160 260" stroke="#f5b47b" strokeDasharray="4 5" strokeWidth={1.5}/><text x={447} y={99} fill="#ffd3a1" fontSize={9}>HEAT ZONE →</text></g>}
     <text x={23} y={391} fill="#69cbbd" fontSize={10}>SHUTTLE ←</text><text x={470} y={391} fill="#7fa0ae" fontSize={9}>{m.recorder?'RECORDER VAULT':m.operation?.variant?DECK_NAMES[m.operation.kind][m.operation.variant-1]!.toUpperCase():'RECOVERY DECK'} / 12 × 10</text>
   </svg>
 }
 
 function Obstacle({m,p}:{m:Mission;p:Point}) {
-  const q=point(p),tile=tileAt(m,p),kind=m.recorder?'sabotage':m.operation?.kind
-  const asset=tile==='wall'?(kind==='rescue'?'medical':kind==='sabotage'?'server':'wall'):(kind==='sabotage'?'console':kind==='salvage'?'cargo':'cover')
+  const q=point(p),tile=tileAt(m,p),kind=m.recorder?'archive':m.operation?.kind
+  const asset=tile==='wall'?(kind==='archive'?(p.x+p.y)%2===0?'archive':'coolant':kind==='rescue'?'medical':kind==='sabotage'?'server':'wall'):(kind==='archive'?'archive-console':kind==='sabotage'?'console':kind==='salvage'?'cargo':'cover')
   return <g pointerEvents="none" data-cover={tile==='wall'?'full':'half'}>
     <image href={`/assets/tactical/deck-${asset}.webp`} x={q.x-36} y={q.y-48} width={72} height={72}/>
     <path d={`M ${q.x-6} ${q.y-7} v -7 l 6 -3 l 6 3 v 7 l -6 4 Z`} fill={tile==='wall'?'#c1e2df':'#c1e2df55'} stroke="#cff7ee" strokeWidth=".7"/>
@@ -191,6 +193,8 @@ function BoardTiles({ m, unitId, sprint, destination, onDestination }: { m: Miss
           const d: Record<string, Point> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } }; if (d[e.key]) { e.preventDefault(); document.getElementById(`tile-${p.x + d[e.key]!.x}-${p.y + d[e.key]!.y}`)?.focus() } }} />
       {known && tile === 'floor' && <g pointerEvents="none" opacity={lit ? 1 : .42}>
         <image href={`/assets/tactical/deck-${m.operation?.kind==='rescue'&&p.x>3?'floor-medical':m.operation?.kind==='salvage'?'floor-warning':(p.x+p.y)%3===0?'floor-grate':'floor'}.webp`} x={q.x-36} y={q.y-48} width={72} height={72}/>
+        {m.recorder && p.y===1 && p.x>2 && <path d={`M ${q.x-23} ${q.y-12} l 45 24`} stroke="#d4ae6a" strokeWidth="2" opacity=".48"/>}
+        {m.recorder && p.x===4 && p.y===8 && <text transform={`matrix(.86 .46 -.86 .46 ${q.x} ${q.y})`} fontSize={7} fill="#b4c0b9" letterSpacing={1}>ARCHIVE / 04</text>}
         {(reachable||inExtraction(p)||chosen)&&<polygon points={diamond(p)} fill={chosen?'#bbf9d855':inExtraction(p)?'#4be7b344':'#6ddddd18'} stroke={chosen?'#b2f4d0':'none'}/>}
         {(p.x * 13 + p.y * 17) % 7 === 0 && <polygon points={diamond(p)} fill="url(#deck-grating)" opacity=".65" />}
         {(p.x * 5 + p.y * 3) % 8 === 0 && <g strokeWidth=".9" strokeOpacity=".65" stroke={inExtraction(p)?'#9ce4c7':'#9daaad'}><path d={`M ${q.x-11} ${q.y-1} L ${q.x-3} ${q.y-5} M ${q.x+6} ${q.y+4} L ${q.x+14} ${q.y}`}/><path d={`M ${q.x-11} ${q.y+1} L ${q.x-3} ${q.y-3}`} strokeOpacity=".2"/></g>}

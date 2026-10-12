@@ -224,3 +224,70 @@
 
 .tac-animated-unit[data-facing="left"] .tac-visual-body {transform:scaleX(-1); transform-box:fill-box; transform-origin:center;}
 .tac-animated-unit[data-facing="left"] .tac-muzzle-flash {transform:scaleX(-1);transform-box:fill-box;transform-origin:center;}
+
+/* Laptop workspace: deck and primary orders remain visible at 1366 × 768. */
+.tac-key-hint { color:#8aa5af; font-size:9px!important; margin:2px 0 0; }
+.tac-playback { grid-column:1/-1; display:flex; align-items:center; gap:18px; padding:10px 20px; border-bottom:1px solid #a7784e; background:#332d25; min-height:48px; }
+.tac-playback>span { color:#e7bf87; font-size:10px; letter-spacing:1px; white-space:nowrap; }
+.tac-playback strong { flex:1; font-size:12px; font-weight:400; color:#fff0d8; }
+.tac-playback button { border:1px solid #aa9169; color:#ffe9c9; padding:7px 12px; font-size:11px; white-space:nowrap; }
+.tac-playback kbd { opacity:.6; margin-left:6px; }
+.tac-animated-unit[data-pose=hit] .tac-rig { filter:brightness(1.65) sepia(.2); }
+.tac-muzzle { animation:tac-flash 160ms ease-out both!important; }
+.tac-log details { position:relative; }
+.tac-log details[open]>div { position:absolute; bottom:26px; right:0; width:min(720px,85vw); max-height:340px; overflow:auto; padding:18px 24px; background:#10232e; border:1px solid #5e7b86; box-shadow:0 -12px 36px #0009; z-index:5; }
+@media(min-width:1024px) and (min-height:650px) {
+  .tactical-deck { overflow:hidden; }
+  .tac-workspace { display:flex; flex-direction:column; height:100%; min-height:0; }
+  .tactical-deck .tac-header { flex:none; padding:12px 24px; }
+  .tactical-deck .tac-header h1 { font-size:23px; margin:4px 0 0; }
+  .tactical-deck .tac-objective { flex:none; padding:10px 24px; gap:14px; }
+  .tac-objective strong { font-size:11px; line-height:1.6; }
+  .tac-layout { flex:1; min-height:0; width:100%; grid-template-columns:minmax(0,1fr) 310px; grid-template-rows:auto minmax(0,1fr); margin:0 auto; }
+  .tac-arena { grid-column:1; grid-row:2; display:flex; flex-direction:column; min-height:0; padding:10px 16px; overflow:auto; }
+  .tac-orders { grid-column:2; grid-row:2; min-height:0; overflow:auto; padding:18px; }
+  .tac-scroll { flex:1; min-height:200px; overflow:hidden; margin-top:6px; }
+  .tac-scroll .tac-board { width:100%; height:100%; min-width:0; min-height:0; max-height:none; }
+  .tac-mapbar,.tac-key-hint,.tac-quickbar,.tac-legend,.tac-squad { flex:none; }
+  .tac-quickbar { padding:6px; gap:6px; }
+  .tac-quickbar button { min-height:42px; padding:6px; }
+  .tac-quickbar button b { font-size:22px; }
+  .tac-legend { padding:7px 0 3px; font-size:9px; }
+  .tac-squad button { padding:6px 9px; }
+  .tac-squad strong { margin:4px 0; font-size:11px; }
+  .tac-squad span { min-height:0; font-size:9px; }
+  .tac-squad progress { margin-top:4px; }
+  .tac-feedback { flex:none; padding:7px 24px; font-size:10px; }
+  .tac-log { flex:none; display:flex; gap:16px; align-items:center; padding:8px 24px; min-height:38px; }
+  .tac-log>p { flex:1; font-size:10px; margin:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .tac-log>span { font-size:9px; white-space:nowrap; }
+  .tac-log summary { white-space:nowrap; }
+  .deck-focus .tac-layout { grid-template-columns:1fr; }
+  .deck-focus .tac-orders { display:none; }
+  .tac-destination { max-height:155px; overflow:auto; flex:none; }
+}
+@media(min-width:1024px) and (min-height:650px) {
+  .tac-scroll.expanded .tac-board { min-width:0; }
+}
+@media(min-width:1024px) and (min-height:650px) {
+  .tactical-deck .tac-header { padding:8px 24px; }
+  .tactical-deck .tac-header>div:first-child>.exp-eyebrow { display:none; }
+  .tactical-deck .tac-header h1 { margin:0; line-height:1.2; }
+  .tactical-deck .tac-header p { margin:3px 0 0; line-height:1.3; font-size:10px; }
+  .tactical-deck .tac-turn b { font-size:28px; line-height:1; }
+  .tactical-deck .tac-turn small { font-size:9px; line-height:1.2; }
+  .tactical-deck .tac-map-tools button { padding:3px 0; min-height:25px; }
+  .tactical-deck .tac-mapbar { min-height:25px; }
+  .tactical-deck .tac-key-hint { line-height:1.2; font-size:8px!important; }
+  .tactical-deck .tac-quickbar button { min-height:38px; }
+  .tactical-deck .tac-quickbar button span { gap:2px; }
+  .tactical-deck .tac-quickbar small { font-size:8px; line-height:1.2; }
+  .tactical-deck .tac-squad small { font-size:9px; line-height:1.3; }
+  .tactical-deck .tac-squad strong { margin:3px 0; }
+  .tactical-deck .tac-log>p { margin:0; line-height:1.4; font-size:10px; }
+  .tactical-deck .tac-log { min-height:32px; padding:6px 24px; }
+  .tactical-deck .tac-orders .operation-tracker { padding:10px 12px; margin:14px 0; }
+}
+@media(min-width:1024px) and (min-height:650px) {
+  .deck-focus .tac-squad,.deck-focus .tac-legend { display:none; }
+}

@@ -1,0 +1,77 @@
+import { expect, test } from '@playwright/test'
+
+test('plays without browser storage and warns before discarding the unsaved voyage', async ({ page }) => {
+  const errors: string[] = []; page.on('pageerror', (e) => errors.push(e.message))
+  await page.addInitScript(() => {
+    Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('The operation is insecure.', 'SecurityError') } })
+  })
+  await page.goto('/')
+  await expect(page.getByRole('status').filter({ hasText: 'blocking site storage' })).toBeVisible()
+  await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await expect(page.getByRole('status').filter({ hasText: 'Autosave unavailable' })).toBeVisible()
+  page.once('dialog', (dialog) => { expect(dialog.message()).toContain('could not be autosaved'); void dialog.dismiss() })
+  await page.getByRole('button', { name: 'Title screen', exact: true }).click()
+  await expect(page.getByRole('heading', { name: 'Beyond the familiar' })).toBeVisible()
+  page.once('dialog', (dialog) => void dialog.accept())
+  await page.getByRole('button', { name: 'Title screen', exact: true }).click()
+  await expect(page.getByRole('button', { name: 'Begin expedition', exact: true })).toBeVisible()
+  expect(errors).toEqual([])
+})
+
+test('Escape closes expedition dialogs and returns focus to the control that opened them', async ({ page }) => {
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  const opener = page.getByRole('button', { name: 'Away team', exact: true })
+  await opener.click()
+  await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toBeVisible()
+  await page.keyboard.press('Escape')
+  await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toHaveCount(0)
+  await expect(opener).toBeFocused()
+})
+
+test('one sound switch mutes the music and is remembered', async ({ page }) => {
+  await page.addInitScript(() => {
+    const Original = window.Audio
+    const made: HTMLAudioElement[] = []
+    ;(window as unknown as { __audio: HTMLAudioElement[] }).__audio = made
+    window.Audio = function (src?: string) { const audio = new Original(src); made.push(audio); return audio } as unknown as typeof Audio
+  })
+  await page.goto('/')
+  // Development mode mounts twice and discards the first player; the newest is the live theme.
+  const themeMuted = () => page.evaluate(() => (window as unknown as { __audio: HTMLAudioElement[] }).__audio.at(-1)!.muted)
+  expect(await themeMuted()).toBe(false)
+  await page.getByRole('button', { name: 'Mute sound' }).click()
+  expect(await themeMuted()).toBe(true)
+  await page.reload()
+  await expect(page.getByRole('button', { name: 'Unmute sound' })).toBeVisible()
+  expect(await themeMuted()).toBe(true)
+  await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Unmute sound' }).click()
+  expect(await themeMuted()).toBe(false)
+  await page.setViewportSize({ width: 320, height: 720 })
+  expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
+})
+
+test('a rendering fault shows a recovery screen instead of a blank page', async ({ page }) => {
+  await page.goto('/')
+  await expect(page.getByRole('button', { name: 'Begin expedition', exact: true })).toBeVisible()
+  // The dev build exposes the classic store; an impossible state makes the title screen throw.
+  await page.evaluate(() => {
+    const store = (window as unknown as { __game: { getState(): { state: unknown }; setState(s: object): void } }).__game
+    ;(window as unknown as { __kept: unknown }).__kept = store.getState().state
+    store.setState({ state: null })
+  })
+  await expect(page.getByRole('alert')).toContainText('stopped responding')
+  await page.evaluate(() => {
+    const w = window as unknown as { __game: { setState(s: object): void }; __kept: unknown }
+    w.__game.setState({ state: w.__kept })
+  })
+  await page.getByRole('button', { name: 'Return to title screen' }).click()
+  await expect(page.getByRole('button', { name: 'Begin expedition', exact: true })).toBeVisible()
+})
+
+test('serves a favicon', async ({ page }) => {
+  await page.goto('/')
+  const href = await page.locator('link[rel=icon]').getAttribute('href')
+  expect((await page.request.get(href!)).status()).toBe(200)
+})

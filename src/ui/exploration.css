@@ -9,7 +9,9 @@
 .exp-nav>button { padding:17px 6px; border-bottom:2px solid transparent; color:#95aab5; white-space:nowrap; }
 .exp-nav>button>span { color:#688996; margin-right:10px; font-size:10px; }
 .exp-nav>button[aria-current] { color:#71e0d6; border-color:#71e0d6; }
-.exp-save { margin-left:auto; font-size:10px; color:#90acb6; }
+.exp-nav-tools { margin-left:auto; display:flex; align-items:center; gap:16px; }
+.exp-save { font-size:10px; color:#90acb6; }
+.exp-nav-tools .mute-toggle { padding:10px 0; font-size:10px; white-space:nowrap; }
 .exp-workspace { display:grid; grid-template-columns:230px minmax(300px,1fr) 310px; flex:1; min-height:0; }
 .exp-rail,.exp-detail,.exp-main { overflow-y:auto; min-width:0; padding:25px; }
 .exp-rail { border-right:1px solid #223641; background:#09131b; padding:25px 20px; }
@@ -177,7 +179,8 @@
   .exp-lab-hero p { font-size:11px; }
   .exp-nav { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:0; padding:0 10px; }
   .exp-nav>button { font-size:9px; padding:13px 2px; text-align:center; }
-  .exp-save { grid-column:1/-1; padding:8px 4px; margin:0; }
+  .exp-nav-tools { grid-column:1/-1; margin:0; justify-content:space-between; }
+  .exp-save { padding:8px 4px; }
   .exp-branches { grid-template-columns:repeat(3,minmax(0,1fr)); }
   .exp-branches button { font-size:10px; padding:10px 6px; }
   .exp-lab-sections button { font-size:10px; padding:10px 6px; }
@@ -265,3 +268,19 @@
   .exp-atlas-readout small {font-size:8px;}
   .exp-atlas-hint {padding:8px 10px!important;font-size:9px!important;}
 }
+/* Laboratory idle notice, plotted courses and route-home automation. */
+.exp-rail>.exp-button { margin:0 8px 8px 0; }
+.exp-lab-idle { margin:14px 0; padding:10px 12px; border-left:2px solid #d9a85b; background:#17170f; color:#d8c7a6; font-size:11px; line-height:1.7; }
+.exp-lab-idle strong { color:#f1d39b; font-weight:500; }
+.exp-course-card { margin:18px 0; padding:16px; border:1px solid #3a5665; background:#0d1c25; }
+.exp-course-card h3 { margin:6px 0; font-size:17px; font-weight:400; }
+.exp-course-card p { margin:0 0 10px; color:#a9bbc4; font-size:11px; line-height:1.6; }
+.exp-course-actions { display:flex; flex-direction:column; align-items:stretch; gap:8px; margin:10px 0; }
+.exp-course-actions small { color:#d8b67e; font-size:10px; line-height:1.6; }
+.exp-lead { display:inline-flex; flex-direction:column; gap:2px; }
+.exp-lead small { color:#8fb7c4; font-size:10px; }
+.exp-auto-research { display:flex; gap:10px; align-items:flex-start; margin:16px 0 4px; color:#c3e1e6; font-size:12px; cursor:pointer; }
+.exp-auto-research input { width:16px; height:16px; margin-top:2px; accent-color:#5ee6df; flex-shrink:0; }
+.exp-auto-research small { display:block; margin-top:3px; color:#89a5b1; font-size:10px; line-height:1.6; }
+@media(max-width:900px) { .exp-rail>.exp-course-card,.exp-rail>.exp-lab-idle { width:100%; margin:0; } }
+.exp-rail>.exp-course-card:first-child { margin-top:0; }

@@ -3,18 +3,24 @@ import { ExplorationStory, LettersObjective } from './ExplorationStory.js'
 import { LongRelayObjective, LongRelayStation, LongRelayArchive } from './LongRelay.js'
 import { ExpeditionGalaxyChart } from './ExpeditionGalaxyChart.js'
 import { storyAt } from '../engine/exploration/stories.js'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted, researchProgress, researchRate, researchRequirements,
+  actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted, researchLock, researchRequirements,
 } from '../engine/exploration/campaign.js'
+import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
+import type { Course } from '../engine/exploration/navigation.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { locationsAt } from '../engine/exploration/v2.js'
 import type { LocationKind } from '../engine/exploration/v2.js'
 import { REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
+import type { SystemId } from '../engine/worldgen/types.js'
 import { saveExploration } from './exploration-save.js'
+import { browserStorage } from './save.js'
+import { MuteButton } from './sound.js'
+import { plural } from './plural.js'
 import { DRIVE_SEQUENCE, PROJECTS } from '../engine/exploration/research.js'
-import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
+import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding, daysLeft } from './ExplorationResearch.js'
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
@@ -46,12 +52,16 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const [returnConfirm, setReturnConfirm] = useState(false)
   const [teamOpen, setTeamOpen] = useState(false)
   const [deploySite, setDeploySite] = useState<string | null>(null)
+  // A destination the captain is travelling towards in stages; cleared on arrival.
+  const [course, setCourse] = useState<SystemId | null>(null)
+  useEffect(() => { if (course === state.at) setCourse(null) }, [course, state.at])
   const modalOpen = teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
   useEffect(() => {
     if (modalOpen) (document.querySelector('[role=dialog] button:not(:disabled)') as HTMLButtonElement | null)?.focus()
   }, [modalOpen, state.driveTest, state.outcome])
   const detailRef = useRef<HTMLElement>(null)
   const mainRef = useRef<HTMLElement>(null)
+  const deckRef = useRef<HTMLElement>(null)
   const sceneRef = useRef<HTMLElement>(null)
   const selectedStatus = selectedSite ? state.exploration.statuses[selectedSite] : undefined
   useEffect(() => { mainRef.current?.scrollTo({ top: 0 }) }, [selectedSite, tab])
@@ -64,13 +74,47 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       detailRef.current?.scrollIntoView({ block: 'start' })
   }, [selectedSite])
   useEffect(() => {
-    try { setSaved(saveExploration(state, window.localStorage)) } catch { setSaved(false) }
+    const storage = browserStorage()
+    try { setSaved(!!storage && saveExploration(state, storage)) } catch { setSaved(false) }
   }, [state])
+  // Leaving reloads the voyage from storage, so unsaved progress would vanish silently.
+  const exit = () => {
+    if (!saved && !window.confirm('This voyage could not be autosaved. Leaving now loses any progress that was not saved. Return to the title screen anyway?')) return
+    onExit()
+  }
   const dispatch = (action: CampaignAction) => {
     setState((current) => reduceCampaign(current, action))
     if (action.type === 'return-home') setReturnConfirm(false)
-    if (action.type === 'travel') { setSelectedSite(null); setTab('system') }
+    if (action.type === 'travel') arrive()
   }
+  // Arrival shows the new system from the top, where narrow screens keep the course card.
+  const arrive = () => { setSelectedSite(null); setTab('system'); deckRef.current?.scrollTo({ top: 0 }) }
+  const courses = useMemo(() => courseFinder(state), [state])
+  const systemName = (id: SystemId) => state.galaxy.systems.find((system) => system.id === id)!.name
+  /** Every jump is an ordinary travel order; a whole route stops early if research completes. */
+  const fly = (destination: SystemId, whole: boolean) => {
+    const next = courses(destination)?.path[1]
+    if (!next) return
+    setCourse(destination)
+    if (whole) { setState((current) => followCourse(current, destination).state); arrive() }
+    else dispatch({ type: 'travel', systemId: next })
+  }
+  const courseControls = (destination: SystemId, plan: Course, staged: boolean) => {
+    const jumps = plan.path.length - 1, hop = plan.path[1]!
+    const hopLock = actionLock(state, { type: 'travel', systemId: hop })
+    const routeLock = hopLock ?? (plan.fuel > state.fuel ? `Requires ${plan.fuel} fuel for the whole route; refuel at a station or travel in stages` : null)
+    const hopLabel = `${systemName(hop)} · ${travelCost(state, hop)} fuel · 1 day`
+    return <div className="exp-course-actions">
+      {jumps > 1 && <button className="exp-button primary" disabled={!!routeLock} title={routeLock ?? undefined} onClick={() => fly(destination, true)}>
+        {staged ? 'Continue the route' : 'Travel the route'} · {jumps} jumps · {plan.fuel} fuel</button>}
+      <button className={`exp-button${jumps > 1 ? '' : ' primary'}`} disabled={!!hopLock} title={hopLock ?? undefined} onClick={() => fly(destination, false)}>
+        {jumps > 1 ? 'Next jump only' : 'Final jump'} · {hopLabel}</button>
+      {(hopLock ?? routeLock) && <small>{hopLock ?? routeLock}</small>}
+    </div>
+  }
+  const plotted = course && course !== state.at ? course : null
+  const plottedCourse = plotted ? courses(plotted) : null
+  const targetCourse = courses(selectedSystem)
   const here = state.galaxy.systems.find((system) => system.id === state.at)!
   const target = state.galaxy.systems.find((system) => system.id === selectedSystem)!
   const known = locationsAt(state.world, state.at).filter((site) => state.exploration.statuses[site.id])
@@ -79,6 +123,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const neighbourIds = state.galaxy.adjacency[state.at]!
   const nextDrive = DRIVE_SEQUENCE.find((id) => !hasTech(state, id))
   const driveReady = state.built.includes('return-drive')
+  const labIdle = !active && !!nextDrive
   const advice = driveReady ? 'Home when you are ready' : hasTech(state, 'prototype-drive') && state.driveTest !== 'complete' ? 'Test the way home' : nextDrive ? PROJECTS[nextDrive].name : 'Build the Return Drive'
   const adviceText = driveReady ? 'The final drive is fitted. Keep exploring, or choose Return home in the command bar.'
     : hasTech(state, 'prototype-drive') && state.driveTest !== 'complete' ? 'Construct the prototype in the lab, survey a system, then begin the field test.'
@@ -90,9 +135,9 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       title={lock ?? undefined} onClick={() => dispatch(action)}>{children}</button>
   }
 
-  if (state.shipBattle) return <ExplorationBattle state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
-  if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
-  return <main className="exp-deck" data-tab={tab}>
+  if (state.shipBattle) return <ExplorationBattle state={state} dispatch={dispatch} onExit={exit} saved={saved} />
+  if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={exit} saved={saved} />
+  return <main className="exp-deck" data-tab={tab} ref={deckRef}>
     <header className="exp-header" inert={modalOpen}>
       <div><span className="exp-eyebrow">ISS ITHACA / DEEP SPACE EXPEDITION</span><h1>Beyond the familiar</h1></div>
       <div className="exp-resources" aria-label="Ship resources">
@@ -104,20 +149,29 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       </div>
       <button className="exp-button" onClick={() => { setDeploySite(null); setTeamOpen(true) }}>Away team</button>
       {driveReady && <button className="exp-button primary" onClick={() => setReturnConfirm(true)}>Return home</button>}
-      <button className="exp-button" onClick={onExit}>Title screen</button>
+      <button className="exp-button" onClick={exit}>Title screen</button>
     </header>
     <nav className="exp-nav" aria-label="Exploration stations" inert={modalOpen}>
       {(['system', 'galaxy', 'lab', 'archive'] as Tab[]).map((item, i) => <button key={item}
         aria-current={tab === item ? 'page' : undefined} onClick={() => setTab(item)}>
         <span>0{i + 1}</span>{ { system: 'Current system', galaxy: 'Galaxy chart', lab: 'Research lab', archive: 'Discoveries' }[item] }
       </button>)}
-      <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
+      <div className="exp-nav-tools"><span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span><MuteButton className="exp-text-button" /></div>
     </nav>
     <div className="exp-workspace" inert={modalOpen}>
       <aside className="exp-rail">
+        {plotted && <section className="exp-course-card" aria-label="Plotted course">
+          <span className="exp-eyebrow">PLOTTED COURSE</span><h3>{systemName(plotted)}</h3>
+          {plottedCourse ? <><p>{plottedCourse.path.length - 1} {plural(plottedCourse.path.length - 1, 'jump')} left · {plottedCourse.fuel} fuel · arrives day {state.day + plottedCourse.path.length - 1}</p>
+            {courseControls(plotted, plottedCourse, true)}</> : <p>No course reaches it with the current drive.</p>}
+          <button className="exp-text-button" onClick={() => setCourse(null)}>Clear course</button>
+        </section>}
         <span className="exp-eyebrow">CAPTAIN’S NEXT STEP</span>
         <h2>{advice}</h2><p>{adviceText}</p>
+        {labIdle && <p className="exp-lab-idle" role="status"><strong>Laboratory idle.</strong> {state.autoResearch ? `Automatic research starts ${PROJECTS[nextDrive!].name} as soon as it can.` : 'No research is progressing.'}</p>}
+        {labIdle && !researchLock(state, nextDrive!) && command({ type: 'research', project: nextDrive! }, `Start ${PROJECTS[nextDrive!].name}`, true)}
         <button className="exp-button" onClick={() => setTab('lab')}>Open research lab</button>
+        {labIdle && !state.autoResearch && command({ type: 'auto-research', enabled: true }, 'Continue the route home automatically')}
         <SurvivorObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
         <LongRelayObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
         <LettersObjective state={state} />
@@ -244,16 +298,19 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'galaxy' && <><span className="exp-eyebrow">SELECTED DESTINATION</span><h2>{target.name}</h2><p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}</p>
           <p>{target.faction ? `Claimed by ${state.galaxy.factions.find((f) => f.id === target.faction)?.name}.` : 'No registered faction claim.'}</p>
           <p>{state.visited.includes(target.id) ? `${locationsAt(state.world, target.id).filter((s) => state.exploration.statuses[s.id]).length} known locations. Your progress here is preserved.` : 'Unvisited. Local opportunities will appear on arrival and after scanning.'}</p>
-          {target.id === state.at ? <div className="exp-notice">The Ithaca is here.</div> : <>
-            {command({ type: 'travel', systemId: target.id }, `Travel${travelCost(state, target.id) !== null ? ` · ${travelCost(state, target.id)} fuel · 1 day` : ''}`, true)}
-            {actionLock(state, { type: 'travel', systemId: target.id }) && <p>{actionLock(state, { type: 'travel', systemId: target.id })}. Use the neighbouring systems list to plan your next hop.</p>}
-          </>}
+          {target.id === state.at ? <div className="exp-notice">The Ithaca is here.</div> : travelCost(state, target.id) !== null ? <>
+            {command({ type: 'travel', systemId: target.id }, `Travel · ${travelCost(state, target.id)} fuel · 1 day`, true)}
+            {actionLock(state, { type: 'travel', systemId: target.id }) && <p>{actionLock(state, { type: 'travel', systemId: target.id })}.</p>}
+          </> : targetCourse ? <>
+            <p>{targetCourse.path.length - 1} jumps from here · {targetCourse.fuel} fuel · arrives day {state.day + targetCourse.path.length - 1}. Each jump is an ordinary one-day trip; a whole route pauses if research completes on the way.</p>
+            {courseControls(target.id, targetCourse, false)}
+          </> : <p>No course reaches {target.name} with the current drive.</p>}
         </>}
         {(tab === 'lab' || tab === 'archive') && <><span className="exp-eyebrow">LABORATORY STATUS</span><h2>{active ? PROJECTS[active].name : 'Ready for a new question.'}</h2>
-          <p>{active ? `${Math.ceil((PROJECTS[active].days - researchProgress(state, active)) / researchRate(state))} activity days remain. Keep exploring while the laboratory works.` : 'Assign a project or queue your next choices in the lab.'}</p>
+          <p>{active ? `${daysLeft(state, active)} activity ${plural(daysLeft(state, active), 'day')} remain. Keep exploring while the laboratory works.` : 'Assign a project or queue your next choices in the lab.'}</p>
           <p>Knowledge is never spent. Building hardware takes materials and credits; fitting it takes a free equipment slot.</p>
-          <p>{state.research.queue.length} projects queued. {state.driveTest === 'complete' ? 'Prototype field test complete.' : 'A successful prototype test will unlock Drive Stabilisation.'}</p></>}
-        <div className="exp-rule" /><span className="exp-eyebrow">VOYAGE RECORD</span><p>{state.visited.length} systems visited<br />{state.findings.length} {state.findings.length === 1 ? 'discovery' : 'discoveries'} recovered<br />{state.research.completed.length} projects completed</p>
+          <p>{state.research.queue.length} {plural(state.research.queue.length, 'project')} queued. {state.driveTest === 'complete' ? 'Prototype field test complete.' : 'A successful prototype test will unlock Drive Stabilisation.'}</p></>}
+        <div className="exp-rule" /><span className="exp-eyebrow">VOYAGE RECORD</span><p>{state.visited.length} {plural(state.visited.length, 'system')} visited<br />{state.findings.length} {state.findings.length === 1 ? 'discovery' : 'discoveries'} recovered<br />{state.research.completed.length} {plural(state.research.completed.length, 'project')} completed</p>
       </aside>
     </div>
     <footer className="exp-log" aria-live="polite" inert={modalOpen}><span>CAPTAIN’S LOG</span><p>{state.log.at(-1)}</p>
@@ -262,7 +319,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
     {returnConfirm && state.outcome !== 'home' && <ReturnHomeScene state={state} dispatch={dispatch} onClose={() => setReturnConfirm(false)} />}
-    {state.outcome === 'home' && <ExplorationEnding state={state} onExit={onExit} />}
+    {state.outcome === 'home' && <ExplorationEnding state={state} onExit={exit} />}
   </main>
 }
 

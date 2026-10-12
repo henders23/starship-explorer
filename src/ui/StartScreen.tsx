@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { MuteButton } from './sound.js'
 import { hasSave, useGame } from './store.js'
 
 export function StartScreen({
@@ -7,12 +8,14 @@ export function StartScreen({
   onExplore,
   explorationSaved,
   explorationError,
+  storageBlocked = false,
 }: {
   onBegin: (seed?: string) => void
   onResume: () => void
   onExplore: (seed?: string, resumeSaved?: boolean) => void
   explorationSaved: boolean
   explorationError: string | null
+  storageBlocked?: boolean
 }) {
   const day = useGame((s) => s.state.day)
   const seed = useGame((s) => s.state.seed)
@@ -38,6 +41,7 @@ export function StartScreen({
             onExplore(customSeed.trim() || undefined)
           }}>Begin expedition</button>
           {explorationError && <p role="alert">{explorationError}</p>}
+          {storageBlocked && <p role="status">This browser is blocking site storage, so nothing will be saved. A voyage lasts until you close the tab.</p>}
         </div>
         <div className="start-classic-label exp-eyebrow">CLASSIC VOYAGE / FOLLOW THE MYSTERY</div>
         <div className="start-actions">
@@ -60,7 +64,7 @@ export function StartScreen({
             spellCheck={false}
           />
         </label>
-
+        <MuteButton className="start-mute" />
       </div>
     </div>
   )
