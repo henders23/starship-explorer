@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import { assignRemarks, REMARK_BY_ID, type RemarkVoice } from '../engine/crew/remarks.js'
 import type { SystemId } from '../engine/worldgen/types.js'
 import { useGame } from './store.js'
+import { browserStorage } from './save.js'
 
 /**
  * The bridge, consulted.
@@ -38,7 +39,7 @@ interface Heard {
  */
 function readHeard(seed: string): Set<SystemId> {
   try {
-    const raw = window.localStorage.getItem(HEARD_KEY)
+    const raw = browserStorage()?.getItem(HEARD_KEY)
     if (!raw) return new Set()
     const heard = JSON.parse(raw) as Heard
     return heard.seed === seed ? new Set(heard.ids) : new Set()
@@ -51,7 +52,7 @@ function readHeard(seed: string): Set<SystemId> {
 
 function writeHeard(seed: string, ids: Set<SystemId>): void {
   try {
-    window.localStorage.setItem(HEARD_KEY, JSON.stringify({ seed, ids: [...ids] } satisfies Heard))
+    browserStorage()?.setItem(HEARD_KEY, JSON.stringify({ seed, ids: [...ids] } satisfies Heard))
   } catch {
     /* nothing to do: the bridge simply repeats itself next voyage */
   }

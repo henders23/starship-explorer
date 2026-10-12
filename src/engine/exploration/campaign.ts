@@ -7,7 +7,7 @@ import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
-import { createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
+import { MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ShipBattle, ShipOrder } from './ship-battle.js'
 import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
@@ -307,6 +307,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
       if (!site) return 'This location is in another system'
       if (action.type === 'recover' && !['careful', 'rapid'].includes(action.approach)) return 'Unknown recovery approach'
+      if (action.type === 'recover' && site.kind === 'station') return 'Stations offer services, not recovery expeditions'
       if (state.exploration.statuses[site.id] !== (action.type === 'investigate' ? 'detected' : 'investigated')) return 'Scan and investigate first, or this expedition is already complete'
       if (action.type === 'recover' && action.approach === 'rapid' && state.hull <= recoveryDamage(state, site)) return 'Hull too weak; use remote investigation'
       return null
@@ -398,9 +399,25 @@ function fitUpgrade(state: Campaign, id: BuildId): Campaign {
   return { ...state, equipped: [...state.equipped, id], hull: state.hull + (id === 'composite-hull' ? 20 : 0) }
 }
 
+/**
+ * The live battle clock sends one-second advances. Consecutive advances share
+ * one journal entry, up to the order limit, because advancing a + b seconds is
+ * the same simulation as a then b. Rules must not read the journal beyond its
+ * last entry: the save loader replays with only that entry for speed.
+ */
+function journalAppend(actions: CampaignAction[], action: CampaignAction): CampaignAction[] {
+  const last = actions.at(-1)
+  if (action.type === 'ship-order' && action.order.type === 'advance' && last?.type === 'ship-order' && last.order.type === 'advance' &&
+    last.order.seconds + action.order.seconds <= MAX_ADVANCE_SECONDS)
+    return [...actions.slice(0, -1), { type: 'ship-order', order: { type: 'advance', seconds: last.order.seconds + action.order.seconds } }]
+  return [...actions, action]
+}
+
 export function reduceCampaign(state: Campaign, action: CampaignAction): Campaign {
   if (actionLock(state, action)) return state
-  let next: Campaign = { ...state, exploration: { ...state.exploration }, actions: [...state.actions, action] }
+  let next: Campaign = { ...state, exploration: { ...state.exploration }, actions: journalAppend(state.actions, action) }
+  // A batched second replaces its entry's log line too, so replay matches live play.
+  const batched = next.actions.length === state.actions.length
   let days = 0, message = ''
   switch (action.type) {
     case 'accept-survivor': {
@@ -667,5 +684,5 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     if (advanced.messages.length) message += ` ${advanced.messages.join(' ')}`
   } else if (action.type !== 'pause-research') next = startQueued(next)
   next.deepArray = fitted(next, 'deep-survey')
-  return { ...next, log: [...state.log.slice(-49), `Day ${next.day} · ${message}`] }
+  return { ...next, log: [...batched ? state.log.slice(0, -1) : state.log.slice(-49), `Day ${next.day} · ${message}`] }
 }

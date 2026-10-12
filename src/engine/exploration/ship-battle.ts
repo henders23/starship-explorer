@@ -4,6 +4,8 @@ import type { EnemyRoomKey, ShipClass } from '../combat/ships.js'
 
 export const SHIP_ROOMS: EnemyRoomKey[] = ['helm', 'weapons', 'shields', 'engines']
 export const REACTOR_POWER = 8
+/** The longest single advance order; the campaign journal batches live seconds up to it. */
+export const MAX_ADVANCE_SECONDS = 5
 export type ShipWeaponKind = 'laser' | 'missile' | 'ion' | 'beam'
 export interface BattleRoom { hp: number; max: number; ionUntil: number }
 export interface ShipWeapon { kind: ShipWeaponKind; name: string; cost: number; charge: number; period: number; damage: number; shots: number; mode: 'off' | 'hold' | 'auto'; target: EnemyRoomKey }
@@ -76,7 +78,7 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
     return 'Resolve the contact first'
   }
   switch (a.type) {
-    case 'advance': return Number.isInteger(a.seconds) && a.seconds >= 1 && a.seconds <= 5 ? null : 'Advance between one and five simulation seconds'
+    case 'advance': return Number.isInteger(a.seconds) && a.seconds >= 1 && a.seconds <= MAX_ADVANCE_SECONDS ? null : 'Advance between one and five simulation seconds'
     case 'power': {
       if (!['shields', 'engines', 'weapons'].includes(a.system) || !Number.isInteger(a.amount)) return 'Unknown power setting'
       const max = a.system === 'shields' ? b.upgrades.layered ? 4 : 2 : a.system === 'engines' ? 3 : 4

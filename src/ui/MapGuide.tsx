@@ -1,3 +1,6 @@
+import { browserStorage } from './save.js'
+import type { StorageLike } from './save.js'
+
 /**
  * The chart briefing: one slide, shown the first time the captain takes the
  * Galaxy station, and reachable afterwards from the "?" on the map controls.
@@ -11,9 +14,9 @@
 const GUIDE_KEY = 'starship-explorer-map-guide-seen'
 
 /** Whether this browser has already been shown the chart briefing. */
-export function guideSeen(storage: Storage = window.localStorage): boolean {
+export function guideSeen(storage: StorageLike | null = browserStorage()): boolean {
   try {
-    return storage.getItem(GUIDE_KEY) === '1'
+    return storage?.getItem(GUIDE_KEY) === '1'
   } catch {
     // Private modes can refuse storage entirely; a briefing every time is a
     // far smaller failure than a chart that will not open.
@@ -21,9 +24,9 @@ export function guideSeen(storage: Storage = window.localStorage): boolean {
   }
 }
 
-export function markGuideSeen(storage: Storage = window.localStorage): void {
+export function markGuideSeen(storage: StorageLike | null = browserStorage()): void {
   try {
-    storage.setItem(GUIDE_KEY, '1')
+    storage?.setItem(GUIDE_KEY, '1')
   } catch {
     /* nothing to do: the briefing simply shows again next voyage */
   }

@@ -2,6 +2,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import { App } from './App.js'
+import { CrashBoundary } from './CrashScreen.js'
 import { useGame } from './store.js'
 import './styles.css'
 
@@ -15,6 +16,8 @@ if (!root) throw new Error('No #root element in the document')
 
 createRoot(root).render(
   <StrictMode>
-    <App />
+    <CrashBoundary>
+      <App />
+    </CrashBoundary>
   </StrictMode>,
 )

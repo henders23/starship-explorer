@@ -6,7 +6,8 @@ import { evidenceSites, heldClues, newGame, reduce, usableClues } from '../engin
 import type { Action, GameEvent, GameState } from '../engine/state/types.js'
 import { GalaxyIndex } from '../engine/worldgen/index-galaxy.js'
 import type { SystemId } from '../engine/worldgen/types.js'
-import { hasSave as checkSave, loadSave, persist } from './save.js'
+import { browserStorage, hasSave as checkSave, loadSave, persist, sessionOnlyStorage } from './save.js'
+import type { StorageLike } from './save.js'
 
 /**
  * A thin store over the engine reducer. It holds state and forwards actions;
@@ -28,22 +29,38 @@ const DEFAULT_SEED = 'voyager'
  * Versioning, migration and the archive-not-delete policy live in save.ts.
  */
 
+// Blocked browser storage must not stop the game loading; the voyage then
+// lasts as long as the tab.
+const storage: StorageLike = browserStorage() ?? sessionOnlyStorage()
+
 /** Whether a resumable voyage is waiting in storage. */
 export function hasSave(): boolean {
-  return checkSave(window.localStorage)
+  try {
+    return checkSave(storage)
+  } catch {
+    return false
+  }
+}
+
+function loadSaved(): GameState | null {
+  try {
+    return loadSave(storage)
+  } catch {
+    return null
+  }
 }
 
 export const useGame = create<Store>((set, get) => ({
-  state: loadSave(window.localStorage) ?? newGame(DEFAULT_SEED),
+  state: loadSaved() ?? newGame(DEFAULT_SEED),
   lastEvents: [],
   dispatch: (action) => {
     const { state, events } = reduce(get().state, action)
-    persist(state, window.localStorage)
+    persist(state, storage)
     set({ state, lastEvents: events })
   },
   restart: (seed) => {
     const state = newGame(seed)
-    persist(state, window.localStorage)
+    persist(state, storage)
     set({ state, lastEvents: [] })
   },
 }))

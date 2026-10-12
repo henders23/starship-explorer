@@ -34,6 +34,29 @@ export interface StorageLike {
   removeItem(key: string): void
 }
 
+/**
+ * The browser's local storage, or null when the browser refuses it. With
+ * site data blocked, merely reading `window.localStorage` throws, so every
+ * caller goes through here rather than touching the property directly.
+ */
+export function browserStorage(): StorageLike | null {
+  try {
+    return window.localStorage
+  } catch {
+    return null
+  }
+}
+
+/** Storage that lasts only as long as the page: the voyage plays on, unsaved. */
+export function sessionOnlyStorage(): StorageLike {
+  const items = new Map<string, string>()
+  return {
+    getItem: (key) => items.get(key) ?? null,
+    setItem: (key, value) => void items.set(key, value),
+    removeItem: (key) => void items.delete(key),
+  }
+}
+
 interface SaveEnvelope {
   version: number
   state: GameState

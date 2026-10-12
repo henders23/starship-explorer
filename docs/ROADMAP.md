@@ -38,9 +38,11 @@ interrupt this order whenever discovered.
 
 ## Cross-cutting release work
 
-- **Long journals:** the loader caps actions at 10,000 while saves can exceed it.
-  Design compatible checkpoints/compaction or an explicit safe limit before broad
-  release; preserve exact replay and in-progress encounters.
+- **Long journals:** consecutive live battle seconds now share one journal entry,
+  replay is linear (50,000 actions load in well under a second) and the explicit
+  limit is 50,000 actions, about 3.5 MB. Saving past it reports an autosave
+  failure instead of writing an unloadable save. Browser storage quota remains the
+  practical ceiling; checkpoints or export are the next step if real runs near it.
 - **Performance:** profile initial load, React/SVG work, save replay and combat;
   address the current bundle advisory using evidence. Do not add expensive effects
   without a measured budget and reduced-motion fallback.
