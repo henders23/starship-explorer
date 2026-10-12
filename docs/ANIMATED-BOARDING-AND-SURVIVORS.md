@@ -98,10 +98,10 @@ but **the figures and deck still look stylised rather than photorealistic**.
 They do not meet the cinematic concept's final fidelity target. Remaining work:
 artist-quality character meshes/textures, varied architecture beyond modules,
 more natural weight transfer, survivor locomotion (survivors still use the earlier
-bitmap), and real-device performance/first-player comprehension testing. Enemy
-turn effects are compressed into one state update rather than a full sequential
-combat replay. Human playtesting and low-end phone hardware measurement remain
-unperformed. Issue #18 should remain open.
+bitmap), and real-device performance/first-player comprehension testing. The subsequent [laptop pass](LAPTOP-BOARDING.md) adds ordered enemy-turn playback
+and revises the rig and vault. Human playtesting and real laptop hardware
+measurement remain unperformed. Phone play is no longer a product target.
+Issue #18 should remain open.
 
 ## Genuine game captures
 
