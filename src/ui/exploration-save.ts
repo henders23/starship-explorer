@@ -5,7 +5,7 @@ import type { CampaignAction as PreviewAction } from '../engine/exploration/lega
 import type { StorageLike } from './save.js'
 
 export const EXPLORATION_SAVE_KEY = 'starship-explorer-exploration-v2'
-export const EXPLORATION_SAVE_VERSION = 9
+export const EXPLORATION_SAVE_VERSION = 10
 /**
  * The longest journal the loader accepts, about 3.5 MB of storage. Saving
  * refuses anything longer so the voyage reports an autosave failure instead
@@ -28,7 +28,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
     const raw = storage.getItem(EXPLORATION_SAVE_KEY)
     if (!raw) return { campaign: null, error: null }
     const envelope = JSON.parse(raw)
-    if (![1, 2, 3, 4, 5, 6, 7, 8, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
+    if (![1, 2, 3, 4, 5, 6, 7, 8, 9, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
       return { campaign: null, error: 'This exploration save uses another version. It has been kept unchanged.' }
     if (typeof envelope.seed !== 'string' || !envelope.seed.length || envelope.seed.length > 200 ||
       !Array.isArray(envelope.actions) || envelope.actions.length > MAX_JOURNAL_ACTIONS) throw new Error('Invalid save')
@@ -52,6 +52,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
       if (envelope.version < 7 && action?.type === 'deploy-operation' && action.variant !== undefined) throw new Error('Invalid pre-variant action')
       if (envelope.version < 8 && ['start-arc', 'arc-choice'].includes(action?.type)) throw new Error('Invalid pre-relay action')
       if(envelope.version<9 && (['accept-survivor','deploy-recorder','close-survivor'].includes(action?.type)||(action?.type==='deploy-operation'&&action.rememberSurvivors!==undefined)||(action?.type==='tactical'&&action.order?.type==='drop-recorder')))throw new Error('Invalid pre-survivor action')
+      if (envelope.version < 10 && action?.type === 'auto-research') throw new Error('Invalid pre-automation action')
       const step = { ...campaign, actions: journal.slice(-1) }
       const next = reduceCampaign(step, action)
       if (next === step) throw new Error('Invalid action journal')

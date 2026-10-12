@@ -15,12 +15,16 @@ Choose **Begin expedition** under **Open Expedition** on the title screen.
 **Resume expedition** continues its browser autosave. Enter a galaxy seed to
 revisit the same generated world.
 
-1. Start **Drive Diagnostics** so research advances while you explore.
+1. Start **Drive Diagnostics** so research advances while you explore. Tick
+   **Continue the route home automatically** in the lab if you want each later
+   drive project to start by itself once its requirements are met.
 2. Survey the arrival system and investigate **The Silent Courier**.
 3. Choose a story response and recover its scientific discovery. Remote recovery
    is available; tactical boarding is optional.
-4. Follow research leads, visit stations and collect independent spatial or
-   propulsion discoveries.
+4. Follow research leads (listed nearest first), visit stations and collect
+   independent spatial or propulsion discoveries. Select any system on the chart
+   and choose **Travel the route** to fly every jump in one order; the course
+   pauses if research completes on the way.
 5. Research, construct and field-test the prototype. Finish Drive Stabilisation,
    construct the Return Drive and choose **Return home** when ready.
 
@@ -39,7 +43,7 @@ campaign, with its own save. Its clue puzzle and Rift Surges are separate rules.
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
 | Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power and compartment targeting |
 | Presentation | Interactive galactic atlas; six overhead warships; eight-direction rig-rendered crew and custodians; a detailed archive vault; laptop deck enlargement and keyboard shortcuts |
-| Persistence | Version-9 expedition journals; versions 1–8 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
+| Persistence | Version-10 expedition journals; versions 1–9 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
 This is a playable game under active development. Long faction arcs, a developed

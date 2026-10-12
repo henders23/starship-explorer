@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent } from 'react'
 import type { Campaign } from '../engine/exploration/campaign.js'
+import { plotCourse } from '../engine/exploration/navigation.js'
 import type { StarType } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
 
@@ -9,26 +10,6 @@ const HEIGHT = 440
 const STAR_COLORS: Record<StarType, string> = {
   yellow: '#f6ddaa', orange: '#ffbd82', 'red-dwarf': '#e89b8b', 'red-giant': '#f6a278',
   'blue-giant': '#9bdfff', 'white-dwarf': '#edf7fd', neutron: '#b5a2ff', binary: '#d6ffe5',
-}
-
-function shortestLaneRoute(start: string, target: string, graph: Record<string, string[]>): string[] {
-  if (start === target) return [start]
-  const queue = [start], from = new Map<string, string>(), seen = new Set([start])
-  for (let index = 0; index < queue.length; index++) {
-    const current = queue[index]!
-    for (const neighbour of graph[current] ?? []) {
-      if (seen.has(neighbour)) continue
-      seen.add(neighbour)
-      from.set(neighbour, current)
-      if (neighbour === target) {
-        const path = [target]
-        while (path[0] !== start) path.unshift(from.get(path[0]!)!)
-        return path
-      }
-      queue.push(neighbour)
-    }
-  }
-  return []
 }
 
 /** An interactive stellar atlas. Visual state never alters the campaign state. */
@@ -49,7 +30,10 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect }: { state: Ca
   const spot = (id: string) => spots.get(id) ?? { x: 450, y: 220 }
   const connected = new Set(state.galaxy.adjacency[state.at] ?? [])
   const visited = new Set(state.visited)
-  const route = useMemo(() => shortestLaneRoute(state.at, selected, state.galaxy.adjacency), [state.at, selected, state.galaxy.adjacency])
+  // The same course the travel controls fly: fewest jumps with the current drive, then least fuel.
+  const course = useMemo(() => plotCourse(state, selected), [state, selected])
+  const route = course?.path ?? []
+  const jumps = route.length - 1
   const routeEdges = new Set(route.slice(1).map((id, i) => [route[i], id].sort().join('|')))
   const selectedSystem = systems.find(s => s.id === selected)
   const inspect = systems.find(s => s.id === hovered) ?? selectedSystem
@@ -123,7 +107,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect }: { state: Ca
     <div className="exp-atlas-readout">
       <span><strong>GALACTIC ATLAS</strong><small>{systems.length} systems · {state.visited.length} visited</small></span>
       <span aria-live="polite"><strong>{inspect?.name ?? 'Uncharted sector'}</strong><small>{inspect ? `${REGION_NAMES[inspect.region]} · ${inspect.star.replaceAll('-', ' ')}` : 'Select a destination'}</small></span>
-      <span><strong>{route.length>1?`${route.length-1} LANE HOPS`:selected===state.at?'CURRENT POSITION':'NO LANE ROUTE'}</strong><small>{selected!==state.at?'Route preview, not automatic travel':'ISS Ithaca'}</small></span>
+      <span><strong>{jumps>0?`${jumps} ${jumps===1?'JUMP':'JUMPS'} · ${course!.fuel} FUEL`:selected===state.at?'CURRENT POSITION':'NO COURSE'}</strong><small>{selected===state.at?'ISS Ithaca':jumps>0?`Arrives day ${state.day+jumps}`:'Unreachable with the current drive'}</small></span>
     </div>
     <p className="exp-atlas-hint">Select a star to inspect · drag empty space to pan · use + / − to zoom</p>
   </section>

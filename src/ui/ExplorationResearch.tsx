@@ -1,5 +1,7 @@
 import { survivorSummary } from '../engine/exploration/survivor-arc.js'
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
+import { courseFinder } from '../engine/exploration/navigation.js'
+import type { Course } from '../engine/exploration/navigation.js'
 import type { ReactNode } from 'react'
 import { useDialogDismiss } from './dialog.js'
 import { plural } from './plural.js'
@@ -29,9 +31,12 @@ export function ExplorationResearch({ state, dispatch, onShowSystem }: {
   const act = (action: CampaignAction, children: ReactNode, primary = false, showReason = true) =>
     <ResearchAction state={state} action={action} dispatch={dispatch} primary={primary} showReason={showReason}>{children}</ResearchAction>
   const needed = !state.findings.some((f) => f.kind === 'exotic-energy') ? 'exotic-energy' : 'spatial'
+  const courses = useMemo(() => courseFinder(state), [state])
+  const distance = (course: Course | null) => course ? course.path.length * 10_000 + course.fuel : Infinity
   const leads = state.world.locations.filter((site) => site.discovery &&
     (needed === 'exotic-energy' ? site.discovery === needed : ['spatial-observation', 'alien-propulsion'].includes(site.discovery)) &&
-    !state.exploration.claimed.includes(site.id)).slice(0, 3)
+    !state.exploration.claimed.includes(site.id)).map((site) => ({ site, course: courses(site.systemId) }))
+    .sort((a, b) => distance(a.course) - distance(b.course) || a.site.id.localeCompare(b.site.id)).slice(0, 3)
   return <>
     <div className="exp-lab-hero"><span className="exp-eyebrow">SCIENCE & ENGINEERING</span><h2>A route home. Built here.</h2>
       <p>Research while you explore. Recover knowledge, choose your refits and test a drive that can bring the Ithaca home.</p></div>
@@ -48,6 +53,15 @@ export function ExplorationResearch({ state, dispatch, onShowSystem }: {
       {hasTech(state, 'drive-stabilisation') && !state.built.includes('return-drive') && act({ type: 'build', blueprint: 'return-drive' }, 'Construct Return Drive · 60 materials + 150 credits', true)}
       {state.built.includes('return-drive') && <div className="exp-notice">The Return Drive is ready. You can depart from any system when you choose. Use <strong>Return home</strong> in the command bar.</div>}
     </div>
+    {hasTech(state, 'drive-diagnostics') && <section className="exp-science-leads"><span className="exp-eyebrow">DRIVE TELEMETRY / SCIENTIFIC LEADS</span><h3>Places worth investigating</h3>
+      <p>Courier telemetry and our drive model point to compatible signatures, nearest first. These are optional leads, not required destinations. Station scientific archives offer another route after Contextual Translation.</p>
+      {leads.map(({ site, course }) => <button className="exp-button exp-lead" key={site.id} onClick={() => onShowSystem(site.systemId)}>
+        <span>{state.galaxy.systems.find((s) => s.id === site.systemId)!.name} · {needed === 'exotic-energy' ? 'energy signature' : 'spatial research lead'}</span>
+        <small>{!course ? 'No course with the current drive' : course.path.length === 1 ? 'In this system' : `${course.path.length - 1} ${plural(course.path.length - 1, 'jump')} · ${course.fuel} fuel`}</small></button>)}
+    </section>}
+    <label className="exp-auto-research"><input type="checkbox" checked={!!state.autoResearch} disabled={!!actionLock(state, { type: 'auto-research', enabled: !state.autoResearch })}
+      onChange={() => dispatch({ type: 'auto-research', enabled: !state.autoResearch })} />
+      <span>Continue the route home automatically<small>When the laboratory would sit idle, it starts the next Return Drive project it can research. Queued projects go first; pausing turns this off.</small></span></label>
     <button className="exp-lab-fold" aria-expanded={showQueue} onClick={() => setShowQueue(!showQueue)}>Research queue · {state.research.queue.length}/3 pending <span>{showQueue ? 'Hide queue' : 'Show queue'}</span></button>
     {!showQueue && <p className="exp-compact-research">{active ? `${PROJECTS[active].name} · ${daysLeft(state, active)} ${plural(daysLeft(state, active), 'day')} remaining` : 'No active project'}</p>}
     {showQueue && <section className="exp-research-queue" aria-label="Research queue">
@@ -105,10 +119,6 @@ export function ExplorationResearch({ state, dispatch, onShowSystem }: {
       })}
       {state.research.completed.every((id) => !PROJECTS[id].blueprint) && <div className="exp-empty">Research a hardware project to unlock its construction blueprint.</div>}
     </>}
-    {hasTech(state, 'drive-diagnostics') && <section className="exp-science-leads"><span className="exp-eyebrow">DRIVE TELEMETRY / SCIENTIFIC LEADS</span><h3>Places worth investigating</h3>
-      <p>Courier telemetry and our drive model point to compatible signatures. These are optional leads, not required destinations. Station scientific archives offer another route after Contextual Translation.</p>
-      {leads.map((site) => <button className="exp-button" key={site.id} onClick={() => onShowSystem(site.systemId)}>{state.galaxy.systems.find((s) => s.id === site.systemId)!.name} · {needed === 'exotic-energy' ? 'energy signature' : 'spatial research lead'}</button>)}
-    </section>}
   </>
 }
 
