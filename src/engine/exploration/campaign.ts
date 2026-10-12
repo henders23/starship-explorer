@@ -18,7 +18,7 @@ import { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
 import { generateExplorationWorld, initialExplorationState, reduceExploration } from './v2.js'
 import type { DiscoveryKind, ExplorationLocation, ExplorationState, ExplorationWorld, ScanTier } from './v2.js'
-import { PROJECTS, PROJECT_IDS, SLOT_LIMITS, blueprintFor, buildName } from './research.js'
+import { DRIVE_SEQUENCE, PROJECTS, PROJECT_IDS, SLOT_LIMITS, blueprintFor, buildName } from './research.js'
 import type { BuildId, ProjectId } from './research.js'
 import type { Campaign as LegacyCampaign, CampaignAction as LegacyAction } from './legacy-campaign.js'
 
@@ -28,6 +28,8 @@ export interface Campaign {
   survivorArc?: SurvivorArc
   /** Absent from legacy saves until the captain explicitly accepts the quest. */
   relayArc?: RelayArc
+  /** Set only by an explicit order: an idle laboratory continues the Return Drive sequence. */
+  autoResearch?: true
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -70,6 +72,7 @@ export type CampaignAction =
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
   | { type: 'pause-research' }
+  | { type: 'auto-research'; enabled: boolean }
   | { type: 'install-array' }
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
@@ -125,16 +128,16 @@ export function recoveryDamage(state: Campaign, site: ExplorationLocation): numb
   return fitted(state, 'countermeasures') && ['ruins', 'derelict'].includes(site.kind) ? 0 : site.threat * 4
 }
 export const carefulDays = (s: Campaign) => fitted(s, 'recon-drones') ? 1 : 2
-export function travelCost(state: Campaign, target: SystemId): number | null {
-  const adjacent = state.galaxy.adjacency[state.at] ?? []
-  const index = new GalaxyIndex(state.galaxy)
+/** Fuel for one jump with the current drive, from the ship's position unless another is given. */
+export function travelCost(state: Campaign, target: SystemId, from: SystemId = state.at, index = new GalaxyIndex(state.galaxy)): number | null {
+  const adjacent = state.galaxy.adjacency[from] ?? []
   let base: number
-  if (adjacent.includes(target)) base = laneCost(index, state.at, target)
+  if (adjacent.includes(target)) base = laneCost(index, from, target)
   else {
-    if (target === state.at || !index.has(target) || !hasTech(state, 'slipstream')) return null
+    if (target === from || !index.has(target) || !hasTech(state, 'slipstream')) return null
     const paths = adjacent.filter((mid) => state.galaxy.adjacency[mid]?.includes(target))
     if (!paths.length) return null
-    base = Math.ceil(Math.min(...paths.map((mid) => laneCost(index, state.at, mid) + laneCost(index, mid, target))) * 0.75)
+    base = Math.ceil(Math.min(...paths.map((mid) => laneCost(index, from, mid) + laneCost(index, mid, target))) * 0.75)
   }
   return Math.max(1, Math.ceil(base * (fitted(state, 'fuel-optimisation') ? 0.85 : 1)))
 }
@@ -353,6 +356,9 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return index < 0 || ![-1, 1].includes(action.direction) || index + action.direction < 0 || index + action.direction >= state.research.queue.length ? 'Cannot move this queue entry' : null
     }
     case 'pause-research': return state.research.active ? null : 'No active project'
+    case 'auto-research':
+      if (typeof action.enabled !== 'boolean') return 'Invalid research setting'
+      return !!state.autoResearch === action.enabled ? action.enabled ? 'Already continuing the route home automatically' : 'Automatic research is already off' : null
     case 'install-array': return buildLock(state, 'deep-survey')
     case 'build': return buildLock(state, action.blueprint)
     case 'equip': return equipLock(state, action.blueprint)
@@ -375,8 +381,12 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
 
 function startQueued(state: Campaign, knowledge = state): Campaign {
   if (state.research.active) return state
-  const project = state.research.queue.find((id) => !hasTech(state, id) && !researchRequirements({ ...state, findings: knowledge.findings, driveTest: knowledge.driveTest }, id))
-  return project ? { ...state, research: { ...state.research, active: project, queue: state.research.queue.filter((id) => id !== project) } } : state
+  const ready = (id: ProjectId) => !hasTech(state, id) && !researchRequirements({ ...state, findings: knowledge.findings, driveTest: knowledge.driveTest }, id)
+  const project = state.research.queue.find(ready)
+  if (project) return { ...state, research: { ...state.research, active: project, queue: state.research.queue.filter((id) => id !== project) } }
+  // An opted-in laboratory continues the route home rather than sitting idle.
+  const drive = state.autoResearch ? DRIVE_SEQUENCE.find(ready) : undefined
+  return drive ? { ...state, research: { ...state.research, active: drive } } : state
 }
 function advanceResearch(state: Campaign, work: number, knowledge: Campaign): { state: Campaign; messages: string[] } {
   const messages: string[] = []
@@ -655,7 +665,16 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.research = { ...state.research, queue }; message = 'Research queue reordered.'; break
     }
     case 'pause-research':
-      next.research = { ...state.research, active: null }; message = 'Active research paused. All work is preserved.'; break
+      next.research = { ...state.research, active: null }; message = 'Active research paused. All work is preserved.'
+      // A pause is a deliberate order; automatic research would undo it on the next action.
+      if (state.autoResearch) { delete next.autoResearch; message += ' Automatic route-home research is off.' }
+      break
+    case 'auto-research':
+      if (action.enabled) next.autoResearch = true
+      else delete next.autoResearch
+      message = action.enabled ? 'The laboratory will continue the route home whenever it would otherwise sit idle. Queued projects still go first.'
+        : 'Automatic route-home research is off. The laboratory waits for your orders.'
+      break
     case 'install-array': case 'build': {
       const id = action.type === 'install-array' ? 'deep-survey' : action.blueprint
       const cost = blueprintFor(id)!
