@@ -2,7 +2,7 @@
 
 **Explore strange worlds. Bring your people back. Build a way home.**
 
-A single-player space expedition for the browser. Captain the ISS Ithaca in a
+A single-player space expedition for laptop and desktop browsers. Captain the ISS Ithaca in a
 seeded galaxy, recover scientific discoveries, lead boarding teams and defend
 survey ships. Research the Return Drive while the voyage continues, then decide
 when you are ready to leave.
@@ -36,9 +36,9 @@ campaign, with its own save. Its clue puzzle and Rift Surges are separate rules.
 | Encounters | Ten authored templates, Courier letters, The Long Relay and Someone left behind (a rescued survivor’s follow-up) |
 | Boarding | Four-person squads; core recovery, rescue, sabotage, salvage and fragile-recorder extraction; nine standard operation configurations plus the recorder vault |
 | Tactical decisions | Cover, line of sight, fog, AP, aim, overwatch, equipment, extraction and persistent injuries/casualties |
-| Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures |
+| Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
 | Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power and compartment targeting |
-| Presentation | Interactive galactic atlas; six overhead warships; eight-direction rig-rendered crew and custodians; modular metallic decks; phone map enlargement |
+| Presentation | Interactive galactic atlas; six overhead warships; eight-direction rig-rendered crew and custodians; a detailed archive vault; laptop deck enlargement and keyboard shortcuts |
 | Persistence | Version-9 expedition journals; versions 1–8 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
@@ -47,6 +47,23 @@ crew relationship system, rank abilities, photorealistic character fidelity and
 full-run human balance validation remain ahead. Character frames come from consistent
 articulated rigs; they are still stylised. Layout variations include reflected plans.
 No runtime AI API or 3D renderer is required by the game.
+
+## Laptop controls
+
+Boarding keeps the deck, quick orders and squad cards together. The right-hand
+orders panel scrolls independently. **Enlarge map** hides that panel to give the
+deck more width; **Fit map** restores it. Open **Mission transcript** for the log.
+
+- **1–4**: select operative; **N**: next operative with AP.
+- **F**: fire at the selected target; **R**: reload; **O**: overwatch.
+- **Shift+Enter**: end turn. Hostile actions play in sequence at **1× or 2×**.
+- **Esc** or **Skip playback**: return directly to the resolved turn.
+
+The turn is saved immediately; animation never rerolls a shot. Reduced motion
+skips the sequence and retains the written combat summary. These controls do
+not activate while typing or while the extraction confirmation is open.
+
+[Latest laptop milestone and actual screenshots](docs/LAPTOP-BOARDING.md).
 
 ## Play the survivor follow-up
 
@@ -143,7 +160,7 @@ not decide combat results. Classic Voyage has its own older architecture.
   saves when required. Never silently reinterpret old actions.
 - Test the failure modes a change introduces: invalid orders, repeated rewards,
   hidden-information leaks and reload boundaries.
-- Review changed screens on desktop and phone, with keyboard and reduced motion.
+- Review changed screens at 1366×768, 1440×900 and 1920×1080, with keyboard and reduced motion. Laptop/desktop play is the product target; narrow layouts are a fallback.
 - Publish the reviewed, tested tree to `main` and verify deployment status.
 - Record generated-art prompts and provenance in milestone notes. Keep text,
   controls and tactical information out of raster artwork.

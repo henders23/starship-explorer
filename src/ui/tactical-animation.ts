@@ -15,7 +15,7 @@ export function restPose(m:Mission,u:TacticalUnit):Pose {
   return [{x:u.x-1,y:u.y},{x:u.x+1,y:u.y},{x:u.x,y:u.y-1},{x:u.x,y:u.y+1}].some(p=>['half','wall'].includes(tileAt(m,p)))?'cover':'idle'
 }
 export function reaction(before:TacticalUnit,u:TacticalUnit):Pose|null {
-  if(u.hp<before.hp)return u.hp===0?'fall':'hit'
+  if(u.hp<before.hp || (u.shield??0)<(before.shield??0))return u.hp===0?'fall':'hit'
   if(u.ammo<before.ammo)return 'fire'
   if(u.ammo>before.ammo)return 'reload'
   if((u.x!==before.x||u.y!==before.y))return null

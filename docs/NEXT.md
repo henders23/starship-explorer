@@ -131,3 +131,15 @@ Next: observe first-time players on this short arc, improve character/deck art
 towards the cinematic reference and animate civilian escorts, then design one
 faction-linked consequence. Do not mark issue #18's fidelity target complete
 from automated tests alone.
+
+## Laptop direction — 12 October 2026
+
+Paul confirmed laptop play, not phone play. The next presentation batch is now
+implemented: ordered hostile turns, laptop controls/layout, revised rig proportions
+and archive-vault machinery. See [LAPTOP-BOARDING.md](LAPTOP-BOARDING.md).
+
+Next priorities: observe a new laptop player completing the survivor request;
+replace the remaining static civilian movement; commission/refine higher-quality
+character and environment art against the actual screenshots; then add one
+faction-linked consequence. Real laptop GPU/memory profiling is still needed.
+Earlier phone acceptance targets above are historical, superseded by this direction.

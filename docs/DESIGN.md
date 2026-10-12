@@ -17,7 +17,7 @@ The pleasure lies in making a voyage that belongs to this crew.
 
 **Genre:** single-player narrative exploration with strategic ship management,
 optional turn-based boarding and real-time ship combat with pause.
-**Platform:** desktop and mobile browsers; mouse, touch and keyboard.
+**Platform:** laptop and desktop browsers; mouse/trackpad and keyboard. Phone play is not a product target (confirmed 12 October 2026). Existing narrow layouts remain a fallback.
 **Audience:** players who enjoy discovery, readable tactics and human science
 fiction. Boarding requires no reflex skill.
 **Product scope:** self-contained browser game; no account, multiplayer, paid
@@ -204,7 +204,7 @@ Roster consequences still apply. A later arc must respect partial outcomes.
 Future additions should deepen a decision: distinct enemy behaviour, role
 interaction or an environmental choice. Larger boards, six-person deployments,
 elevation and grenades from the original proposal are deferred hypotheses, not
-promised features. Readability and phone usability take priority over map size.
+promised features. Readability on a laptop takes priority over map size.
 
 ## 10. Ship encounters
 
@@ -227,7 +227,7 @@ by people. Realistic stills establish scale, place and emotion; the tactical
 information layer stays crisp and independent of artwork.
 
 - **Environments:** coherent lighting, a clear focal point and crop-safe composition.
-  Preserve people and objectives at phone aspect ratios.
+  Preserve people and objectives at laptop aspect ratios.
 - **Figures:** consistent orthographic camera, scale, light and ground contact;
   separate crew, machines and civilians by silhouette as well as colour. Future
   poses must match the actual board perspective.
@@ -292,7 +292,7 @@ at least three recall a consequence, nobody loses progress to a bug. This is a
 small-sample iteration criterion, not evidence already collected.
 
 Release quality also requires full noncombat and combat-inclusive campaigns,
-casualty/poverty recovery, old-save replay, keyboard/phone review, measured load
+casualty/poverty recovery, old-save replay, keyboard/laptop review, measured load
 performance and no unexplained progression block.
 
 ## 15. Next design milestone
@@ -319,3 +319,12 @@ The mission remains independent of the route home.
 Directional character rigs and modular metallic decks are now implemented;
 photorealistic cinematic fidelity and human playtesting remain unfinished.
 [Detailed scope and captures](ANIMATED-BOARDING-AND-SURVIVORS.md).
+
+## Laptop boarding presentation — 12 October 2026
+
+Enemy turns now show the actual ordered moves, overwatch interruptions, shots,
+reloads, reserves and heat events. Orders pause during playback; speed and skip
+controls are always available. The authoritative turn is saved immediately.
+The recorder vault is the visual reference scene for this pass: storage racks,
+cooling equipment, service consoles and a cutaway hull. See
+[LAPTOP-BOARDING.md](LAPTOP-BOARDING.md) for evidence and remaining limitations.

@@ -36,6 +36,7 @@ jobs:
         with:
           name: live-tactical-screenshots
           path: |
+            test-results/**/laptop-*.png
             test-results/**/mid-mission-*.png
             test-results/**/walking-frame-*.png
             test-results/**/recorder-mid-mission-*.png

@@ -4,7 +4,8 @@ import { DECK_NAMES, DECK_NOTES, siteVariant } from '../engine/tactical/variants
 import { figureAsset } from './TacticalFigure.js'
 import { OPERATION_KINDS, OPERATION_BRIEFINGS, operationArt } from '../engine/tactical/operations.js'
 import type { OperationKind } from '../engine/tactical/operations.js'
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { useEnemyPlayback } from './tactical-playback.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock, boardingLoadoutCost, hasTech } from '../engine/exploration/campaign.js'
 import { DEFAULT_LOADOUT, operationStatus, operationReward, interactionLabel, distance, extractionLosses, inExtraction, ROLE_NOTES, shotInfo, tacticalLock, visible } from '../engine/tactical/mission.js'
@@ -58,8 +59,11 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
   </section></div>
 }
 export function TacticalMission({ state, dispatch, onExit, saved }: { state: Campaign; dispatch: Dispatch; onExit: () => void; saved: boolean }) {
-  const m = state.mission!
+  const playback = useEnemyPlayback()
+  const playing = !!playback.frame
+  const m = playback.frame?.mission ?? state.mission!
   const loadedRolls = useRef(m.rolls)
+  const skipPlayback = () => { loadedRolls.current=state.mission!.rolls; playback.skip() }
   const crew = m.units.filter((u) => u.side === 'crew')
   const [selected, setSelected] = useState((crew.find((unit) => unit.hp > 0) ?? crew[0]!).id)
   const [destination, setDestination] = useState<Point | null>(null)
@@ -79,9 +83,9 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
   const losses = extractionLosses(m)
   const civiliansLeft = m.operation?.survivors.filter((s) => !s.evacuated) ?? []
   const abandoning = losses.length > 0 || civiliansLeft.length > 0
-  const order = (action: TacticalAction) => { setLastOrder({before:m,action}); dispatch({ type: 'tactical', order: action }); setDestination(null) }
+  const order = (action: TacticalAction) => { if(playback.busy.current || tacticalLock(state.mission!,action))return; if(action.type==='end-turn')playback.start(state.mission!); setLastOrder({before:m,action}); dispatch({ type: 'tactical', order: action }); setDestination(null) }
   const control = (action: TacticalAction, label: string, primary = false) => {
-    const lock = tacticalLock(m, action)
+    const lock = playing ? 'Hostile turn playing — skip to continue' : tacticalLock(m, action)
     return <button className={`exp-button ${primary ? 'primary' : ''}`} title={lock ?? label} disabled={!!lock} onClick={() => order(action)}>{label}</button>
   }
   const chooseTarget = (id: string) => { setTarget(id); if (window.matchMedia('(max-width: 720px)').matches) document.querySelector('.tac-orders')?.scrollIntoView({ block: 'start', behavior: 'auto' }) }
@@ -90,6 +94,18 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
     const panel = document.querySelector<HTMLElement>(selector)
     panel?.scrollIntoView({block:'start',behavior:'auto'}); panel?.focus({preventScroll:true})
   }
+  useEffect(()=>{
+    const key=(e:KeyboardEvent)=>{
+      if(e.key==='Escape' && playback.busy.current){e.preventDefault();skipPlayback();return}
+      if(confirmExtract || playback.busy.current || m.outcome!=='active' || e.repeat || e.ctrlKey || e.metaKey || e.altKey || (e.target as HTMLElement).closest('input,select,textarea,[contenteditable=true]'))return
+      const index=Number(e.key)-1
+      if(index>=0 && index<crew.length){e.preventDefault();selectUnit(crew[index]!.id)}
+      if(e.key.toLowerCase()==='n'){const i=crew.indexOf(u);const next=[...crew.slice(i+1),...crew.slice(0,i)].find(c=>c.hp>0&&c.ap>0);if(next){e.preventDefault();selectUnit(next.id)}}
+      const action:TacticalAction|null=e.key==='Enter'&&e.shiftKey?{type:'end-turn'}:e.key.toLowerCase()==='r'?{type:'reload',unitId:u.id}:e.key.toLowerCase()==='o'?{type:'overwatch',unitId:u.id}:e.key.toLowerCase()==='f'&&target?{type:'shoot',unitId:u.id,targetId:target.id}:null
+      if(action){e.preventDefault();order(action)}
+    }
+    window.addEventListener('keydown',key);return ()=>window.removeEventListener('keydown',key)
+  })
   if (m.outcome !== 'active') {
     const lost = crew.filter((o) => !m.rescued.includes(o.id))
     return <main className="exp-deck tac-results"><section className="exp-modal exp-ending" aria-label="Mission debrief">
@@ -104,33 +120,34 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
       <small>{saved ? 'Mission report saved' : 'Autosave unavailable — keep this tab open'}</small>
     </section></main>
   }
-  return <main className={`exp-deck tactical-deck atmosphere-${m.operation?.kind ?? 'core'}`}>
-    <div inert={confirmExtract}>
+  return <main className={`exp-deck tactical-deck atmosphere-${m.recorder?'archive':m.operation?.kind ?? 'core'} ${expanded?'deck-focus':''}`}>
+    <div className="tac-workspace" inert={confirmExtract}>
       <header className="tac-header"><div><span className="exp-eyebrow">AWAY TEAM / LIVE TELEMETRY</span><h1>Boarding operation</h1><p>{m.name}{m.recorder?' / Someone left behind':''}{m.operation ? ` / ${OPERATION_BRIEFINGS[m.operation.kind].title}` : ''}</p></div>
         <div className="tac-turn"><span>TURN</span><b>{m.turn.toString().padStart(2, '0')}</b><small>{saved ? 'Orders saved' : 'Autosave unavailable'}</small></div>
         <button className="exp-button" onClick={onExit}>Save & title</button>
       </header>
-      <div className="tac-objective"><span>{m.recorder?'RECORDER':m.operation ? m.operation.kind.toUpperCase() : m.recovered ? '02 / EXTRACT' : '01 / RECOVER'}</span><strong>{operationStatus(m)}</strong><div className="tac-command">{control({ type: 'end-turn' }, 'End turn · hostiles act', true)}<button className="exp-button" disabled={!!tacticalLock(m, { type: 'extract', abandon: true })} title={tacticalLock(m, { type: 'extract', abandon: true }) ?? undefined} onClick={() => setConfirmExtract(true)}>Extract team</button></div></div>
-      {feedback && <section className="tac-feedback" aria-label="Last order" role="status"><strong>{feedback.title}</strong>{feedback.details.map((line,i)=><span key={i}>{line}</span>)}</section>}
+      <div className="tac-objective"><span>{m.recorder?'RECORDER':m.operation ? m.operation.kind.toUpperCase() : m.recovered ? '02 / EXTRACT' : '01 / RECOVER'}</span><strong>{operationStatus(m)}</strong><div className="tac-command">{control({ type: 'end-turn' }, 'End turn · hostiles act', true)}<button className="exp-button" disabled={playing || !!tacticalLock(m, { type: 'extract', abandon: true })} title={tacticalLock(m, { type: 'extract', abandon: true }) ?? undefined} onClick={() => setConfirmExtract(true)}>Extract team</button></div></div>
+      {feedback && !playing && <section className="tac-feedback" aria-label="Last order" role="status"><strong>{feedback.title}</strong>{feedback.details.map((line,i)=><span key={i}>{line}</span>)}</section>}
       <div className="tac-layout">
+        {playing&&<section className="tac-playback" role="status" aria-label="Enemy turn playback"><span>HOSTILE TURN · {playback.index}/{playback.total-1}</span><strong>{playback.frame!.label}</strong><button onClick={()=>playback.setSpeed(playback.speed===1?2:1)}>{playback.speed}× speed</button><button onClick={skipPlayback}>Skip playback <kbd>Esc</kbd></button></section>}
         <section className="tac-arena" aria-label="Tactical map" tabIndex={-1}>
           <div className="tac-mapbar"><span>{hostiles.length} visible hostiles · {u.name} selected</span><div className="tac-map-tools"><button className="exp-text-button" onClick={() => { const ready = [...crew.slice(crew.indexOf(u)+1),...crew.slice(0,crew.indexOf(u))].find((c) => c.hp > 0 && c.ap > 0); if (ready) selectUnit(ready.id) }} disabled={!crew.some((c) => c.id !== u.id && c.hp > 0 && c.ap > 0)}>Next ready operative</button><button className="exp-text-button" onClick={() => setExpanded(!expanded)}>{expanded ? 'Fit map' : 'Enlarge map'}</button><button className="exp-text-button tac-mobile-jump" onClick={() => jumpTo('.tac-orders')}>Orders ↓</button></div></div>
-          {expanded && <small className="tac-pan-hint">Swipe or scroll sideways to explore the deck.</small>}
-          <div className={`tac-scroll ${expanded ? 'expanded' : ''}`}>
-            <TacticalBoard m={m} unitId={u.id} sprint={sprint} destination={destination} onDestination={setDestination} selected={selected} targetId={targetId} onSelect={selectUnit} onTarget={chooseTarget} loadedRolls={loadedRolls.current} />
+          <small className="tac-key-hint">1–4 select · N next · F fire · R reload · O overwatch · Shift+Enter end turn</small>
+          <div className={`tac-scroll ${expanded ? 'expanded' : ''}`} inert={playing}>
+            <TacticalBoard key={playback.reset} m={m} unitId={u.id} sprint={sprint} destination={destination} onDestination={setDestination} selected={selected} targetId={targetId} onSelect={selectUnit} onTarget={chooseTarget} loadedRolls={loadedRolls.current} activeActor={playback.frame?.actorId} playbackSpeed={playing?playback.speed:1} />
           </div>
-          <nav className="tac-quickbar" aria-label="Tactical quick actions">
+          <nav inert={playing} className="tac-quickbar" aria-label="Tactical quick actions">
             <button disabled={!destination || !!(destination&&tacticalLock(m,{type:'move',unitId:u.id,...destination,sprint}))} onClick={()=>destination&&order({type:'move',unitId:u.id,...destination,sprint})} title="Move the selected operative to the highlighted tile"><b>↗</b><span>MOVE<small>{sprint?'2 AP':'1 AP'}</small></span></button>
             <button disabled={!target || !!(target&&tacticalLock(m,{type:'shoot',unitId:u.id,targetId:target.id}))} onClick={()=>target&&order({type:'shoot',unitId:u.id,targetId:target.id})} title="Fire on the selected hostile"><b>⌖</b><span>FIRE<small>1 AP</small></span></button>
             <button disabled={!!tacticalLock(m,{type:'overwatch',unitId:u.id})} onClick={()=>order({type:'overwatch',unitId:u.id})} title="Cover an enemy movement lane"><b>◎</b><span>OVERWATCH<small>1 AP</small></span></button>
             <button disabled={!!tacticalLock(m,{type:'heal',unitId:u.id,targetId:u.id})} onClick={()=>order({type:'heal',unitId:u.id,targetId:u.id})} title="Use a medkit on this operative"><b>+</b><span>HEAL SELF<small>1 AP</small></span></button>
-            <button onClick={()=>order({type:'end-turn'})} className="tac-quick-end" title="End turn and resolve hostile orders"><b>↻</b><span>END TURN<small>HOSTILES ACT</small></span></button>
+            <button onClick={()=>order({type:'end-turn'})} disabled={playing} className="tac-quick-end" title="End turn and resolve hostile orders"><b>↻</b><span>END TURN<small>HOSTILES ACT</small></span></button>
           </nav>
           {destination && <div className="tac-destination"><span>{u.name} → {destination.x + 1},{destination.y + 1} · {path?.length ?? 'no'} path tiles</span>{control({ type: 'move', unitId: u.id, ...destination, sprint }, `${sprint ? 'Sprint' : 'Move'} · ${sprint ? 2 : 1} AP`, true)}<button className="exp-text-button" onClick={() => setDestination(null)}>Cancel move</button>{preview?.lock && <small>{preview.lock}</small>}{preview && !preview.lock && <div className="tac-move-preview" aria-label="Movement preview"><strong>{preview.cost} AP → {preview.remainingAP} AP left</strong><p>{preview.threats.length ? `${preview.threats.length} visible guard${preview.threats.length===1?'':'s'} can fire here from ${preview.threats.length===1?'its current position':'their current positions'}.` : 'No currently visible guard has a shot from its current position.'}</p>{preview.threats.map((e)=><span key={e.id}>{e.name}: {e.chance}% enemy hit chance · {e.cover ? e.cover===40?'full cover':'half cover' : 'no cover'}</span>)}{preview.heat>0 && <p className="tac-danger">End-turn heat here: −{preview.heat} health. Shields do not protect against heat.</p>}{preview.remainingAP===0 && <p>No AP left after this move. You cannot fire or interact until next turn.</p>}<small>Guards may move. Unseen threats are not included.</small></div>}</div>}
           <div className="tac-legend"><span>◈ Shuttle</span><span>{m.operation?.kind === 'rescue' ? 'Lilac / survivor beacons' : 'Amber / objective'}</span><span>Low crates / half cover</span><span>Tall bulkheads / block sight</span></div>
           <div className="tac-squad">{crew.map((unit, i) => <button key={unit.id} aria-pressed={selected === unit.id} onClick={() => selectUnit(unit.id)}><small>0{i + 1} / {unit.role}</small><strong>{unit.name}</strong><span>{unit.hp > 0 ? `${unit.hp}/${unit.maxHp} HP · ${unit.ap} AP${unit.shield !== undefined ? ` · ${unit.shield} shield` : ''}` : 'DOWNED — rescue or revive'}</span><progress value={unit.hp} max={unit.maxHp} aria-label={`${unit.name} health`} /></button>)}</div>
         </section>
-        <aside className="tac-orders" tabIndex={-1} aria-label="Operative orders"><button className="exp-text-button tac-mobile-jump" onClick={() => jumpTo('.tac-arena')}>Back to map ↑</button>
+        <aside inert={playing} className="tac-orders" tabIndex={-1} aria-label="Operative orders"><button className="exp-text-button tac-mobile-jump" onClick={() => jumpTo('.tac-arena')}>Back to map ↑</button>
           <img className="tac-operative-preview" src={figureAsset('crew')} alt="" /><span className="exp-eyebrow">SELECTED OPERATIVE</span><h2>{u.name}</h2><p>{u.role} · {u.hp}/{u.maxHp} health · {u.ap}/2 AP<br/>{u.ammo}/{u.magazine} ammunition · {u.damage} damage{u.weapon === 'plasma' ? ' · PLASMA' : ''}{u.shield !== undefined ? ` · ${u.shield}/4 SHIELD` : ''}{u.aimed ? ' · AIMED' : ''}{u.overwatch ? ' · OVERWATCH' : ''}</p>
           {(m.operation||m.recorder) && <div className="operation-tracker"><span className="exp-eyebrow">MISSION TRACKER</span>{m.operation?.kind === 'rescue' ? m.operation.survivors.map((s) => <p key={s.id}>{s.name}<small>{s.evacuated ? 'Safely aboard' : `${s.x+1},${s.y+1} · ${s.leader ? `following ${crew.find((c) => c.id === s.leader)?.name}${crew.find((c) => c.id === s.leader)?.hp === 0 ? ' · escort DOWN; send help' : ''}` : 'waiting for an escort'}`}</small></p>) : <p>{operationStatus(m)}</p>}<small>{tacticalLock(m,{type:'interact',unitId:u.id}) ?? 'Objective interaction available now.'}</small></div>}
           <div className="tac-move"><label><input type="checkbox" disabled={m.recorder?.carrierId===u.id} checked={sprint&&m.recorder?.carrierId!==u.id} onChange={(e) => setSprint(e.target.checked)} /> {m.recorder?.carrierId===u.id?'Carrying recorder · 2 tiles per AP · no sprint':`Sprint · 2 AP · up to ${u.move*2} tiles`}</label>
@@ -148,7 +165,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
           <small>Extraction requires a conscious operative in the shuttle zone. Revive downed crew with a medkit; they can move next turn. Each operative carries a medkit or a personal shield.</small>
         </aside>
       </div>
-      <footer className="tac-log" aria-live="polite"><span className="exp-eyebrow">TEAM CHANNEL</span>{m.log.slice(-4).map((line, i) => <p key={i}>{line}</p>)}<details><summary>Mission transcript</summary>{m.log.slice(0, -4).map((line, i) => <p key={i}>{line}</p>)}</details></footer>
+      <footer className="tac-log"><span className="exp-eyebrow">TEAM CHANNEL</span><p>{m.log.at(-1)}</p><details><summary>Mission transcript</summary><div>{m.log.map((line, i) => <p key={i}>{line}</p>)}</div></details></footer>
     </div>
     {confirmExtract && <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Confirm extraction"><span className="exp-eyebrow">SHUTTLE / DEPARTURE</span><h2>{abandoning ? 'Leave them behind?' : 'Bring them home.'}</h2><p>{m.recorder?`${operationStatus(m)} Leaving ends this field visit. No normal site cargo will be paid.`:m.operation ? `${operationStatus(m)} ${m.recovered ? 'This departure closes the site and pays the earned bonus.' : 'No objective secured: no reward. You can return later.'}` : m.recovered ? 'The core is secured.' : 'The core has not been recovered. You can return to this location later.'}</p>{civiliansLeft.length > 0 && <p className="operation-loss">Civilians left behind: {civiliansLeft.map((s) => s.name).join(', ')}. They are not aboard yet.</p>}<p>{losses.length ? `Permanently lost if you leave now: ${losses.map((o) => o.name).join(', ')}.` : 'All four operatives are in the shuttle zone, including anyone downed.'}</p><button className="exp-button primary" onClick={() => { order({ type: 'extract', abandon: abandoning }); setConfirmExtract(false) }}>{abandoning ? 'Confirm extraction and losses' : 'Confirm safe extraction'}</button><button className="exp-button" autoFocus onClick={() => setConfirmExtract(false)}>Keep the shuttle waiting</button></section></div>}
   </main>

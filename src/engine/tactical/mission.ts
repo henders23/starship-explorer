@@ -37,6 +37,15 @@ export interface Mission {
   lastShot: { from: Point; to: Point; hit: boolean; damage: number } | null
   outcome: 'active' | 'success' | 'retreat' | 'defeat'; rescued: string[]; log: string[]
 }
+/** Optional presentation observer. Snapshots never enter saves or affect simulation. */
+export interface TacticalEvent { kind: 'move' | 'shot' | 'reload' | 'reserve' | 'heat'; actorId?: string; targetId?: string; mission: Mission }
+export type TacticalObserver = (event: TacticalEvent) => void
+function report(m: Mission, observe: TacticalObserver | undefined, kind: TacticalEvent['kind'], actorId?: string, targetId?: string) {
+  if (!observe) return
+  const snapshot = structuredClone(m)
+  updateRecorder(snapshot)
+  observe({kind, actorId, targetId, mission: reveal(snapshot)})
+}
 export type TacticalAction =
   | { type: 'drop-recorder'; unitId:string }
   | { type: 'move'; unitId: string; x: number; y: number; sprint?: boolean }
@@ -281,7 +290,7 @@ export function tacticalLock(m: Mission, action: TacticalAction): string | null 
     default: return 'Unknown order'
   }
 }
-function fire(m: Mission, shooter: TacticalUnit, target: TacticalUnit) {
+function fire(m: Mission, shooter: TacticalUnit, target: TacticalUnit, observe?: TacticalObserver) {
   const info = shotInfo(m, shooter, target)
   const hit = createRng(`${m.seed}:shot:${m.rolls++}`).int(100) < info.chance
   m.lastShot = { from: { x: shooter.x, y: shooter.y }, to: { x: target.x, y: target.y }, hit, damage: shooter.damage }
@@ -293,54 +302,57 @@ function fire(m: Mission, shooter: TacticalUnit, target: TacticalUnit) {
   }
   if (absorbed) m.log.push(`${target.name}’s shield absorbs ${absorbed}; ${target.shield} shield remaining.`)
   m.log.push(`${shooter.name} → ${target.name}: ${hit ? `${shooter.damage - absorbed} damage${absorbed ? ` + ${absorbed} absorbed` : ''}${target.hp === 0 ? target.side === 'crew' ? ' · DOWNED' : ' · disabled' : ''}` : 'miss'} (${info.chance}%).`)
+  report(m, observe, 'shot', shooter.id, target.id)
 }
-function enemyTurn(m: Mission) {
+function enemyTurn(m: Mission, observe?: TacticalObserver) {
   const r=m.recorder
   if(r&&r.alarmTurn!==null&&r.reinforcements<2&&m.turn-r.alarmTurn>=r.reinforcements*2){
     const spawn=[{x:11,y:1},{x:11,y:8},{x:10,y:0}].find(p=>tileAt(m,p)==='floor'&&!m.units.some(u=>u.hp>0&&u.x===p.x&&u.y===p.y))
-    if(spawn){m.units.push({id:`recorder-reserve-${r.reinforcements}`,name:'Archive reserve',role:'heavy',side:'hostile',...spawn,hp:5,maxHp:5,ap:2,ammo:4,magazine:4,damage:2,move:3,aimed:false,fired:false,overwatch:false,medkit:false});r.reinforcements++;m.log.push(`Archive reserve ${r.reinforcements}/2 entered from the far airlock.`)}
+    if(spawn){m.units.push({id:`recorder-reserve-${r.reinforcements}`,name:'Archive reserve',role:'heavy',side:'hostile',...spawn,hp:5,maxHp:5,ap:2,ammo:4,magazine:4,damage:2,move:3,aimed:false,fired:false,overwatch:false,medkit:false});r.reinforcements++;m.log.push(`Archive reserve ${r.reinforcements}/2 entered from the far airlock.`);report(m,observe,'reserve',m.units.at(-1)!.id)}
   }
   if (m.operation?.kind === 'sabotage' && m.operation.alarm && !m.operation.reinforcement) {
     const spawn = [{x:11,y:0},{x:11,y:9},{x:10,y:0}].find((p) => !m.units.some((u) => u.hp > 0 && u.x === p.x && u.y === p.y))
     if (spawn) {
       m.units.push({id:'reserve',name:'Reserve custodian',role:'assault',side:'hostile',...spawn,hp:5,maxHp:5,ap:2,ammo:4,magazine:4,damage:2,move:4,aimed:false,fired:false,overwatch:false,medkit:false})
-      m.operation.reinforcement = true; m.log.push('Sofia: “Reserve unit on the deck. Do not stop to fight it unless we have to.”')
+      m.operation.reinforcement = true; m.log.push('Sofia: “Reserve unit on the deck. Do not stop to fight it unless we have to.”'); report(m,observe,'reserve','reserve')
     }
   }
   for (const enemy of m.units.filter((u) => u.side === 'hostile' && u.hp > 0)) {
     const targets = livingCrew(m).sort((a, b) => distance(enemy, a) - distance(enemy, b))
     if (!targets.length) break
     enemy.fired = false
-    if (!enemy.ammo) { enemy.ammo = enemy.magazine; m.log.push(`${enemy.name} reloads.`); continue }
+    if (!enemy.ammo) { enemy.ammo = enemy.magazine; m.log.push(`${enemy.name} reloads.`); report(m,observe,'reload',enemy.id); continue }
     let target = targets.find((u) => shotInfo(m, enemy, u).possible)
     if (!target && !(m.operation?.kind === 'sabotage' && !m.operation.alarm)) {
       const nearest = targets[0]!
       const approaches = neighbours(nearest).map((p) => pathTo(m, enemy, p, false)).filter((p): p is Point[] => !!p?.length).sort((a, b) => a.length - b.length)
       for (const p of (approaches[0] ?? []).slice(0, enemy.move)) {
         enemy.x = p.x; enemy.y = p.y
+        report(m,observe,'move',enemy.id)
         for (const watcher of livingCrew(m).filter((u) => u.overwatch && u.ammo && !u.fired)) {
-          if (enemy.hp > 0 && shotInfo(m, watcher, enemy).possible) fire(m, watcher, enemy)
+          if (enemy.hp > 0 && shotInfo(m, watcher, enemy).possible) fire(m, watcher, enemy, observe)
         }
         if (enemy.hp <= 0) break
       }
       target = livingCrew(m).find((u) => shotInfo(m, enemy, u).possible)
     }
-    if (enemy.hp > 0 && target) fire(m, enemy, target)
+    if (enemy.hp > 0 && target) fire(m, enemy, target, observe)
   }
   if (m.operation?.kind === 'salvage' && m.turn >= 4) {
     const damage = m.turn >= 7 ? 2 : 1
     for (const u of livingCrew(m).filter((u) => u.x >= 4)) u.hp = Math.max(0,u.hp - damage)
     m.log.push(`Thermal surge: exposed operatives beyond column 4 take ${damage} health damage. The exit corridor stays safe.`)
+    report(m,observe,'heat')
   }
   if (!livingCrew(m).length) { m.outcome = 'defeat'; m.log.push('No operative can reach the shuttle. The boarding team is lost. Remote recovery remains possible.'); return }
   m.turn++
   for (const u of livingCrew(m)) { u.ap = 2; u.fired = false; u.aimed = false; u.overwatch = false }
   m.log.push(`Turn ${m.turn}. Your team has two action points each.`)
 }
-export function reduceMission(state: Mission, action: TacticalAction): Mission {
+export function reduceMission(state: Mission, action: TacticalAction, observe?: TacticalObserver): Mission {
   if (tacticalLock(state, action)) return state
   let m: Mission = { ...state, ...(state.recorder?{recorder:{...state.recorder,position:{...state.recorder.position}}}:{}), units: state.units.map((u) => ({ ...u })), log: [...state.log], ...(state.operation ? {operation: {...state.operation, survivors:state.operation.survivors.map((s) => ({...s})), crates:state.operation.crates.map((c) => ({...c}))}} : {}) }
-  if (action.type === 'end-turn') enemyTurn(m)
+  if (action.type === 'end-turn') enemyTurn(m, observe)
   else if (action.type === 'extract') {
     m.rescued = m.units.filter((u) => u.side === 'crew' && inExtraction(u)).map((u) => u.id)
     m.outcome = m.recovered ? 'success' : 'retreat'
