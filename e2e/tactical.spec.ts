@@ -41,7 +41,7 @@ test('boards from a location, issues orders, resumes combat and safely retreats'
   await expect(page.getByRole('heading', { name: 'Another way in.' })).toBeVisible()
   await page.getByRole('button', { name: 'Return to the Ithaca' }).click()
   await page.getByRole('button', { name: 'Away team', exact: true }).click()
-  await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toContainText('1 missions')
+  await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toContainText('1 mission ·')
   expect(errors).toEqual([])
 })
 

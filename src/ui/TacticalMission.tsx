@@ -10,10 +10,14 @@ import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js
 import { actionLock, boardingLoadoutCost, hasTech } from '../engine/exploration/campaign.js'
 import { DEFAULT_LOADOUT, operationStatus, operationReward, interactionLabel, distance, extractionLosses, inExtraction, ROLE_NOTES, shotInfo, tacticalLock, visible } from '../engine/tactical/mission.js'
 import type { Mission, OperativeLoadout, Point, TacticalAction } from '../engine/tactical/mission.js'
+import { MuteButton } from './sound.js'
+import { useDialogDismiss } from './dialog.js'
+import { plural } from './plural.js'
 import './tactical.css'
 
 type Dispatch = (action: CampaignAction) => void
 export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Campaign; locationId: string | null; dispatch: Dispatch; onClose: () => void }) {
+  useDialogDismiss(onClose)
   const [squad, setSquad] = useState(state.roster.filter((o) => !o.dead && o.injuredUntil <= state.day).slice(0, 4).map((o) => o.id))
   const site = state.world.locations.find((s) => s.id === locationId)
   const station = state.world.locations.find((s) => s.systemId === state.at && s.kind === 'station' && ['investigated', 'resolved'].includes(state.exploration.statuses[s.id] ?? ''))
@@ -35,7 +39,7 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
       const ready = !o.dead && o.injuredUntil <= state.day
       return <button key={o.id} className={`away-person ${o.dead ? 'lost' : ''}`} aria-pressed={!!site && squad.includes(o.id)} disabled={!site || !ready}
         onClick={() => setSquad(squad.includes(o.id) ? squad.filter((id) => id !== o.id) : squad.length < 4 ? [...squad, o.id] : squad)}>
-        <span className="away-monogram">{o.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</span><span><strong>{o.name}</strong><small>{o.role} · {o.dead ? 'LOST' : ready ? 'READY' : `${o.injuredUntil - state.day} days recovery`}</small><small>{ROLE_NOTES[o.role]}</small><small>{o.missions} missions · {o.xp} service XP</small></span>
+        <span className="away-monogram">{o.name.split(' ').map((n) => n[0]).slice(0, 2).join('')}</span><span><strong>{o.name}</strong><small>{o.role} · {o.dead ? 'LOST' : ready ? 'READY' : `${o.injuredUntil - state.day} ${plural(o.injuredUntil - state.day, 'day')} recovery`}</small><small>{ROLE_NOTES[o.role]}</small><small>{o.missions} {plural(o.missions, 'mission')} · {o.xp} service XP</small></span>
       </button>
     })}</div>
     <section className="away-equipment" aria-label="Field equipment"><details open={hasTech(state, 'plasma-ballistics') || hasTech(state, 'personal-shields')}><summary>Field equipment · weapons & gadgets</summary><p>Standard weapons and medkits are free. Advanced gear costs 2 materials per item each time the team deploys.</p>
@@ -111,7 +115,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
     return <main className="exp-deck tac-results"><section className="exp-modal exp-ending" aria-label="Mission debrief">
       <span className="exp-eyebrow">SHUTTLE RETURN / {m.turn} TURNS</span><h2>{m.outcome === 'success' ? 'Something worth bringing home.' : m.outcome === 'retreat' ? 'Another way in.' : 'An empty shuttle.'}</h2>
       {m.recorder&&<><h3>{m.outcome==='success'?'Evidence aboard':'Recorder left behind'}</h3><p>{operationStatus(m)}</p><p>No normal site cargo or science. Return to the survivor at the marked station to close the request.</p></>}
-      {m.operation && <><img className="operation-report-art" src={operationArt(m.operation.kind)} alt={`${m.operation.kind} operation environment`} /><p>{operationStatus(m)}</p>{m.outcome === 'success' && <p>Normal site cargo and science, plus <strong>{operationReward(m).materials} materials + {operationReward(m).credits} credits</strong>.{m.operation.kind === 'rescue' && ` ${civiliansLeft.length} civilians left behind.`}</p>}</>}
+      {m.operation && <><img className="operation-report-art" src={operationArt(m.operation.kind)} alt={`${m.operation.kind} operation environment`} /><p>{operationStatus(m)}</p>{m.outcome === 'success' && <p>Normal site cargo and science, plus <strong>{operationReward(m).materials} materials + {operationReward(m).credits} credits</strong>.{m.operation.kind === 'rescue' && ` ${civiliansLeft.length} ${plural(civiliansLeft.length, 'civilian')} left behind.`}</p>}</>}
       <p>{m.recorder?'This field visit is over. Crew records and the survivor’s next conversation are applied on acknowledgement.':m.operation ? m.outcome === 'success' ? 'The shuttle returns with something that remote instruments could not bring back.' : m.outcome === 'retreat' ? 'The team withdrew. No reward; the site remains available for another approach.' : 'There is no answer from the team. Their names stay in the service record.' : m.outcome === 'success' ? 'The core is secured. Morozova is waiting in the hangar before the shuttle doors open.' : m.outcome === 'retreat' ? 'The team withdrew without the core. We can return later, or finish the recovery with remote instruments.' : 'The custodians have gone quiet. There is no answer from the team. The ship can continue, but their names stay in the service record.'}</p>
       <div className="exp-ending-stats"><span><b>{m.rescued.length}</b>returned</span><span><b>{lost.length}</b>lost</span><span><b>1</b>campaign day</span></div>
       {crew.map((o) => <p key={o.id}><strong>{o.name}</strong> · {!m.rescued.includes(o.id) ? 'Lost' : o.hp < o.maxHp ? `Medical recovery: ${state.research.completed.includes('trauma-protocols') ? 2 : 4} days` : 'Fit for duty'}</p>)}
@@ -124,6 +128,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
     <div className="tac-workspace" inert={confirmExtract}>
       <header className="tac-header"><div><span className="exp-eyebrow">AWAY TEAM / LIVE TELEMETRY</span><h1>Boarding operation</h1><p>{m.name}{m.recorder?' / Someone left behind':''}{m.operation ? ` / ${OPERATION_BRIEFINGS[m.operation.kind].title}` : ''}</p></div>
         <div className="tac-turn"><span>TURN</span><b>{m.turn.toString().padStart(2, '0')}</b><small>{saved ? 'Orders saved' : 'Autosave unavailable'}</small></div>
+        <MuteButton />
         <button className="exp-button" onClick={onExit}>Save & title</button>
       </header>
       <div className="tac-objective"><span>{m.recorder?'RECORDER':m.operation ? m.operation.kind.toUpperCase() : m.recovered ? '02 / EXTRACT' : '01 / RECOVER'}</span><strong>{operationStatus(m)}</strong><div className="tac-command">{control({ type: 'end-turn' }, 'End turn · hostiles act', true)}<button className="exp-button" disabled={playing || !!tacticalLock(m, { type: 'extract', abandon: true })} title={tacticalLock(m, { type: 'extract', abandon: true }) ?? undefined} onClick={() => setConfirmExtract(true)}>Extract team</button></div></div>
@@ -167,6 +172,11 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
       </div>
       <footer className="tac-log"><span className="exp-eyebrow">TEAM CHANNEL</span><p>{m.log.at(-1)}</p><details><summary>Mission transcript</summary><div>{m.log.map((line, i) => <p key={i}>{line}</p>)}</div></details></footer>
     </div>
-    {confirmExtract && <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Confirm extraction"><span className="exp-eyebrow">SHUTTLE / DEPARTURE</span><h2>{abandoning ? 'Leave them behind?' : 'Bring them home.'}</h2><p>{m.recorder?`${operationStatus(m)} Leaving ends this field visit. No normal site cargo will be paid.`:m.operation ? `${operationStatus(m)} ${m.recovered ? 'This departure closes the site and pays the earned bonus.' : 'No objective secured: no reward. You can return later.'}` : m.recovered ? 'The core is secured.' : 'The core has not been recovered. You can return to this location later.'}</p>{civiliansLeft.length > 0 && <p className="operation-loss">Civilians left behind: {civiliansLeft.map((s) => s.name).join(', ')}. They are not aboard yet.</p>}<p>{losses.length ? `Permanently lost if you leave now: ${losses.map((o) => o.name).join(', ')}.` : 'All four operatives are in the shuttle zone, including anyone downed.'}</p><button className="exp-button primary" onClick={() => { order({ type: 'extract', abandon: abandoning }); setConfirmExtract(false) }}>{abandoning ? 'Confirm extraction and losses' : 'Confirm safe extraction'}</button><button className="exp-button" autoFocus onClick={() => setConfirmExtract(false)}>Keep the shuttle waiting</button></section></div>}
+    {confirmExtract && <div className="exp-modal-backdrop"><EscapeDismisses onDismiss={() => setConfirmExtract(false)} /><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Confirm extraction"><span className="exp-eyebrow">SHUTTLE / DEPARTURE</span><h2>{abandoning ? 'Leave them behind?' : 'Bring them home.'}</h2><p>{m.recorder?`${operationStatus(m)} Leaving ends this field visit. No normal site cargo will be paid.`:m.operation ? `${operationStatus(m)} ${m.recovered ? 'This departure closes the site and pays the earned bonus.' : 'No objective secured: no reward. You can return later.'}` : m.recovered ? 'The core is secured.' : 'The core has not been recovered. You can return to this location later.'}</p>{civiliansLeft.length > 0 && <p className="operation-loss">Civilians left behind: {civiliansLeft.map((s) => s.name).join(', ')}. They are not aboard yet.</p>}<p>{losses.length ? `Permanently lost if you leave now: ${losses.map((o) => o.name).join(', ')}.` : 'All four operatives are in the shuttle zone, including anyone downed.'}</p><button className="exp-button primary" onClick={() => { order({ type: 'extract', abandon: abandoning }); setConfirmExtract(false) }}>{abandoning ? 'Confirm extraction and losses' : 'Confirm safe extraction'}</button><button className="exp-button" autoFocus onClick={() => setConfirmExtract(false)}>Keep the shuttle waiting</button></section></div>}
   </main>
+}
+
+function EscapeDismisses({ onDismiss }: { onDismiss: () => void }) {
+  useDialogDismiss(onDismiss)
+  return null
 }

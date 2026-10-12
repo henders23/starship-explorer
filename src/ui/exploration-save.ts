@@ -6,6 +6,12 @@ import type { StorageLike } from './save.js'
 
 export const EXPLORATION_SAVE_KEY = 'starship-explorer-exploration-v2'
 export const EXPLORATION_SAVE_VERSION = 9
+/**
+ * The longest journal the loader accepts, about 3.5 MB of storage. Saving
+ * refuses anything longer so the voyage reports an autosave failure instead
+ * of writing a save that could never be resumed.
+ */
+export const MAX_JOURNAL_ACTIONS = 50_000
 export type ExplorationSave = { campaign: Campaign | null; error: string | null }
 function replayPreview(seed: string, actions: PreviewAction[]): Campaign {
   let old = createPreview(seed)
@@ -25,11 +31,15 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
     if (![1, 2, 3, 4, 5, 6, 7, 8, EXPLORATION_SAVE_VERSION].includes(envelope?.version) || envelope.ruleset !== 'exploration-v2')
       return { campaign: null, error: 'This exploration save uses another version. It has been kept unchanged.' }
     if (typeof envelope.seed !== 'string' || !envelope.seed.length || envelope.seed.length > 200 ||
-      !Array.isArray(envelope.actions) || envelope.actions.length > 10000) throw new Error('Invalid save')
+      !Array.isArray(envelope.actions) || envelope.actions.length > MAX_JOURNAL_ACTIONS) throw new Error('Invalid save')
     if (envelope.version === 1) return { campaign: replayPreview(envelope.seed, envelope.actions), error: null }
     const prefix = envelope.legacyActions
     if (prefix !== null && (!Array.isArray(prefix) || prefix.length > 10000)) throw new Error('Invalid migration prefix')
     let campaign = prefix === null ? createCampaign(envelope.seed) : replayPreview(envelope.seed, prefix)
+    // Rules read no more of the journal than its last entry, so each step sees
+    // only that entry and the journal is rebuilt here. Handing every step the
+    // whole journal made long voyages quadratic to load.
+    const journal: CampaignAction[] = [...campaign.actions]
     for (const action of envelope.actions as CampaignAction[]) {
       // V2 journals predate boarding and trauma research. Their accepted actions
       // retain identical semantics; the new roster is additive migration state.
@@ -42,16 +52,20 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
       if (envelope.version < 7 && action?.type === 'deploy-operation' && action.variant !== undefined) throw new Error('Invalid pre-variant action')
       if (envelope.version < 8 && ['start-arc', 'arc-choice'].includes(action?.type)) throw new Error('Invalid pre-relay action')
       if(envelope.version<9 && (['accept-survivor','deploy-recorder','close-survivor'].includes(action?.type)||(action?.type==='deploy-operation'&&action.rememberSurvivors!==undefined)||(action?.type==='tactical'&&action.order?.type==='drop-recorder')))throw new Error('Invalid pre-survivor action')
-      const next = reduceCampaign(campaign, action)
-      if (next === campaign) throw new Error('Invalid action journal')
+      const step = { ...campaign, actions: journal.slice(-1) }
+      const next = reduceCampaign(step, action)
+      if (next === step) throw new Error('Invalid action journal')
+      if (next.actions.length > step.actions.length) journal.push(next.actions.at(-1)!)
+      else journal[journal.length - 1] = next.actions.at(-1)!
       campaign = next
     }
-    return { campaign, error: null }
+    return { campaign: { ...campaign, actions: journal }, error: null }
   } catch {
     return { campaign: null, error: 'The exploration save could not be read. It has been kept unchanged.' }
   }
 }
 export function saveExploration(state: Campaign, storage: StorageLike): boolean {
+  if (state.actions.length > MAX_JOURNAL_ACTIONS) return false
   try {
     storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify({ version: EXPLORATION_SAVE_VERSION,
       ruleset: state.ruleset, seed: state.seed, legacyActions: state.legacyActions, actions: state.actions }))

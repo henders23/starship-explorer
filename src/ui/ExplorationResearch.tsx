@@ -1,11 +1,15 @@
 import { survivorSummary } from '../engine/exploration/survivor-arc.js'
 import { useState } from 'react'
 import type { ReactNode } from 'react'
+import { useDialogDismiss } from './dialog.js'
+import { plural } from './plural.js'
 import { actionLock, buildLock, fitted, hasTech, researchProgress, researchRate, researchRequirements } from '../engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { BRANCHES, DRIVE_SEQUENCE, PROJECT_IDS, PROJECTS, SLOT_LIMITS, blueprintFor, buildName } from '../engine/exploration/research.js'
-import type { BuildId, ResearchBranch, Slot } from '../engine/exploration/research.js'
+import type { BuildId, ProjectId, ResearchBranch, Slot } from '../engine/exploration/research.js'
 
+/** Campaign days of activity until a project completes at the current work rate. */
+export const daysLeft = (state: Campaign, id: ProjectId) => Math.ceil((PROJECTS[id].days - researchProgress(state, id)) / researchRate(state))
 export function ResearchAction({ state, action, dispatch, children, primary = false, showReason = true }: {
   state: Campaign; action: CampaignAction; dispatch: (action: CampaignAction) => void; children: ReactNode; primary?: boolean; showReason?: boolean
 }) {
@@ -45,12 +49,12 @@ export function ExplorationResearch({ state, dispatch, onShowSystem }: {
       {state.built.includes('return-drive') && <div className="exp-notice">The Return Drive is ready. You can depart from any system when you choose. Use <strong>Return home</strong> in the command bar.</div>}
     </div>
     <button className="exp-lab-fold" aria-expanded={showQueue} onClick={() => setShowQueue(!showQueue)}>Research queue · {state.research.queue.length}/3 pending <span>{showQueue ? 'Hide queue' : 'Show queue'}</span></button>
-    {!showQueue && <p className="exp-compact-research">{active ? `${PROJECTS[active].name} · ${Math.ceil((PROJECTS[active].days - researchProgress(state, active)) / researchRate(state))} days remaining` : 'No active project'}</p>}
+    {!showQueue && <p className="exp-compact-research">{active ? `${PROJECTS[active].name} · ${daysLeft(state, active)} ${plural(daysLeft(state, active), 'day')} remaining` : 'No active project'}</p>}
     {showQueue && <section className="exp-research-queue" aria-label="Research queue">
       <div><span className="exp-eyebrow">ACTIVE RESEARCH / {researchRate(state)}× WORK RATE</span>
         <h3>{active ? PROJECTS[active].name : 'Laboratory available'}</h3>
         {active ? <><progress value={researchProgress(state, active)} max={PROJECTS[active].days} aria-label="Active research progress" />
-          <p>{researchProgress(state, active)} / {PROJECTS[active].days} work days · {Math.ceil((PROJECTS[active].days - researchProgress(state, active)) / researchRate(state))} activity days remaining</p>
+          <p>{researchProgress(state, active)} / {PROJECTS[active].days} work days · {daysLeft(state, active)} activity {plural(daysLeft(state, active), 'day')} remaining</p>
           {act({ type: 'pause-research' }, 'Pause active project', false, false)}</> : <p>Start a project or queue your next choices. Blocked queue entries wait; ready entries proceed in order.</p>}
       </div>
       <div><span className="exp-eyebrow">UP NEXT / {state.research.queue.length} OF 3</span>
@@ -77,7 +81,7 @@ export function ExplorationResearch({ state, dispatch, onShowSystem }: {
           {id === 'drive-stabilisation' && <p className="exp-prerequisite">Requires a completed prototype field test.</p>}
           {project.future ? <div className="exp-notice">{project.future}. Research is locked until it has a usable effect.</div> : <>
             <progress value={progress} max={project.days} aria-label={`${project.name} progress`} />
-            <div className="exp-project-meta"><span>{progress} / {project.days} work days</span><span>{Math.ceil((project.days - progress) / researchRate(state))} activity days remaining</span></div>
+            <div className="exp-project-meta"><span>{progress} / {project.days} work days</span><span>{daysLeft(state, id)} activity {plural(daysLeft(state, id), 'day')} remaining</span></div>
             <div className="exp-project-controls">{act({ type: 'research', project: id }, complete ? 'Research complete' : active === id ? 'Researching as you explore' : progress ? 'Resume research' : 'Begin research', true, !complete && active !== id)}
               {!complete && active !== id && act({ type: 'queue', project: id }, state.research.queue.includes(id) ? 'Queued' : 'Add to queue', false, false)}</div>
             {project.blueprint && complete && <div className="exp-blueprint">
@@ -109,7 +113,10 @@ export function ExplorationResearch({ state, dispatch, onShowSystem }: {
 }
 
 export function DriveTestScene({ state, dispatch }: { state: Campaign; dispatch: (action: CampaignAction) => void }) {
-  if (state.driveTest !== 'calibrating') return null
+  return state.driveTest === 'calibrating' ? <DriveTestDialog state={state} dispatch={dispatch} /> : null
+}
+function DriveTestDialog({ state, dispatch }: { state: Campaign; dispatch: (action: CampaignAction) => void }) {
+  useDialogDismiss(() => dispatch({ type: 'abort-drive-test' }))
   return <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Prototype field test">
     <span className="exp-eyebrow">RETURN DRIVE / FIELD TEST</span><h2>One small passage.</h2>
     <img className="exp-test-portrait" src="/assets/portraits/26_helen_morozova.png" alt="Helen Morozova" />
@@ -121,6 +128,7 @@ export function DriveTestScene({ state, dispatch }: { state: Campaign; dispatch:
   </section></div>
 }
 export function ReturnHomeScene({ state, dispatch, onClose }: { state: Campaign; dispatch: (action: CampaignAction) => void; onClose: () => void }) {
+  useDialogDismiss(onClose)
   return <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Return home confirmation">
     <span className="exp-eyebrow">ISS ITHACA / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Activating it ends this voyage. You can also stay and continue exploring.</p>
     {state.survivorArc&&state.survivorArc.stage!=='complete'&&<p>Someone left behind remains unfinished. You may return home without completing this request.</p>}
@@ -130,17 +138,18 @@ export function ReturnHomeScene({ state, dispatch, onClose }: { state: Campaign;
   </section></div>
 }
 export function ExplorationEnding({ state, onExit }: { state: Campaign; onExit: () => void }) {
+  const rescued = state.completedOperations.reduce((n, o) => n + o.survivors, 0)
   return <div className="exp-modal-backdrop"><section className="exp-modal exp-ending" role="dialog" aria-modal="true" aria-label="Voyage complete">
     <span className="exp-eyebrow">VOYAGE COMPLETE / DAY {state.day}</span><h2>A familiar sky.</h2>
     <p>At first, nobody says anything. Then the navigation console finds a star with a name the crew learned at school.</p>
     <p>Morozova checks the reading twice. Vale lets her finish. “Send our identification,” he says. “Tell them we’re home.”</p>
-    <div className="exp-ending-stats"><span><b>{state.visited.length}</b>systems visited</span><span><b>{state.findings.length}</b>scientific sources</span><span><b>{state.research.completed.length}</b>projects completed</span></div>
+    <div className="exp-ending-stats"><span><b>{state.visited.length}</b>{plural(state.visited.length, 'system')} visited</span><span><b>{state.findings.length}</b>scientific {plural(state.findings.length, 'source')}</span><span><b>{state.research.completed.length}</b>{plural(state.research.completed.length, 'project')} completed</span></div>
     <p>{state.findings.some((f) => f.sourceName) ? 'The knowledge shared by distant stations travelled home with you.' : 'The observations and recovered machinery that made the journey possible are secured in the science archive.'}</p>
-    {state.stories.length > 0 && <p>Your captain’s record holds {state.stories.length} decisions made beyond charted space.{state.lettersDelivered ? ' And 143 letters reached the people who had waited for them.' : state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') ? ' The Courier’s undelivered letters come home with you; their journey can finally end.' : ''}</p>}
+    {state.stories.length > 0 && <p>Your captain’s record holds {state.stories.length} {plural(state.stories.length, 'decision')} made beyond charted space.{state.lettersDelivered ? ' And 143 letters reached the people who had waited for them.' : state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') ? ' The Courier’s undelivered letters come home with you; their journey can finally end.' : ''}</p>}
     {state.survivorArc&&<p>{state.survivorArc.survivor.name}: {survivorSummary(state.survivorArc)} {state.survivorArc.stage!=='complete'?'The station conversation remains unfinished.':'The survivor heard your report.'}</p>}
     {state.relayArc && <p>{state.relayArc.stage==='complete' ? state.relayArc.approach==='repair' ? 'The Long Relay is working again. Tarek’s answer reached Edda, and the communities along the line have their connection back.' : 'Edda received Tarek’s private reply. The wider line remains broken, but the words meant for one family reached them.' : state.relayArc.stage==='accepted' ? 'Edda’s message remains aboard, unanswered. The promised visit to Tarek will have to wait.' : 'Tarek’s reply is still aboard. Edda never received the answer she hoped for.'}</p>}
-    {state.completedOperations.length > 0 && <p>{state.completedOperations.length} boarding contracts completed. {state.completedOperations.reduce((n,o) => n + o.survivors,0)} rescued surveyors have another chance to see their families.</p>}
-    {state.escortCompleted.length > 0 && <p>{state.escortCompleted.length} survey tenders reached their destinations under the Ithaca’s protection.</p>}
+    {state.completedOperations.length > 0 && <p>{state.completedOperations.length} boarding {plural(state.completedOperations.length, 'contract')} completed.{rescued > 0 && ` ${rescued} rescued ${plural(rescued, 'surveyor has', 'surveyors have')} another chance to see their families.`}</p>}
+    {state.escortCompleted.length > 0 && <p>{state.escortCompleted.length} survey {plural(state.escortCompleted.length, 'tender reached its destination', 'tenders reached their destinations')} under the Ithaca’s protection.</p>}
     {state.roster.some((o) => o.dead) && <p>The crew reads the names of those who did not return: {state.roster.filter((o) => o.dead).map((o) => o.name).join(', ')}.</p>}
     {state.roster.some((o) => o.missions > 0 && !o.dead) && <p>The shuttle crews bring their mission records home, too. Every return to the hangar mattered.</p>}
     <p>{hasTech(state, 'slipstream') ? 'Your navigators leave a chart of shortcuts for the next ship to follow.' : 'Every lane in the voyage log marks a place the Ithaca reached under her own power.'}</p>

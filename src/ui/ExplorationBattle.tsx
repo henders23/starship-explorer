@@ -7,6 +7,7 @@ import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
 import type { EnemyRoomKey } from '../engine/combat/ships.js'
 import './ship-battle.css'
+import { MuteButton } from './sound.js'
 
 export function EscortOffer({ state, locationId, dispatch }: { state: Campaign; locationId: string; dispatch: (a: CampaignAction) => void }) {
   const station = state.world.locations.find((s) => s.id === locationId)!
@@ -77,7 +78,7 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
   const activeWeapon = b.weapons[selectedWeapon]!
   return <main className="exp-deck space-battle">
     <header className="space-header"><div><span className="exp-eyebrow">ISS ITHACA / BATTLE STATIONS</span><h1>Keep the tender behind us.</h1><small>{cls.name} · {b.time}s elapsed · {saved ? 'Orders saved' : 'Autosave unavailable'}</small></div>
-      <div className="space-clock"><span className={running ? 'live' : ''}>{running ? 'LIVE' : 'PAUSED'}</span><button className="exp-button primary" onClick={() => setRunning(!running)}>{running ? 'Pause battle' : 'Resume battle'}</button><button className="exp-button" disabled={running} onClick={() => order({ type: 'advance', seconds: 1 })}>Advance 1 second</button><button className="exp-button" onClick={() => { setRunning(false); onExit() }}>Save & title</button></div>
+      <div className="space-clock"><span className={running ? 'live' : ''}>{running ? 'LIVE' : 'PAUSED'}</span><button className="exp-button primary" onClick={() => setRunning(!running)}>{running ? 'Pause battle' : 'Resume battle'}</button><button className="exp-button" disabled={running} onClick={() => order({ type: 'advance', seconds: 1 })}>Advance 1 second</button><MuteButton /><button className="exp-button" onClick={() => { setRunning(false); onExit() }}>Save & title</button></div>
     </header>
     <div className="space-guidance"><span>{running ? 'Orders take effect while the clock runs. Pause whenever you need.' : 'Clock stopped. Set targets and power, then resume or advance one second.'}</span>{b.escape && <strong>ESCAPE {Math.floor(b.escapeWork * 10)}% · engines need power</strong>}{button({ type: 'retreat', active: !b.escape }, b.escape ? 'Cancel retreat' : 'Charge retreat · engines required')}</div>
     {surrender && <div className="space-surrender"><p>Their hull is failing. The translator relays an offer to stand down.</p>{button({ type: 'accept-surrender' }, 'Accept surrender', true)}</div>}

@@ -6,15 +6,18 @@ import { storyAt } from '../engine/exploration/stories.js'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
-  actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted, researchProgress, researchRate, researchRequirements,
+  actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted, researchRequirements,
 } from '../engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { locationsAt } from '../engine/exploration/v2.js'
 import type { LocationKind } from '../engine/exploration/v2.js'
 import { REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import { saveExploration } from './exploration-save.js'
+import { browserStorage } from './save.js'
+import { MuteButton } from './sound.js'
+import { plural } from './plural.js'
 import { DRIVE_SEQUENCE, PROJECTS } from '../engine/exploration/research.js'
-import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
+import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding, daysLeft } from './ExplorationResearch.js'
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
@@ -64,8 +67,14 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       detailRef.current?.scrollIntoView({ block: 'start' })
   }, [selectedSite])
   useEffect(() => {
-    try { setSaved(saveExploration(state, window.localStorage)) } catch { setSaved(false) }
+    const storage = browserStorage()
+    try { setSaved(!!storage && saveExploration(state, storage)) } catch { setSaved(false) }
   }, [state])
+  // Leaving reloads the voyage from storage, so unsaved progress would vanish silently.
+  const exit = () => {
+    if (!saved && !window.confirm('This voyage could not be autosaved. Leaving now loses any progress that was not saved. Return to the title screen anyway?')) return
+    onExit()
+  }
   const dispatch = (action: CampaignAction) => {
     setState((current) => reduceCampaign(current, action))
     if (action.type === 'return-home') setReturnConfirm(false)
@@ -90,8 +99,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       title={lock ?? undefined} onClick={() => dispatch(action)}>{children}</button>
   }
 
-  if (state.shipBattle) return <ExplorationBattle state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
-  if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={onExit} saved={saved} />
+  if (state.shipBattle) return <ExplorationBattle state={state} dispatch={dispatch} onExit={exit} saved={saved} />
+  if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={exit} saved={saved} />
   return <main className="exp-deck" data-tab={tab}>
     <header className="exp-header" inert={modalOpen}>
       <div><span className="exp-eyebrow">ISS ITHACA / DEEP SPACE EXPEDITION</span><h1>Beyond the familiar</h1></div>
@@ -104,14 +113,14 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       </div>
       <button className="exp-button" onClick={() => { setDeploySite(null); setTeamOpen(true) }}>Away team</button>
       {driveReady && <button className="exp-button primary" onClick={() => setReturnConfirm(true)}>Return home</button>}
-      <button className="exp-button" onClick={onExit}>Title screen</button>
+      <button className="exp-button" onClick={exit}>Title screen</button>
     </header>
     <nav className="exp-nav" aria-label="Exploration stations" inert={modalOpen}>
       {(['system', 'galaxy', 'lab', 'archive'] as Tab[]).map((item, i) => <button key={item}
         aria-current={tab === item ? 'page' : undefined} onClick={() => setTab(item)}>
         <span>0{i + 1}</span>{ { system: 'Current system', galaxy: 'Galaxy chart', lab: 'Research lab', archive: 'Discoveries' }[item] }
       </button>)}
-      <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
+      <div className="exp-nav-tools"><span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span><MuteButton className="exp-text-button" /></div>
     </nav>
     <div className="exp-workspace" inert={modalOpen}>
       <aside className="exp-rail">
@@ -250,10 +259,10 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           </>}
         </>}
         {(tab === 'lab' || tab === 'archive') && <><span className="exp-eyebrow">LABORATORY STATUS</span><h2>{active ? PROJECTS[active].name : 'Ready for a new question.'}</h2>
-          <p>{active ? `${Math.ceil((PROJECTS[active].days - researchProgress(state, active)) / researchRate(state))} activity days remain. Keep exploring while the laboratory works.` : 'Assign a project or queue your next choices in the lab.'}</p>
+          <p>{active ? `${daysLeft(state, active)} activity ${plural(daysLeft(state, active), 'day')} remain. Keep exploring while the laboratory works.` : 'Assign a project or queue your next choices in the lab.'}</p>
           <p>Knowledge is never spent. Building hardware takes materials and credits; fitting it takes a free equipment slot.</p>
-          <p>{state.research.queue.length} projects queued. {state.driveTest === 'complete' ? 'Prototype field test complete.' : 'A successful prototype test will unlock Drive Stabilisation.'}</p></>}
-        <div className="exp-rule" /><span className="exp-eyebrow">VOYAGE RECORD</span><p>{state.visited.length} systems visited<br />{state.findings.length} {state.findings.length === 1 ? 'discovery' : 'discoveries'} recovered<br />{state.research.completed.length} projects completed</p>
+          <p>{state.research.queue.length} {plural(state.research.queue.length, 'project')} queued. {state.driveTest === 'complete' ? 'Prototype field test complete.' : 'A successful prototype test will unlock Drive Stabilisation.'}</p></>}
+        <div className="exp-rule" /><span className="exp-eyebrow">VOYAGE RECORD</span><p>{state.visited.length} {plural(state.visited.length, 'system')} visited<br />{state.findings.length} {state.findings.length === 1 ? 'discovery' : 'discoveries'} recovered<br />{state.research.completed.length} {plural(state.research.completed.length, 'project')} completed</p>
       </aside>
     </div>
     <footer className="exp-log" aria-live="polite" inert={modalOpen}><span>CAPTAIN’S LOG</span><p>{state.log.at(-1)}</p>
@@ -262,7 +271,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
     {returnConfirm && state.outcome !== 'home' && <ReturnHomeScene state={state} dispatch={dispatch} onClose={() => setReturnConfirm(false)} />}
-    {state.outcome === 'home' && <ExplorationEnding state={state} onExit={onExit} />}
+    {state.outcome === 'home' && <ExplorationEnding state={state} onExit={exit} />}
   </main>
 }
 
