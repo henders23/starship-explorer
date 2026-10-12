@@ -28,10 +28,16 @@ test('operatives animate along tile paths and capture real walking frames',async
   const frames=await page.evaluate(()=>(window as typeof window&{__frames?:Keyframe[]}).__frames)
   expect(frames?.length).toBeGreaterThanOrEqual(3)
   expect(frames?.at(-1)?.transform).not.toEqual(frames?.[0]?.transform)
+  await page.evaluate(()=>document.querySelector('.tactical-deck')?.scrollTo(0,0))
+  const poses=new Set<string>()
   for(const [i,fraction] of [0,.25,.5,.75,1].entries()){
     await page.evaluate(fraction=>{const animation=(window as typeof window&{__walk:Animation}).__walk;animation.currentTime=(animation.effect?.getTiming().duration as number)*fraction},fraction)
     await page.screenshot({path:info.outputPath(`walking-frame-${i}.png`),animations:'allow'})
+    poses.add(await page.getByTestId('tactical-unit-operative-0').locator('.tac-rig').evaluate(e=>(e as HTMLElement).style.backgroundPosition))
   }
+  expect(poses.size).toBeGreaterThan(1)
+  await page.emulateMedia({reducedMotion:'reduce'})
+  await expect(page.getByTestId('tactical-unit-operative-0')).not.toHaveClass(/moving/)
   expect(await page.evaluate(()=>document.documentElement.scrollWidth<=innerWidth)).toBe(true)
 })
 

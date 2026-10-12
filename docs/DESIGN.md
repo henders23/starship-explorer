@@ -306,3 +306,16 @@ defines the slice and its acceptance gates.
 Then invest in crew progression and faction arcs, followed by combat variety
 and presentation. Give players a reason to care about the next place before
 adding more places or equipment.
+
+## Survivor continuity and animated boarding — 12 October 2026
+
+The next implemented optional voyage is **Someone left behind**. A named person
+actually evacuated during a new rescue asks for the field team's last recorder.
+Its weight creates a tactical role: someone carries slowly while others cover
+the retreat. The captain can leave without it and must hear the survivor's
+response. Evidence, withdrawal and a lost team have honest distinct closeouts.
+The mission remains independent of the route home.
+
+Directional character rigs and modular metallic decks are now implemented;
+photorealistic cinematic fidelity and human playtesting remain unfinished.
+[Detailed scope and captures](ANIMATED-BOARDING-AND-SURVIVORS.md).

@@ -326,19 +326,18 @@ keyboard focus, reduced motion, no page errors, image decoding and overflow.
 Publish the tested tree, verify remote `main`, then deployment status. Do not
 reinterpret a green deployment as proof that every CI check has passed.
 
-## 10. Proposed next slice: The Long Relay
+## 10. Implemented next slice: The Long Relay
 
-**Not implemented.** [NEXT.md](NEXT.md) contains the scene/choice brief. This
+**Implemented in version 8.** [NEXT.md](NEXT.md) contains the original scene/choice brief. This
 section defines the minimal implementation contract, avoiding a generic quest
 framework before one real arc works.
 
-Proposed module: `src/engine/exploration/arcs.ts`. New optional state is absent
+Implemented module: `src/engine/exploration/arcs.ts`. New optional state is absent
 until an explicit `start-arc` action; do not auto-activate during replay of old
-`deliver-letters` actions. Candidate envelope version: 8, subject to a collision
-check against the then-current main branch.
+`deliver-letters` actions. The envelope version is 8; versions 1–7 continue to load.
 
 ```ts
-// Proposed types; not present in the shipping source.
+// Current types in the shipping source.
 type RelayStage = 'accepted' | 'relay-resolved' | 'complete';
 type RelayApproach = 'repair' | 'local-copy';
 interface RelayArc {
@@ -358,7 +357,7 @@ type ArcAction =
       choiceId: 'acknowledge' };
 ```
 
-Candidate eligibility: delivered Courier letters, current location a contacted
+Eligibility: delivered Courier letters, current location a contacted
 station, no active encounter/calibration, expedition ongoing, arc not already
 accepted. On start, bind the current station as origin and choose another
 reachable station using a new independent deterministic stream. Reveal the exact
@@ -371,7 +370,7 @@ The relay choice requires the bound destination to be contacted locally. Repair:
 relay stage and continue ordinary research. No payout or scientific finding at
 this stage. Reply acknowledgement requires a return to the origin station,
 advances zero days and pays 20 credits exactly once; it creates the branch-specific
-ending/captain's-record acknowledgement. These are proposed balance values.
+ending/captain's-record acknowledgement. These are the implemented balance values.
 
 The arc may be left pending indefinitely. Deferral is a UI close, not an action
 that pays, resets or advances anything. Homecoming is still allowed and describes
@@ -396,3 +395,22 @@ sweeps, old-journal comparisons and both-branch browser flows. No synthetic rewa
 injection as evidence of a playable arc. Save gates must reject arc orders under
 pre-feature envelopes. New art consists only of two contact portraits and one
 relay scene if existing assets cannot meet the composition/identity need.
+
+## 11. Implemented survivor callback and directional animation (12 October 2026)
+
+**Someone left behind** adds `accept-survivor`, `deploy-recorder`,
+`close-survivor`, and tactical `drop-recorder` orders. Save envelope 9 accepts
+older journals unchanged. New rescue deployments explicitly opt into named
+survivor tracking; historical rescues retain their original counts.
+
+A local contacted station binds one actual rescued survivor and one reachable
+recorder site. A separate tactical visit imposes carrier speed, transfer/drop,
+and two alarm-triggered reinforcements. Success requires a conscious carrier
+inside extraction. Retreat/loss are valid branch outcomes, never evidence
+success. The original station pays 24 credits once for evidence; other branches
+pay zero. No normal site reward is applied by the special debrief.
+
+Animation consumes canonical state but introduces no AP, damage, RNG or campaign
+clock changes. All seven rig atlases contain eight unmirrored directions. See
+[implementation and evidence](ANIMATED-BOARDING-AND-SURVIVORS.md) for pose schema,
+asset reproduction, acceptance coverage and remaining fidelity limitations.

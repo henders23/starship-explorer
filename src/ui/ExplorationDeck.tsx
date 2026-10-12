@@ -1,4 +1,7 @@
+import { SurvivorObjective, SurvivorStation, SurvivorArchive } from './SurvivorVoyage.js'
 import { ExplorationStory, LettersObjective } from './ExplorationStory.js'
+import { LongRelayObjective, LongRelayStation, LongRelayArchive } from './LongRelay.js'
+import { ExpeditionGalaxyChart } from './ExpeditionGalaxyChart.js'
 import { storyAt } from '../engine/exploration/stories.js'
 import { useEffect, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
@@ -115,6 +118,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span className="exp-eyebrow">CAPTAIN’S NEXT STEP</span>
         <h2>{advice}</h2><p>{adviceText}</p>
         <button className="exp-button" onClick={() => setTab('lab')}>Open research lab</button>
+        <SurvivorObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
+        <LongRelayObjective state={state} onLocate={(id)=>{setSelectedSystem(id);setTab('galaxy')}} />
         <LettersObjective state={state} />
         <div className="exp-rule" />
         <span className="exp-eyebrow">NEIGHBOURING SYSTEMS</span>
@@ -168,7 +173,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'galaxy' && <>
           <div className="exp-section-heading"><div><span className="exp-eyebrow">NAVIGATION</span><h2>Galaxy chart</h2></div>
             <label className="exp-search">Find system<input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Name or region" /></label></div>
-          <GalaxyChart state={state} selected={selectedSystem} onSelect={setSelectedSystem} />
+          <ExpeditionGalaxyChart state={state} selected={selectedSystem} onSelect={setSelectedSystem} />
           <p className="exp-chart-key"><span>◆ Ithaca</span> <span>● Visited</span> <span>○ Unvisited</span> Select a system to inspect its route.</p>
           <div className="exp-chart-list">
             {[...state.galaxy.systems].sort((a, b) => Number(!neighbourIds.includes(a.id)) - Number(!neighbourIds.includes(b.id))).filter((s) => `${s.name} ${REGION_NAMES[s.region]}`.toLowerCase().includes(query.toLowerCase())).map((system) =>
@@ -181,6 +186,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         {tab === 'archive' && <>
           <div className="exp-section-heading"><div><span className="exp-eyebrow">SCIENCE ARCHIVE</span><h2>What we brought back</h2></div><span>{state.findings.length} distinct sources</span></div>
           <LettersObjective state={state} />
+          <LongRelayArchive state={state} /><SurvivorArchive state={state} />
           {state.stories.length > 0 && <section className="exp-captains-record"><h3>Captain’s record</h3>{state.stories.map((record) => {
             const place = state.world.locations.find((s) => s.id === record.locationId)!
             const story = storyAt(state.seed, place)!, choice = story.choices.find((c) => c.id === record.choiceId)!
@@ -210,7 +216,9 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
           <div className="exp-officer"><img src="/assets/portraits/26_helen_morozova.png" alt="Helen Morozova" /><span>Helen Morozova<small>Science officer</small></span></div>
           <p>{state.exploration.statuses[site.id] === 'detected' ? 'We have a fix on the location. Investigate it to establish contact, assess the conditions and identify what can be recovered.' : site.name === 'The Silent Courier' ? 'Its crew shut down everything except the power cell. That cell has kept a tiny navigation beacon alive for decades. If we map its emissions, we can calibrate our sensors to recognise similar technology.' : SCENES[site.kind]}</p>
           {state.exploration.statuses[site.id] === 'detected' ? command({ type: 'investigate', locationId: site.id }, site.kind === 'station' ? 'Establish contact · 1 day' : 'Investigate · 1 day', true) : <>
-            {site.services.length > 0 ? <div className="exp-service-list"><h3>Station services</h3>
+            {site.services.length > 0 ? <div className="exp-service-list">
+              <SurvivorStation state={state} siteId={site.id} dispatch={dispatch} /><LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
+              <h3>Station services</h3>
               {command({ type: 'service', locationId: site.id, service: 'refuel' }, `Refuel +20 · ${stationPrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'repair' }, `Repair +20 · 5 materials + ${stationPrice(state)} credits · 1 day`)}
               {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
@@ -230,6 +238,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               <p className="exp-prerequisite">Both approaches recover the same science. Remote instruments avoid damage; rapid retrieval uses any fitted engineering tools to recover additional materials from ruins and derelicts.</p>
             </>}
           </>}
+          {state.survivorArc?.stage==='accepted'&&state.survivorArc.destinationId===site.id&&state.exploration.statuses[site.id]!=='detected'&&<section className="relay-conversation"><h3>Someone left behind</h3><p>The recorder is beyond a broken service partition. Recover it carefully, or withdraw. Carrying it limits movement to two tiles per AP and wakes two security reserves.</p><button className="exp-button" onClick={()=>{setDeploySite(site.id);setTeamOpen(true)}}>Prepare recorder recovery</button><small>No normal cargo or science from this return visit. Report to the survivor afterwards.</small></section>}
           <button className="exp-text-button" onClick={() => setSelectedSite(null)}>Leave this location</button>
         </> : <><span className="exp-eyebrow">SYSTEM OPERATIONS</span><h2>A place worth stopping.</h2><p>Select a contact to investigate it. A survey reveals quieter signals; a deep scan can uncover places your current instruments miss.</p><p>Locations persist when you travel. There is no countdown forcing you to leave.</p></>)}
         {tab === 'galaxy' && <><span className="exp-eyebrow">SELECTED DESTINATION</span><h2>{target.name}</h2><p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}</p>
@@ -257,25 +266,3 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   </main>
 }
 
-function GalaxyChart({ state, selected, onSelect }: { state: Campaign; selected: string; onSelect: (id: string) => void }) {
-  const systems = state.galaxy.systems
-  const minX = Math.min(...systems.map((s) => s.x)), maxX = Math.max(...systems.map((s) => s.x))
-  const minY = Math.min(...systems.map((s) => s.y)), maxY = Math.max(...systems.map((s) => s.y))
-  const point = (id: string) => {
-    const s = systems.find((system) => system.id === id)!
-    return { x: 35 + (s.x - minX) / (maxX - minX) * 830, y: 45 + (s.y - minY) / (maxY - minY) * 350 }
-  }
-  return <svg className="exp-map" viewBox="0 0 900 440" aria-label="Exploration galaxy map">
-    {state.galaxy.lanes.map(([a, b]) => { const p = point(a), q = point(b); return <line key={`${a}-${b}`} x1={p.x} y1={p.y} x2={q.x} y2={q.y} className={a === state.at || b === state.at ? 'adjacent' : ''} /> })}
-    {systems.map((s) => {
-      const p = point(s.id), current = s.id === state.at, chosen = s.id === selected
-      return <g key={s.id} role="button" tabIndex={0} aria-label={`Select ${s.name}`} onClick={() => onSelect(s.id)}
-        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.id) } }}>
-        <circle cx={p.x} cy={p.y} r={14} fill="transparent" />
-        <circle cx={p.x} cy={p.y} r={current ? 7 : 4} className={current ? 'current' : state.visited.includes(s.id) ? 'visited' : 'unvisited'} />
-        {chosen && <circle cx={p.x} cy={p.y} r={12} className="selected-ring" />}
-        {(current || chosen) && <text x={p.x} y={p.y - 20} textAnchor={p.x < 100 ? 'start' : p.x > 800 ? 'end' : 'middle'}>{current ? 'ITHACA · ' : ''}{s.name}</text>}
-      </g>
-    })}
-  </svg>
-}

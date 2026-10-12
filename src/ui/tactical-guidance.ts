@@ -18,7 +18,7 @@ export function movementPreview(m: Mission, unitId: string, destination: Point, 
 export function orderFeedback(before: Mission, after: Mission, action: TacticalAction): { title: string; details: string[] } | null {
   if (before === after) return null
   const unit = 'unitId' in action ? before.units.find((u)=>u.id===action.unitId) : undefined
-  let title = action.type === 'end-turn' ? 'Enemy turn resolved' : action.type === 'move' ? `${unit?.name} moved to ${action.x+1},${action.y+1}` : action.type === 'interact' ? interactionLabel(before) : action.type === 'shoot' ? after.lastShot?.hit ? 'Shot hit' : 'Shot missed' : action.type === 'heal' ? 'Medkit used' : action.type === 'aim' ? 'Aim set for this turn' : action.type === 'reload' ? 'Magazine reloaded' : action.type === 'overwatch' ? 'Overwatch set' : action.type === 'evacuate' ? 'Operative pulled aboard' : 'Extraction confirmed'
+  let title = action.type === 'drop-recorder' ? 'Recorder set down' : action.type === 'end-turn' ? 'Enemy turn resolved' : action.type === 'move' ? `${unit?.name} moved to ${action.x+1},${action.y+1}` : action.type === 'interact' ? interactionLabel(before) : action.type === 'shoot' ? after.lastShot?.hit ? 'Shot hit' : 'Shot missed' : action.type === 'heal' ? 'Medkit used' : action.type === 'aim' ? 'Aim set for this turn' : action.type === 'reload' ? 'Magazine reloaded' : action.type === 'overwatch' ? 'Overwatch set' : action.type === 'evacuate' ? 'Operative pulled aboard' : 'Extraction confirmed'
   const details: string[] = []
   for(const now of after.units) {
     const old=before.units.find((u)=>u.id===now.id)
@@ -34,7 +34,8 @@ export function orderFeedback(before: Mission, after: Mission, action: TacticalA
     details.unshift(`${shots} shot${shots===1?'':'s'} exchanged. ${after.outcome==='active'?`Turn ${after.turn}: your team can act.`:'The mission has ended.'}`)
   }
   if(action.type==='interact') {
-    if(after.operation?.kind==='sabotage')details.push('Uplink disabled. One reserve arrives next enemy turn.')
+    if(after.recorder)details.push('Recorder lifted. Carrier moves two tiles per AP, cannot sprint. Security reserves are alerted.')
+    else if(after.operation?.kind==='sabotage')details.push('Uplink disabled. One reserve arrives next enemy turn.')
     else if(after.operation?.kind==='salvage')details.push(`${after.operation.crates.filter((c)=>c.collected).length}/3 cases secured. You can extract now.`)
     else if(after.operation?.kind==='rescue') {
       const follower=after.operation.survivors.find((s)=>s.leader===action.unitId && !s.evacuated)

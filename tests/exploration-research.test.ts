@@ -7,7 +7,7 @@ import { createCampaign as oldCampaign, reduceCampaign as oldReduce } from '../s
 import { BRANCHES, DRIVE_SEQUENCE, PROJECT_IDS, PROJECTS } from '../src/engine/exploration/research.js'
 import type { ProjectId } from '../src/engine/exploration/research.js'
 import { locationsAt } from '../src/engine/exploration/v2.js'
-import { loadExploration, saveExploration, EXPLORATION_SAVE_KEY } from '../src/ui/exploration-save.js'
+import { loadExploration, saveExploration, EXPLORATION_SAVE_KEY, EXPLORATION_SAVE_VERSION } from '../src/ui/exploration-save.js'
 import { apply, runReturnVoyage, visit } from '../tools/exploration-walkthrough.js'
 
 function memory() {
@@ -260,7 +260,7 @@ describe('version-1 preview migration', () => {
     expect(storage.getItem(EXPLORATION_SAVE_KEY)).toBe(raw)
     const continued = apply(migrated, { type: 'research', project: 'drive-diagnostics' })
     saveExploration(continued, storage)
-    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(7)
+    expect(JSON.parse(storage.getItem(EXPLORATION_SAVE_KEY)!).version).toBe(EXPLORATION_SAVE_VERSION)
     expect(loadExploration(storage).campaign).toEqual(continued)
   })
 })

@@ -1,11 +1,15 @@
+import { recorderDestination, survivorSummary } from './survivor-arc.js'
+import type { RescuedPerson, SurvivorArc, SurvivorAction } from './survivor-arc.js'
 import { OPERATION_KINDS } from '../tactical/operations.js'
+import { relayDestination } from './arcs.js'
+import type { RelayArc, RelayAction } from './arcs.js'
 import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
 import { createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ShipBattle, ShipOrder } from './ship-battle.js'
-import { createMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
+import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
 import { createRng } from '../rng/prng.js'
 import { laneCost } from '../travel/travel.js'
@@ -20,6 +24,10 @@ import type { Campaign as LegacyCampaign, CampaignAction as LegacyAction } from 
 
 export interface Finding { locationId: string; kind: DiscoveryKind; day: number; systemId?: string; sourceName?: string }
 export interface Campaign {
+  rescuedPeople?: RescuedPerson[]
+  survivorArc?: SurvivorArc
+  /** Absent from legacy saves until the captain explicitly accepts the quest. */
+  relayArc?: RelayArc
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -39,7 +47,8 @@ export interface Campaign {
   actions: CampaignAction[]; log: string[]
 }
 export type CampaignAction =
-  | { type: 'deploy-operation'; locationId: string; squad: string[]; kind: OperationKind; variant?: DeckVariant }
+  | RelayAction | SurvivorAction
+  | { type: 'deploy-operation'; locationId: string; squad: string[]; kind: OperationKind; variant?: DeckVariant; rememberSurvivors?:true }
   | { type: 'loadout'; operativeId: string; weapon: OperativeLoadout['weapon']; gadget: OperativeLoadout['gadget'] }
   | { type: 'story'; locationId: string; choiceId: string }
   | { type: 'deliver-letters'; locationId: string }
@@ -179,6 +188,28 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
   if (state.mission && !['tactical', 'debrief'].includes(action.type)) return 'Extract or finish the away mission first'
   if (state.driveTest === 'calibrating' && !['complete-drive-test', 'abort-drive-test'].includes(action.type)) return 'Finish or abort the prototype test first'
   switch (action.type) {
+    case 'accept-survivor': {
+      if(state.survivorArc)return 'This request has already been accepted'
+      const person=state.rescuedPeople?.find(p=>p.id===action.personId)
+      if(!person)return 'No recorded rescued survivor has made this request'
+      const station=contacted(state,action.stationId)
+      if(!station||station.systemId!==state.at)return 'Speak at a contacted local station'
+      return recorderDestination(state,person)?null:'No reachable recorder site is available'
+    }
+    case 'deploy-recorder': {
+      const arc=state.survivorArc
+      if(!arc||arc.stage!=='accepted')return 'Accept the survivor’s request first'
+      const site=state.world.locations.find(s=>s.id===arc.destinationId)
+      if(site?.systemId!==state.at||!['investigated','resolved'].includes(state.exploration.statuses[site.id]??''))return 'Investigate the recorder site in person first'
+      if(!Array.isArray(action.squad)||action.squad.length!==4||new Set(action.squad).size!==4)return 'Choose four different operatives'
+      if(!action.squad.every(id=>state.roster.some(o=>o.id===id&&!o.dead&&o.injuredUntil<=state.day)))return 'Choose healthy, living operatives'
+      return state.exploration.materials<boardingLoadoutCost(state,action.squad)?'Insufficient materials for field equipment':null
+    }
+    case 'close-survivor': {
+      const arc=state.survivorArc
+      if(!arc||arc.stage!=='returned')return 'Complete the field visit before reporting back'
+      return contacted(state,arc.stationId)?.systemId===state.at?null:'Return to the survivor’s original station'
+    }
     case 'loadout': {
       if (!state.roster.some((o) => o.id === action.operativeId && !o.dead)) return 'Select a living operative'
       if (!['standard', 'plasma'].includes(action.weapon) || !['medkit', 'shield'].includes(action.gadget)) return 'Unknown equipment'
@@ -206,6 +237,33 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return state.at === state.galaxy.start ? 'Find a relay station in another system' : null
     }
 
+    case 'start-arc': {
+      if (action.arcId !== 'long-relay') return 'Unknown side voyage'
+      if (state.relayArc) return 'The Long Relay has already been accepted'
+      if (!state.lettersDelivered) return 'Deliver the Silent Courier letters first'
+      const origin=contacted(state,action.locationId)
+      if (!origin || origin.systemId!==state.at) return 'Speak to a contacted local station'
+      return relayDestination(state.galaxy,state.world,state.seed,origin.id) ? null : 'No reachable reply station is available'
+    }
+    case 'arc-choice': {
+      if (action.arcId !== 'long-relay') return 'Unknown side voyage'
+      const arc=state.relayArc
+      if (!arc) return 'Accept The Long Relay first'
+      if (action.beatId === 'relay') {
+        if (arc.stage!=='accepted') return 'This relay decision is already recorded'
+        const station=contacted(state,arc.destinationStationId)
+        if (!station || station.systemId!==state.at) return 'Contact Tarek’s destination station first'
+        if (action.choiceId!=='repair' && action.choiceId!=='local-copy') return 'Unknown relay decision'
+        return action.choiceId==='repair' && state.exploration.materials < 5 ? 'Requires 5 materials to repair the shared relay' : null
+      }
+      if (action.beatId === 'reply') {
+        if (action.choiceId!=='acknowledge') return 'Unknown reply decision'
+        if (arc.stage!=='relay-resolved') return 'Carry the reply back before acknowledging it'
+        const station=contacted(state,arc.originStationId)
+        return station?.systemId===state.at ? null : 'Return to Edda’s original station'
+      }
+      return 'Unknown story stage'
+    }
     case 'escort': {
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
@@ -218,6 +276,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return shipOrderLock(state.shipBattle, action.order)
     case 'ship-debrief': return state.shipBattle?.phase === 'report' ? null : 'Finish the encounter first'
     case 'deploy': case 'deploy-operation': {
+      if(action.type==='deploy-operation'&&action.rememberSurvivors!==undefined&&action.rememberSurvivors!==true)return 'Invalid survivor record option'
       if (action.type === 'deploy-operation' && !OPERATION_KINDS.includes(action.kind)) return 'Unknown operation'
       if (action.type === 'deploy-operation' && action.variant !== undefined && ![1,2,3].includes(action.variant)) return 'Unknown deck plan'
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
@@ -344,6 +403,23 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   let next: Campaign = { ...state, exploration: { ...state.exploration }, actions: [...state.actions, action] }
   let days = 0, message = ''
   switch (action.type) {
+    case 'accept-survivor': {
+      const person=state.rescuedPeople!.find(p=>p.id===action.personId)!
+      next.survivorArc={version:1,survivor:{...person},stationId:action.stationId,destinationId:recorderDestination(state,person)!,stage:'accepted',result:null,records:[{event:'Accepted the recorder request',day:state.day}]}
+      message=`${person.name}: “My field team sent one last signal. I would like to know what they were trying to tell us. But I am not asking you to lose anyone else.”`;break
+    }
+    case 'deploy-recorder': {
+      const site=state.world.locations.find(s=>s.id===state.survivorArc!.destinationId)!
+      next.mission=createRecorderMission(`${state.seed}:${site.id}:recorder:${state.missionAttempts}`,site.id,site.name,action.squad.map(id=>state.roster.find(o=>o.id===id)!),state.loadouts)
+      next.exploration.materials-=boardingLoadoutCost(state,action.squad);next.missionAttempts++
+      message='Recorder recovery deployed. No normal site cargo reward; the survivor will acknowledge your decision.';break
+    }
+    case 'close-survivor': {
+      const arc=state.survivorArc!
+      next.survivorArc={...arc,stage:'complete',records:[...arc.records,{event:'Reported to the survivor',day:state.day}]}
+      if(arc.result==='evidence')next.exploration.credits+=24
+      message=survivorSummary(next.survivorArc)+(arc.result==='evidence'?' The station pays 24 credits once for the safety record.':' No evidence payment.');break
+    }
     case 'loadout':
       next.loadouts = { ...state.loadouts, [action.operativeId]: { weapon: action.weapon, gadget: action.gadget } }
       message = `${state.roster.find((o) => o.id === action.operativeId)!.name}: ${action.weapon} weapon, ${action.gadget}. Field equipment is supplied at deployment.`; break
@@ -360,6 +436,32 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       days = 1; next.lettersDelivered = true; next.exploration.credits += 25
       message = 'The last post: the relay accepts all 143 letters. One recipient answers before we undock: “We kept the light on too.” Delivery commission: 25 credits.'; break
 
+    case 'start-arc': {
+      const destinationStationId=relayDestination(state.galaxy,state.world,state.seed,action.locationId)!
+      next.relayArc={version:1,id:'long-relay',originStationId:action.locationId,destinationStationId,
+        stage:'accepted',approach:null,records:[{beatId:'start',choiceId:'accept',day:state.day}]}
+      const destination=state.world.locations.find((site)=>site.id===destinationStationId)!
+      message='The Long Relay: Edda entrusts the Ithaca with an undelivered reply. Destination: '+destination.name+'.'
+      break
+    }
+    case 'arc-choice': {
+      const arc=state.relayArc!
+      if (action.beatId==='relay') {
+        days=action.choiceId==='repair'?2:3
+        if (action.choiceId==='repair') next.exploration.materials-=5
+        next.relayArc={...arc,stage:'relay-resolved',approach:action.choiceId,
+          records:[...arc.records,{beatId:'relay',choiceId:action.choiceId,day:state.day+days}]}
+        message=action.choiceId==='repair'
+          ? 'The Long Relay: the shared communications line works again. Tarek’s private reply is aboard; return to Edda.'
+          : 'The Long Relay: Tarek’s private reply is aboard. The shared line remains damaged; return to Edda.'
+      } else {
+        next.exploration.credits+=20
+        next.relayArc={...arc,stage:'complete',
+          records:[...arc.records,{beatId:'reply',choiceId:'acknowledge',day:state.day}]}
+        message='The Long Relay: Edda receives Tarek’s reply. Delivery commission: 20 credits.'
+      }
+      break
+    }
     case 'escort': {
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
@@ -396,6 +498,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       const site = state.world.locations.find((s) => s.id === action.locationId)!
       const args = [`${state.seed}:${site.id}:boarding:${state.missionAttempts}`, site.id, site.name, action.squad.map((id) => state.roster.find((o) => o.id === id)!), site.threat, state.loadouts] as const
       next.mission = action.type === 'deploy-operation' ? createOperation(...args, action.kind, action.variant) : createMission(...args)
+      if(action.type==='deploy-operation'&&action.rememberSurvivors)next.mission.operation!.rememberSurvivors=true
       next.exploration.materials -= boardingLoadoutCost(state, action.squad)
       next.missionAttempts++; message = action.type === 'deploy-operation' ? `${action.kind} operation deployed to ${site.name}. One campaign day passes on debrief.` : `Away team deployed to ${site.name}. Recover the core and extract. One campaign day passes when the team returns.`
       break
@@ -414,7 +517,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           xp: operative.xp + (!dead ? mission.outcome === 'success' ? 3 : 1 : 0),
           injuredUntil: !dead && unit.hp < unit.maxHp ? state.day + days + (hasTech(state, 'trauma-protocols') ? 2 : 4) : 0 }
       })
-      if (mission.outcome === 'success') {
+      if (mission.outcome === 'success'&&!mission.recorder) {
         next.exploration = reduceExploration(state.exploration, state.world, { type: 'resolve', locationId: site.id }, state.at)
         if (site.discovery) next.findings = [...state.findings, { locationId: site.id, kind: site.discovery, day: state.day + days }]
       }
@@ -423,9 +526,18 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         next.exploration = {...next.exploration, materials:next.exploration.materials + bonus.materials, credits:next.exploration.credits + bonus.credits}
         next.completedOperations = [...state.completedOperations, {locationId:site.id,kind:mission.operation.kind,survivors:mission.operation.survivors.filter((s) => s.evacuated).length,cases:mission.operation.crates.filter((c) => c.collected).length}]
       }
+      if(mission.operation?.rememberSurvivors&&mission.operation.kind==='rescue'){
+        const people=mission.operation.survivors.filter(s=>s.evacuated).map(s=>({id:`${site.id}:${s.id}`,name:s.name,rescueSiteId:site.id,day:state.day+days}))
+        next.rescuedPeople=[...(state.rescuedPeople??[]),...people.filter(p=>!state.rescuedPeople?.some(old=>old.id===p.id))]
+      }
+      if(mission.recorder&&state.survivorArc){
+        const result=mission.outcome==='success'?'evidence':mission.outcome==='defeat'?'lost':'withdrawn'
+        next.survivorArc={...state.survivorArc,stage:'returned',result,records:[...state.survivorArc.records,{event:result==='evidence'?'Recovered the recorder':result==='lost'?'Boarding team lost':'Withdrew without the recorder',day:state.day+days}]}
+      }
       const lost = mission.units.filter((u) => u.side === 'crew' && !mission.rescued.includes(u.id)).map((u) => u.name)
       message = `${mission.outcome === 'success' ? `Core recovered: ${site.reward?.materials ?? 0} materials, ${site.reward?.credits ?? 0} credits${site.discovery ? ' and a scientific discovery' : ''}.` : 'No cargo recovered; the site remains available.'} ${lost.length ? `Lost: ${lost.join(', ')}.` : 'All four operatives returned.'} Injured survivors recover aboard ship.`
       if (mission.operation) message = `${mission.operation.kind} ${mission.outcome}. ${mission.outcome === 'success' ? `Normal site cargo and science recovered. Operation bonus: ${bonus.materials} materials + ${bonus.credits} credits.` : 'No cargo or bonus; the site remains available.'} ${mission.operation.kind === 'rescue' ? `${mission.operation.survivors.filter((s) => s.evacuated).length}/2 civilians evacuated.` : ''} ${lost.length ? `Lost: ${lost.join(', ')}.` : 'All four operatives returned.'}`
+      if(mission.recorder)message=`${survivorSummary(next.survivorArc!)} ${lost.length?`Lost: ${lost.join(', ')}.`:'All operatives returned.'} No site cargo was awarded.`
       next.lastMission = mission; next.mission = null; break
     }
     case 'rest-team': days = 1; message = 'One day of medical care aboard the Ithaca. The laboratory continues its work.'; break

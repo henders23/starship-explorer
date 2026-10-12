@@ -4,6 +4,7 @@ import { actionLock } from '../engine/exploration/campaign.js'
 import { assignedPower, effectiveRoom, escortClass, evadeChance, REACTOR_POWER, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { ShipBattle, ShipOrder } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
+import { contactArtForClass } from './ship-contact-art.js'
 import type { EnemyRoomKey } from '../engine/combat/ships.js'
 import './ship-battle.css'
 
@@ -49,7 +50,7 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
     return <button className={`exp-button ${primary ? 'primary' : ''}`} disabled={!!lock} title={lock ?? undefined} onClick={() => order(a)}>{label}</button>
   }
   if (b.phase === 'contact') return <main className="exp-deck ship-contact"><section className="ship-contact-frame">
-    <div className="ship-contact-art"><img src={cls.sprite} alt={cls.name} /><span>CONTACT / {cls.layout.toUpperCase()} HULL</span></div>
+    <div className="ship-contact-art"><img className="reconstructed" data-testid="contact-recon-art" src={contactArtForClass(cls.id,cls.sprite)} alt={'Top-down sensor reconstruction of '+cls.name} /><span>SENSOR RECONSTRUCTION / {cls.layout.toUpperCase()} HULL</span></div>
     <div className="ship-contact-copy"><span className="exp-eyebrow">STATION SURVEY ESCORT / INTERCEPTION</span><h1>A ship across our bow.</h1><h2>{cls.name}</h2>
       <div className="ship-contact-stats"><span><b>{cls.hull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{cls.evade}%</b>evasion</span></div>
       <p>The tender’s captain keeps her voice level. “We can wait at the station. But if you’re taking us out, I need to know you can get us through.”</p>

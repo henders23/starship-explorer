@@ -1,8 +1,8 @@
-# Next design milestone — The Long Relay
+# Narrative milestone — The Long Relay
 
-**Proposed, not implemented · 11 October 2026**
+**Implemented · 11 October 2026.** The three stages, both choices, save-version 8 integration, objective card and ending acknowledgements are implemented. Automated journey/replay and browser checks are provided; independent human playtesting for comprehension and emotional impact remains outstanding.
 
-The next step is one memorable, connected story arc. The expedition already has
+This milestone introduces one memorable, connected story arc. The expedition already has
 working research, recovery, combat and return systems. Its larger weakness is
 that many choices end at the reward screen. A small arc with a remembered person
 and a later consequence is the best test of player interest before adding scale.
@@ -106,9 +106,28 @@ without help and at least three recalling a person's response. If testers are
 not available, publish only with that evidence gap stated; do not claim the
 interest target is achieved. Fix confusion before expanding the arc system.
 
-## After this slice
+## After this slice — current priorities
 
 Use what players remember to guide the next work: crew progression and one rescue
 follow-up, then the first faction-linked arc. Add tactical enemies/role abilities
 and directional animation once they support those situations. Broad release also
 requires long-journal safety, performance measurement and complete-run playtests.
+
+## Completion notes
+
+The implementation lives in `src/engine/exploration/arcs.ts`, with persistent state and action validation in `campaign.ts`; dialogue and the active objective are in `src/ui/LongRelay.tsx`. The canonical save envelope is version 8. Both resource branches, legal travel, reloading and completion are covered by `tests/long-relay.test.ts` and `e2e/long-relay.spec.ts`. No old voyage starts the arc without the player's decision.
+
+The next content milestone should be a **rescue-survivor callback** that makes an earlier crew extraction matter later in the galaxy, followed by one faction-linked encounter. For combat visual quality, track [cinematic combat work](https://github.com/henders23/starship-explorer/issues/18). These should remain optional until the previous stage has been playtested for comprehension.
+
+## 12 October follow-up
+
+**Someone left behind** is now implemented, with actual survivor identity,
+fragile-recorder carrying, two alarm-triggered reserves and evidence/withdrawal/
+loss closeouts. Directional rig-rendered soldiers and modular deck assets have
+also replaced the clipped-leg approximation. See
+[the milestone record](ANIMATED-BOARDING-AND-SURVIVORS.md).
+
+Next: observe first-time players on this short arc, improve character/deck art
+towards the cinematic reference and animate civilian escorts, then design one
+faction-linked consequence. Do not mark issue #18's fidelity target complete
+from automated tests alone.
