@@ -1,4 +1,5 @@
 import { expect, test } from '@playwright/test'
+import { briefing } from './helpers.js'
 import { preparedTeam } from '../tools/loadout-walkthrough.js'
 import { EXPLORATION_SAVE_KEY, saveExploration } from '../src/ui/exploration-save.js'
 for (const mobile of [false, true]) test(`research unlocks equipment that persists into ${mobile ? 'mobile' : 'desktop'} combat`, async ({ page }, info) => {
@@ -10,6 +11,7 @@ for (const mobile of [false, true]) test(`research unlocks equipment that persis
   await page.goto('/')
   await page.getByRole('button', { name: 'Resume expedition' }).click()
   await page.getByRole('button', { name: /The Silent Courier/ }).click()
+  await briefing(page)
   await page.getByRole('button', { name: 'Board with away team · tactical mission' }).click()
   await page.getByRole('combobox', { name: 'Mara Chen weapon' }).selectOption('plasma')
   await page.getByRole('combobox', { name: 'Mara Chen gadget' }).selectOption('shield')
@@ -20,12 +22,14 @@ for (const mobile of [false, true]) test(`research unlocks equipment that persis
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= innerWidth)).toBe(true)
   await page.getByRole('combobox', { name: 'Mission contract' }).selectOption('core')
   await page.getByRole('button', { name: 'Deploy away team', exact: true }).click()
-  await expect(page.locator('.tac-orders')).toContainText('5 damage · PLASMA · 4/4 SHIELD')
-  await expect(page.locator('.tac-orders')).toContainText('2/2 ammunition')
+  // Stats are segmented bars; their values are announced.
+  await expect(page.getByRole('meter', { name: 'Damage' })).toHaveAttribute('aria-valuetext', '5 damage · plasma')
+  await expect(page.getByRole('meter', { name: 'Shield' })).toHaveAttribute('aria-valuetext', '4/4 shield')
+  await expect(page.getByRole('meter', { name: 'Ammunition' })).toHaveAttribute('aria-valuetext', '2/2 ammunition')
   await page.screenshot({ path: info.outputPath('equipped-boarding.png'), fullPage: true })
   await page.reload()
   await page.getByRole('button', { name: 'Resume expedition' }).click()
-  await expect(page.locator('.tac-orders')).toContainText('4/4 SHIELD')
+  await expect(page.getByRole('meter', { name: 'Shield' })).toHaveAttribute('aria-valuetext', '4/4 shield')
   await page.getByRole('button', { name: 'Extract team', exact: true }).click()
   await page.getByRole('button', { name: 'Confirm safe extraction' }).click()
   await page.getByRole('button', { name: 'Return to the Ithaca' }).click()

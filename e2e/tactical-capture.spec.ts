@@ -13,9 +13,7 @@ for (const width of [1440, 390]) test(`capture live boarding combat at ${width}p
   await page.getByRole('button', { name: 'Resume expedition' }).click()
   await expect(page.getByRole('region', { name: 'Tactical map' })).toBeVisible()
   await page.getByRole('button', { name: 'Tile 3,4', exact: true }).click()
-  await page.getByRole('button', { name: 'Move · 1 AP', exact: true }).click()
-  await page.getByRole('button', { name: /Custodian 1.*HP/ }).click()
-  await page.getByRole('button', { name: 'Fire · 1 AP', exact: true }).click()
+  await page.getByRole('button', { name: 'Target Custodian 1', exact: true }).click()
   await expect(page.getByRole('status', { name: 'Last order' })).toContainText(/Shot hit|Shot missed/)
   // The game scrolls its own deck. Capture the tactical viewport, not the
   // order inspector simply because Playwright scrolled to the Fire button.

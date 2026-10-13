@@ -14,7 +14,7 @@ import { sceneOrder } from './tactical-scene.js'
  * remains serialisable and is never delayed by sprite motion or reduced motion.
  * The moving sprite follows the actual A* / BFS tile route where available.
  */
-function UnitFigure({unit,m,chosen,onChoose,firing,speed}:{unit:TacticalUnit;m:Mission;chosen:boolean;onChoose:()=>void;firing:boolean;speed:number}) {
+function UnitFigure({unit,m,chosen,onChoose,onHover,firing,speed}:{unit:TacticalUnit;m:Mission;chosen:boolean;onChoose:(immediate:boolean)=>void;onHover:()=>void;firing:boolean;speed:number}) {
   const p=point(unit),ally=unit.side==='crew'
   const node=useRef<SVGGElement>(null)
   const previous=useRef<{mission:Mission;unit:TacticalUnit}|null>(null)
@@ -86,7 +86,8 @@ function UnitFigure({unit,m,chosen,onChoose,firing,speed}:{unit:TacticalUnit;m:M
   return <g ref={node} data-testid={`tactical-unit-${unit.id}`} className={`tac-animated-unit ${ally?'crew':'hostile'}`}
     style={{transform:`translate(${p.x}px, ${p.y}px)`}}
     role="button" tabIndex={0} aria-label={`${ally?'Select':'Target'} ${unit.name}`}
-    onClick={onChoose} onKeyDown={(e)=>{if(['Enter',' '].includes(e.key)){e.preventDefault();onChoose()}}}>
+    onPointerEnter={onHover} onFocus={onHover}
+    onClick={(e)=>onChoose(finePointer(e.nativeEvent))} onKeyDown={(e)=>{if(['Enter',' '].includes(e.key)){e.preventDefault();onChoose(true)}}}>
     {(unit.shield??0)>0 && <ellipse className="tac-shield" cy={-24} rx={22} ry={32} fill="#6bcbe511" stroke="#83d6f0" strokeDasharray="3 3" pointerEvents="none"/>}
     <ellipse className="tac-foot-shadow" pointerEvents="none" cy={2} rx={18} ry={9} fill="#0009" stroke={chosen?'#f6eacb':'none'} strokeWidth={2}/>
     {chosen&&unit.hp>0&&<ellipse className="tac-selection-ring" cy={4} rx={24} ry={12} fill="none" stroke={ally?'#a8f0d9':'#ffb58b'} strokeWidth={1.5} pointerEvents="none"/>}
@@ -95,13 +96,20 @@ function UnitFigure({unit,m,chosen,onChoose,firing,speed}:{unit:TacticalUnit;m:M
   </g>
 }
 
-export function TacticalBoard({m,unitId,sprint,destination,onDestination,selected,targetId,onSelect,onTarget,loadedRolls,activeActor,playbackSpeed=1}:{m:Mission;unitId:string;sprint:boolean;destination:Point|null;onDestination:(p:Point)=>void;selected:string;targetId:string|null;onSelect:(id:string)=>void;onTarget:(id:string)=>void;loadedRolls:number;activeActor?:string;playbackSpeed?:number}) {
+/** A mouse click or keypress acts at once; a tap first previews, and a second tap acts. */
+const finePointer = (event: MouseEvent) => !('pointerType' in event) || !['touch', 'pen'].includes(String((event as PointerEvent).pointerType))
+
+/**
+ * Hovering (or focusing) a floor tile previews a move; hovering an enemy
+ * previews a shot. Clicking carries the order out.
+ */
+export function TacticalBoard({m,unitId,sprint,destination,onHoverTile,onTile,selected,targetId,onSelect,onHoverTarget,onTarget,onLeave,loadedRolls,activeActor,playbackSpeed=1}:{m:Mission;unitId:string;sprint:boolean;destination:Point|null;onHoverTile:(p:Point)=>void;onTile:(p:Point,immediate:boolean)=>void;selected:string;targetId:string|null;onSelect:(id:string)=>void;onHoverTarget:(id:string)=>void;onTarget:(id:string,immediate:boolean)=>void;onLeave:()=>void;loadedRolls:number;activeActor?:string;playbackSpeed?:number}) {
   const crew=m.units.filter((u)=>u.side==='crew'),unit=m.units.find((u)=>u.id===unitId)!
   const path=destination?pathTo(m,unit,destination):null
   const legal=destination && !tacticalLock(m,{type:'move',unitId,...destination,sprint})
   const target=m.units.find((u)=>u.id===targetId && u.side==='hostile' && u.hp>0 && visible(m,u))
   const canShoot=target && shotInfo(m,unit,target).possible
-  return <svg viewBox="0 0 720 420" className="tac-board" aria-label="Isometric boarding deck">
+  return <svg viewBox="0 0 720 420" className="tac-board" aria-label="Isometric boarding deck" onPointerLeave={(e)=>{if(e.pointerType==='mouse')onLeave()}}>
     <defs>
       <radialGradient id="deck-glow"><stop stopColor="#183941"/><stop offset="1" stopColor="#08131c"/></radialGradient>
       <linearGradient id="bulkhead-top" x2="0" y2="1"><stop stopColor="#74919c"/><stop offset="1" stopColor="#3b5260"/></linearGradient>
@@ -139,7 +147,7 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       <path d="M 41 202 L 400 394 L 699 235" stroke="#c79a61" strokeWidth="1.4" strokeDasharray="18 8 3 8" opacity=".65" fill="none"/>
     </g>
     <DeckArchitecture m={m}/>
-    <BoardTiles m={m} unitId={unitId} sprint={sprint} destination={destination} onDestination={onDestination}/>
+    <BoardTiles m={m} unitId={unitId} destination={destination} onHover={onHoverTile} onTile={onTile}/>
     {path && <g pointerEvents="none" data-testid="movement-route"><polyline points={[unit,...path].map((p)=>`${point(p).x},${point(p).y}`).join(' ')} fill="none" stroke={legal?'#c3fff0':'#edb18f'} strokeWidth={2} strokeDasharray={legal?undefined:'4 4'}/>{path.map((p,i)=><circle key={i} cx={point(p).x} cy={point(p).y} r={2.5} fill={legal?'#c3fff0':'#edb18f'}/>)}</g>}
     <g data-testid="depth-objects">{sceneOrder(m).map((item)=>{
       const p=point(item.p)
@@ -147,7 +155,7 @@ export function TacticalBoard({m,unitId,sprint,destination,onDestination,selecte
       if(item.kind==='obstacle')node=<Obstacle m={m} p={item.p}/>
       if(item.kind==='unit') {
         const u=m.units[item.index]!,ally=u.side==='crew'
-        node=<UnitFigure speed={playbackSpeed} unit={u} m={m} firing={!!(m.lastShot&&m.rolls>loadedRolls&&m.lastShot.from.x===u.x&&m.lastShot.from.y===u.y)} chosen={activeActor?activeActor===u.id:ally?selected===u.id:targetId===u.id} onChoose={()=>ally?onSelect(u.id):onTarget(u.id)}/>
+        node=<UnitFigure speed={playbackSpeed} unit={u} m={m} firing={!!(m.lastShot&&m.rolls>loadedRolls&&m.lastShot.from.x===u.x&&m.lastShot.from.y===u.y)} chosen={activeActor?activeActor===u.id:ally?selected===u.id:targetId===u.id} onHover={()=>{if(!ally)onHoverTarget(u.id)}} onChoose={(immediate)=>ally?onSelect(u.id):onTarget(u.id,immediate)}/>
       }
       if(item.kind==='survivor')node=<g pointerEvents="none" transform={`translate(${p.x} ${p.y})`}><ellipse rx={15} ry={8} fill="#242331" stroke="#edc4fa"/><image href="/assets/exploration/tactical-survivor.webp" x={-30} y={-53} width={60} height={60}/></g>
       if(item.kind==='crate') {
@@ -180,22 +188,24 @@ function Obstacle({m,p}:{m:Mission;p:Point}) {
   </g>
 }
 
-function BoardTiles({ m, unitId, sprint, destination, onDestination }: { m: Mission; unitId: string; sprint: boolean; destination: Point | null; onDestination: (p: Point) => void }) {
+function BoardTiles({ m, unitId, destination, onHover, onTile }: { m: Mission; unitId: string; destination: Point | null; onHover: (p: Point) => void; onTile: (p: Point, immediate: boolean) => void }) {
   const u = m.units.find((unit) => unit.id === unitId)!
   return <>{Array.from({ length: m.width * m.height }, (_, n) => ({ x: n % m.width, y: Math.floor(n / m.width) })).sort((a, b) => a.x + a.y - b.x - b.y).map((p) => {
     const known = m.seen.includes(p.y * m.width + p.x), lit = visible(m, p), tile = tileAt(m, p), q = point(p), chosen = destination?.x === p.x && destination?.y === p.y
-    const lock = known && tile === 'floor' ? tacticalLock(m, { type: 'move', unitId, ...p, sprint }) : 'Unknown or blocked'
-    const reachable = !lock && u.hp > 0
+    const floor = known && tile === 'floor'
+    const walk = floor && !tacticalLock(m, { type: 'move', unitId, ...p, sprint: false })
+    const reachable = u.hp > 0 && (walk || (floor && !tacticalLock(m, { type: 'move', unitId, ...p, sprint: true })))
     return <g key={`${p.x}-${p.y}`}>
-      <polygon id={`tile-${p.x}-${p.y}`} points={diamond(p)} fill={!known ? '#09121a' : inExtraction(p) ? '#164941' : chosen ? '#5c8771' : reachable ? '#254955' : lit ? 'url(#deck-steel)' : '#111e28'} stroke={m.operation?.kind === 'salvage' && p.x >= 4 && known ? m.turn >= 4 ? '#cb694e' : '#85613f' : !known ? '#13222c' : '#42606a'} strokeWidth={0.7}
-        role={known && tile === 'floor' ? 'button' : undefined} tabIndex={known && tile === 'floor' ? 0 : undefined} aria-label={`Tile ${p.x + 1},${p.y + 1}${inExtraction(p) ? ' shuttle' : ''}`}
-        onClick={() => { if (known && tile === 'floor') onDestination(p) }} onKeyDown={(e) => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); onDestination(p) }
+      <polygon id={`tile-${p.x}-${p.y}`} points={diamond(p)} fill={!known ? '#09121a' : inExtraction(p) ? '#164941' : chosen ? '#5c8771' : walk ? '#254955' : reachable ? '#1d3a45' : lit ? 'url(#deck-steel)' : '#111e28'} stroke={m.operation?.kind === 'salvage' && p.x >= 4 && known ? m.turn >= 4 ? '#cb694e' : '#85613f' : !known ? '#13222c' : '#42606a'} strokeWidth={0.7}
+        role={floor ? 'button' : undefined} tabIndex={floor ? 0 : undefined} aria-label={`Tile ${p.x + 1},${p.y + 1}${inExtraction(p) ? ' shuttle' : ''}`}
+        onPointerEnter={() => { if (floor) onHover(p) }} onFocus={() => { if (floor) onHover(p) }}
+        onClick={(e) => { if (floor) onTile(p, finePointer(e.nativeEvent)) }} onKeyDown={(e) => { if (['Enter', ' '].includes(e.key)) { e.preventDefault(); if (floor) onTile(p, true) }
           const d: Record<string, Point> = { ArrowLeft: { x: -1, y: 0 }, ArrowRight: { x: 1, y: 0 }, ArrowUp: { x: 0, y: -1 }, ArrowDown: { x: 0, y: 1 } }; if (d[e.key]) { e.preventDefault(); document.getElementById(`tile-${p.x + d[e.key]!.x}-${p.y + d[e.key]!.y}`)?.focus() } }} />
       {known && tile === 'floor' && <g pointerEvents="none" opacity={lit ? 1 : .42}>
         <image href={`/assets/tactical/deck-${m.operation?.kind==='rescue'&&p.x>3?'floor-medical':m.operation?.kind==='salvage'?'floor-warning':(p.x+p.y)%3===0?'floor-grate':'floor'}.webp`} x={q.x-36} y={q.y-48} width={72} height={72}/>
         {m.recorder && p.y===1 && p.x>2 && <path d={`M ${q.x-23} ${q.y-12} l 45 24`} stroke="#d4ae6a" strokeWidth="2" opacity=".48"/>}
         {m.recorder && p.x===4 && p.y===8 && <text transform={`matrix(.86 .46 -.86 .46 ${q.x} ${q.y})`} fontSize={7} fill="#b4c0b9" letterSpacing={1}>ARCHIVE / 04</text>}
-        {(reachable||inExtraction(p)||chosen)&&<polygon points={diamond(p)} fill={chosen?'#bbf9d855':inExtraction(p)?'#4be7b344':'#6ddddd18'} stroke={chosen?'#b2f4d0':'none'}/>}
+        {(reachable||inExtraction(p)||chosen)&&<polygon points={diamond(p)} fill={chosen?'#bbf9d855':inExtraction(p)?'#4be7b344':walk?'#6ddddd18':'#6ddddd0b'} stroke={chosen?'#b2f4d0':'none'}/>}
         {(p.x * 13 + p.y * 17) % 7 === 0 && <polygon points={diamond(p)} fill="url(#deck-grating)" opacity=".65" />}
         {(p.x * 5 + p.y * 3) % 8 === 0 && <g strokeWidth=".9" strokeOpacity=".65" stroke={inExtraction(p)?'#9ce4c7':'#9daaad'}><path d={`M ${q.x-11} ${q.y-1} L ${q.x-3} ${q.y-5} M ${q.x+6} ${q.y+4} L ${q.x+14} ${q.y}`}/><path d={`M ${q.x-11} ${q.y+1} L ${q.x-3} ${q.y-3}`} strokeOpacity=".2"/></g>}
         {(p.x * 9 + p.y * 7) % 12 === 0 && <path d={`M ${q.x-9} ${q.y-2} l 7 4 M ${q.x+6} ${q.y-6} l 7 4`} stroke="#d8a575" strokeWidth={1} strokeOpacity=".4" />}

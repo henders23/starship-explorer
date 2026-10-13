@@ -3,6 +3,16 @@ import { deployBoarding } from '../tools/tactical-walkthrough.js'
 import { completeOperation } from '../tools/operation-walkthrough.js'
 import { reduceCampaign } from '../src/engine/exploration/campaign.js'
 import { EXPLORATION_SAVE_KEY, saveExploration } from '../src/ui/exploration-save.js'
+import { tacticalLock } from '../src/engine/tactical/mission.js'
+import type { Mission } from '../src/engine/tactical/mission.js'
+
+/** A floor tile the first operative can reach only by sprinting. */
+function sprintTile(m: Mission) {
+  const unitId = m.units[0]!.id
+  for (let y = 0; y < m.height; y++) for (let x = 0; x < m.width; x++)
+    if (tacticalLock(m, { type: 'move', unitId, x, y, sprint: false }) && !tacticalLock(m, { type: 'move', unitId, x, y, sprint: true })) return `Tile ${x + 1},${y + 1}`
+  throw new Error('No sprint-only tile')
+}
 
 for(const width of [1440,390])test(`movement preview, targeting and combat feedback at ${width}px`,async({page},info)=>{
   await page.setViewportSize({width,height:900})
@@ -12,26 +22,26 @@ for(const width of [1440,390])test(`movement preview, targeting and combat feedb
   let raw='';saveExploration(initial,{getItem:()=>null,removeItem:()=>{},setItem:(_,v)=>{raw=v}})
   await page.addInitScript(({key,raw})=>{if(!localStorage.getItem(key))localStorage.setItem(key,raw)},{key:EXPLORATION_SAVE_KEY,raw})
   await page.goto('/');await page.getByRole('button',{name:'Resume expedition'}).click()
-  await page.getByRole('button',{name:'Tile 3,4',exact:true}).click()
+  // Hovering previews; nothing is ordered until a click.
+  await page.getByRole('button',{name:'Tile 3,4',exact:true}).hover()
   const preview=page.locator('.tac-move-preview')
   await expect(preview).toContainText('1 AP → 1 AP left')
   await expect(preview).toContainText('Unseen threats are not included')
   await expect(page.getByTestId('movement-route')).toBeVisible()
-  await page.getByRole('checkbox',{name:/Sprint/}).check()
+  // A tile beyond a walk is a sprint.
+  await page.getByRole('button',{name:sprintTile(initial.mission!),exact:true}).hover()
   await expect(preview).toContainText('2 AP → 0 AP left')
   await expect(preview).toContainText('cannot fire or interact')
   expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).actions.length,EXPLORATION_SAVE_KEY)).toBe(initial.actions.length)
-  await page.getByRole('button',{name:'Cancel move',exact:true}).click()
+  await page.mouse.move(2,2)
   await expect(preview).toHaveCount(0)
-  await page.getByRole('checkbox',{name:/Sprint/}).uncheck()
-  await page.getByRole('button',{name:'Tile 3,4',exact:true}).click()
-  await preview.scrollIntoViewIfNeeded()
+  await page.getByRole('button',{name:'Tile 3,4',exact:true}).hover()
   await page.screenshot({path:info.outputPath('movement-preview.png'),fullPage:true})
-  await page.getByRole('button',{name:'Move · 1 AP',exact:true}).click()
+  await page.getByRole('button',{name:'Tile 3,4',exact:true}).click()
   await expect(page.getByRole('status',{name:'Last order'})).toContainText('1 AP spent. 1 AP left.')
-  await page.getByRole('button',{name:/Custodian 1.*HP/}).click()
+  await page.getByRole('button',{name:'Target Custodian 1',exact:true}).hover()
   await expect(page.getByTestId('target-line')).toBeVisible()
-  await page.getByRole('button',{name:'Fire · 1 AP',exact:true}).click()
+  await page.getByRole('button',{name:'Target Custodian 1',exact:true}).click()
   await expect(page.getByRole('status',{name:'Last order'})).toContainText(/Shot hit|Shot missed/)
   await page.getByRole('button',{name:'End turn · hostiles act',exact:true}).click()
   await expect(page.getByRole('status',{name:'Last order'})).toContainText('Enemy turn resolved')
@@ -49,10 +59,7 @@ test('nearer bulkheads occlude figures while status marks remain above the scene
   saveExploration(s,{getItem:()=>null,removeItem:()=>{},setItem:(_,v)=>{raw=v}})
   await page.addInitScript(({key,raw})=>localStorage.setItem(key,raw),{key:EXPLORATION_SAVE_KEY,raw})
   await page.goto('/');await page.getByRole('button',{name:'Resume expedition'}).click()
-  for(const tile of ['Tile 3,2','Tile 4,2']){
-    await page.getByRole('button',{name:tile,exact:true}).click()
-    await page.getByRole('button',{name:'Move · 1 AP',exact:true}).click()
-  }
+  for(const tile of ['Tile 3,2','Tile 4,2'])await page.getByRole('button',{name:tile,exact:true}).click()
   const order=await page.getByTestId('depth-objects').locator(':scope > g').evaluateAll(nodes=>nodes.map(n=>n.getAttribute('data-object-id')))
   expect(order.indexOf('operative-0')).toBeLessThan(order.indexOf('obstacle-27'))
   expect(await page.getByTestId('depth-objects').evaluate(el=>Boolean(el.compareDocumentPosition(document.querySelector('[data-testid="tactical-status-marks"]')!)&Node.DOCUMENT_POSITION_FOLLOWING))).toBe(true)
@@ -67,12 +74,11 @@ test('salvage heat preview matches actual end-turn damage',async({page},info)=>{
   let raw='';saveExploration(state,{getItem:()=>null,removeItem:()=>{},setItem:(_,v)=>{raw=v}})
   await page.addInitScript(({key,raw})=>localStorage.setItem(key,raw),{key:EXPLORATION_SAVE_KEY,raw})
   await page.goto('/');await page.getByRole('button',{name:'Resume expedition'}).click()
-  await page.getByRole('button',{name:'Tile 5,4',exact:true}).click()
+  await page.getByRole('button',{name:'Tile 5,4',exact:true}).hover()
   await expect(page.locator('.tac-move-preview')).toContainText('End-turn heat here: −2 health')
   await expect(page.locator('.tac-move-preview')).toContainText('Shields do not protect')
-  await page.locator('.tac-move-preview').scrollIntoViewIfNeeded()
   await page.screenshot({path:info.outputPath('heat-preview.png'),fullPage:true})
-  await page.getByRole('button',{name:'Move · 1 AP',exact:true}).click()
+  await page.getByRole('button',{name:'Tile 5,4',exact:true}).click()
   await page.getByRole('button',{name:'End turn · hostiles act',exact:true}).click()
   await expect(page.getByRole('status',{name:'Last order'})).toContainText('Mara Chen: −2 health.')
 })

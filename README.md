@@ -1,4 +1,4 @@
-# Starship Ithaca
+# Starship Explorer
 
 **Explore strange worlds. Bring your people back. Build a way home.**
 
@@ -11,25 +11,37 @@ when you are ready to leave.
 
 ## Play the current game
 
-Choose **Begin expedition** under **Open Expedition** on the title screen.
-**Resume expedition** continues its browser autosave. Enter a galaxy seed to
-revisit the same generated world.
+Choose **Begin expedition** on the title screen. **Resume expedition**
+continues its browser autosave. Enter a galaxy seed to revisit the same
+generated world.
 
-1. Start **Drive Diagnostics** so research advances while you explore. Tick
-   **Continue the route home automatically** in the lab if you want each later
-   drive project to start by itself once its requirements are met.
-2. Survey the arrival system and investigate **The Silent Courier**.
-3. Choose a story response and recover its scientific discovery. Remote recovery
-   is available; tactical boarding is optional.
-4. Follow research leads (listed nearest first), visit stations and collect
-   independent spatial or propulsion discoveries. Select any system on the chart
-   and choose **Travel the route** to fly every jump in one order; the course
-   pauses if research completes on the way.
+Every expedition screen shares one slim bar: the four stations (**Current
+system**, **Galaxy chart**, **Research lab**, **Discoveries**), ship resources,
+**Away team**, **Title screen** and the sound switch. Art fills the rest of the
+screen; details open on demand.
+
+1. Open the **Research lab** and start **Drive Diagnostics** so research advances
+   while you explore. The lab's tab is flagged **idle** whenever nothing is
+   being researched. Tick **Continue the route home automatically** in the lab if
+   you want each later drive project to start by itself once its requirements
+   are met.
+2. Survey the arrival system and open **The Silent Courier** from the places
+   along the bottom of the screen.
+3. Choose a story response. Select Helen Morozova's portrait for her briefing:
+   investigation, recovery, boarding and station services all live there.
+4. Follow research leads (shown in a project's details, nearest first), visit
+   stations and collect independent spatial or propulsion discoveries. On the
+   **Galaxy chart**, hover a star for a second or select it for its card, or use
+   **Find system**; choose **Travel the route** to fly every jump in one order.
+   The course pauses if research completes on the way.
 5. Research, construct and field-test the prototype. Finish Drive Stabilisation,
    construct the Return Drive and choose **Return home** when ready.
 
-The title screen also retains **Classic Voyage**, the earlier deduction-led
-campaign, with its own save. Its clue puzzle and Rift Surges are separate rules.
+**Discoveries** keeps the voyage record: side voyages in progress, the
+captain's decisions, recovered sources and the full captain's log.
+
+The earlier deduction-led campaign, **Classic Voyage**, remains playable from
+`/?classic`, with its own save. Its clue puzzle and Rift Surges are separate rules.
 
 ## What is playable
 
@@ -41,7 +53,7 @@ campaign, with its own save. Its clue puzzle and Rift Surges are separate rules.
 | Boarding | Four-person squads; core recovery, rescue, sabotage, salvage and fragile-recorder extraction; nine standard operation configurations plus the recorder vault |
 | Tactical decisions | Cover, line of sight, fog, AP, aim, overwatch, equipment, extraction and persistent injuries/casualties |
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
-| Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power and compartment targeting |
+| Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power, compartment targeting, on-hull damage markers and a guided repair order |
 | Presentation | Interactive galactic atlas; six overhead warships; eight-direction rig-rendered crew and custodians; a detailed archive vault; laptop deck enlargement and keyboard shortcuts |
 | Persistence | Version-10 expedition journals; versions 1–9 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
@@ -54,9 +66,15 @@ No runtime AI API or 3D renderer is required by the game.
 
 ## Laptop controls
 
-Boarding keeps the deck, quick orders and squad cards together. The right-hand
-orders panel scrolls independently. **Enlarge map** hides that panel to give the
-deck more width; **Fit map** restores it. Open **Mission transcript** for the log.
+Boarding gives the deck the screen. The squad runs down the left: select an
+operative's bar for their portrait, weapon and segmented stat bars, and the
+mission tag beside the turn counter for the objective. Hover a lit tile to
+preview the move (AP, exposure, heat; sprints are chosen by distance) and click
+to move. Hover a visible hostile to preview the shot and click to fire. On a
+touch screen, the first tap previews and a second tap orders. The quick bar
+under the deck holds **Action** (reload, objective, recorder, medkits), **Aim**,
+**Overwatch**, **Heal self** and **End turn**. **Enlarge map** hides the squad to
+give the deck more width; **Fit map** restores it.
 
 - **1–4**: select operative; **N**: next operative with AP.
 - **F**: fire at the selected target; **R**: reload; **O**: overwatch.
@@ -170,4 +188,4 @@ not decide combat results. Classic Voyage has its own older architecture.
   controls and tactical information out of raster artwork.
 
 Repository: [henders23/starship-explorer](https://github.com/henders23/starship-explorer).
-The product name is **Starship Ithaca**; the repository remains `starship-explorer`.
+The product name is **Starship Explorer**; the ship is the ISS Ithaca.

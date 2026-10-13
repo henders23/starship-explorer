@@ -1,4 +1,5 @@
 import { siteVariant } from '../src/engine/tactical/variants.js'
+import { briefing, missionObjective, tacticalAction } from './helpers.js'
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { readyOperation, completeOperation, nextOperationOrder, launchOperation } from '../tools/operation-walkthrough.js'
@@ -27,6 +28,7 @@ for (const mobile of [false,true]) test(`operation briefings and withdrawal on $
   const names = launchOperation(ready.seed,'rescue',siteVariant(ready.seed,site.id)).mission!.operation!.survivors.map((s)=>s.name)
   await resume(page,ready)
   await page.getByRole('button',{name:/The Silent Courier/}).click()
+  await briefing(page)
   await page.getByRole('button',{name:'Board with away team · tactical mission'}).click()
   for(const kind of OPERATION_KINDS){
     await page.getByRole('combobox',{name:'Mission contract'}).selectOption(kind)
@@ -40,6 +42,7 @@ for (const mobile of [false,true]) test(`operation briefings and withdrawal on $
   }
   await page.getByRole('combobox',{name:'Mission contract'}).selectOption('rescue')
   await page.getByRole('button',{name:'Deploy away team',exact:true}).click()
+  await missionObjective(page)
   await expect(page.locator('.operation-tracker')).toContainText(names[0]!)
   await expect(page.locator('.operation-tracker')).toContainText(names[1]!)
   await page.screenshot({path:info.outputPath('rescue-deck.png'),fullPage:true})
@@ -64,7 +67,7 @@ for(const kind of OPERATION_KINDS)test(`${kind} objective, reload, extraction an
   if(!('unitId' in order))throw new Error('Expected objective order')
   const unit=before.mission!.units.find(u=>u.id===order.unitId)!
   await page.getByRole('button',{name:`Select ${unit.name}`,exact:true}).click()
-  await page.getByRole('button',{name:`${interactionLabel(before.mission!)} · 1 AP`,exact:true}).click()
+  await (await tacticalAction(page,new RegExp(`^${interactionLabel(before.mission!)}`))).click()
   await page.reload();await page.getByRole('button',{name:'Resume expedition'}).click()
   const after=reduceCampaign(before,{type:'tactical',order})
   const raw=await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!),EXPLORATION_SAVE_KEY)
@@ -93,15 +96,11 @@ for(const width of [1440,390,320])test(`alternate decks, figures and quick contr
     for(const name of assets){
       expect(await page.evaluate(async (src)=>{const img=new Image();img.src=src;try{await img.decode();return img.naturalWidth===512}catch{return false}},`/assets/exploration/tactical-${name}.webp`)).toBe(true)
     }
-    await page.getByRole('button',{name:'Next ready operative',exact:true}).click()
-    await expect(page.locator('.tac-orders h2')).toHaveText('Idris Okonkwo')
+    await page.keyboard.press('n')
+    await expect(page.locator('.tac-orders h2')).toHaveText(/Idris Okonkwo$/)
     await page.getByRole('button',{name:'Select Sofia Reyes',exact:true}).click()
-    await expect(page.locator('.tac-orders h2')).toHaveText('Sofia Reyes')
+    await expect(page.locator('.tac-orders h2')).toHaveText(/Sofia Reyes$/)
     if(width<721){
-      await page.getByRole('button',{name:'Orders ↓',exact:true}).click()
-      await expect(page.getByRole('complementary',{name:'Operative orders'})).toBeFocused()
-      await page.getByRole('button',{name:'Back to map ↑',exact:true}).click()
-      await expect(page.getByRole('region',{name:'Tactical map'})).toBeFocused()
       await page.getByRole('button',{name:'Enlarge map',exact:true}).click()
       await expect(page.locator('.tac-scroll')).toHaveClass(/expanded/)
     }
