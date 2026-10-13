@@ -2,6 +2,7 @@ import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
 import { createCampaign } from '../src/engine/exploration/campaign.js'
 import { courseFinder } from '../src/engine/exploration/navigation.js'
+import { chartTo, openProject } from './helpers.js'
 
 const SEED = 'navigation-e2e'
 /** A distant system the starting tank can reach in one go. */
@@ -18,11 +19,7 @@ async function begin(page: Page) {
   await page.getByRole('textbox').fill(SEED)
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
 }
-async function chart(page: Page, name: string) {
-  await page.getByRole('button', { name: /Galaxy chart/ }).click()
-  await page.getByRole('textbox', { name: 'Find system' }).fill(name)
-  await page.locator('.exp-chart-list').getByRole('button', { name: new RegExp(`^${name}`) }).click()
-}
+const chart = chartTo
 
 test('flies a whole multi-jump route in one order', async ({ page }) => {
   const errors: string[] = []; page.on('pageerror', (e) => errors.push(e.message))
@@ -40,7 +37,8 @@ test('flies a whole multi-jump route in one order', async ({ page }) => {
 test('travels in stages from the course card and pauses when research completes', async ({ page }) => {
   const target = destination(6)
   await begin(page)
-  await page.getByRole('button', { name: 'Start drive research' }).click()
+  await page.getByRole('button', { name: /Research lab/ }).click()
+  await (await openProject(page, 'Drive Diagnostics')).getByRole('button', { name: 'Begin research', exact: true }).click()
   await chart(page, target.name)
   await page.getByRole('button', { name: new RegExp(`^Next jump only · ${target.firstHop}`) }).click()
   const card = page.getByRole('region', { name: 'Plotted course' })
@@ -51,10 +49,12 @@ test('travels in stages from the course card and pauses when research completes'
   await expect(page.getByTestId('exp-day')).toHaveText('4')
   await expect(page.locator('.exp-log')).toContainText('Research complete: Drive Diagnostics')
   await expect(card).toContainText(`${target.jumps - 4} jumps left`)
+  // An idle laboratory is flagged on its tab; automatic research is switched on inside.
+  await expect(page.getByRole('button', { name: /Research lab/ })).toContainText('idle')
+  await page.getByRole('button', { name: /Research lab/ }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Laboratory idle' })).toBeVisible()
-  await page.getByRole('button', { name: 'Continue the route home automatically' }).click()
+  await page.getByRole('checkbox', { name: /Continue the route home automatically/ }).check()
   await expect(page.getByRole('status').filter({ hasText: 'Automatic research starts Exotic Energy Storage' })).toBeVisible()
-  await page.getByRole('button', { name: 'Open research lab' }).click()
   await expect(page.getByRole('checkbox', { name: /Continue the route home automatically/ })).toBeChecked()
   const leads = page.locator('.exp-science-leads').first()
   await expect(leads.locator('.exp-lead small').first()).toHaveText(/^(In this system|\d+ jumps? · \d+ fuel)$/)

@@ -11,7 +11,7 @@ test('plays without browser storage and warns before discarding the unsaved voya
   await expect(page.getByRole('status').filter({ hasText: 'Autosave unavailable' })).toBeVisible()
   page.once('dialog', (dialog) => { expect(dialog.message()).toContain('could not be autosaved'); void dialog.dismiss() })
   await page.getByRole('button', { name: 'Title screen', exact: true }).click()
-  await expect(page.getByRole('heading', { name: 'Beyond the familiar' })).toBeVisible()
+  await expect(page.getByRole('navigation', { name: 'Exploration stations' })).toBeVisible()
   page.once('dialog', (dialog) => void dialog.accept())
   await page.getByRole('button', { name: 'Title screen', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Begin expedition', exact: true })).toBeVisible()

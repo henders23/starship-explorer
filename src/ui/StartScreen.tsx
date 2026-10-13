@@ -2,6 +2,9 @@ import { useState } from 'react'
 import { MuteButton } from './sound.js'
 import { hasSave, useGame } from './store.js'
 
+/** The original mystery voyage stays playable, but only from `/?classic`. */
+const classicVoyage = () => new URLSearchParams(window.location.search).has('classic')
+
 export function StartScreen({
   onBegin,
   onResume,
@@ -21,7 +24,8 @@ export function StartScreen({
   const seed = useGame((s) => s.state.seed)
   const outcome = useGame((s) => s.state.outcome)
   const [customSeed, setCustomSeed] = useState('')
-  const resumable = hasSave() && outcome === 'seeking' && day > 0
+  const classic = classicVoyage()
+  const resumable = classic && hasSave() && outcome === 'seeking' && day > 0
 
   return (
     <div className="start-screen">
@@ -29,11 +33,10 @@ export function StartScreen({
       <div className="start-veil" aria-hidden="true" />
       <div className="start-copy">
         <h1>
-          Starship <em>Ithaca</em>
+          Starship <em>Explorer</em>
         </h1>
-        <p>Sail your crew home</p>
-        <div className="start-exploration">
-          <span className="exp-eyebrow">OPEN EXPEDITION / BUILD A WAY HOME</span>
+        <section className="start-exploration" aria-label="Open Expedition">
+          <span className="exp-eyebrow">Open Expedition / Build a way home</span>
           <p>Explore strange worlds. Decide which stories you leave behind. Lead boarding teams, defend survey ships and build a way home.</p>
           {explorationSaved && <button className="exp-button primary" onClick={() => onExplore(undefined, true)}>Resume expedition</button>}
           <button className="exp-button primary" onClick={() => {
@@ -42,20 +45,22 @@ export function StartScreen({
           }}>Begin expedition</button>
           {explorationError && <p role="alert">{explorationError}</p>}
           {storageBlocked && <p role="status">This browser is blocking site storage, so nothing will be saved. A voyage lasts until you close the tab.</p>}
-        </div>
-        <div className="start-classic-label exp-eyebrow">CLASSIC VOYAGE / FOLLOW THE MYSTERY</div>
-        <div className="start-actions">
-          {resumable && (
-            <button className="start-begin" onClick={onResume}>
-              Resume the voyage — day {day} <span>›</span>
+        </section>
+        {classic && <>
+          <div className="start-classic-label exp-eyebrow">Classic voyage / Follow the mystery</div>
+          <div className="start-actions">
+            {resumable && (
+              <button className="start-begin" onClick={onResume}>
+                Resume the voyage — day {day} <span>›</span>
+              </button>
+            )}
+            <button className="start-begin is-secondary" onClick={() => onBegin(customSeed.trim() || undefined)}>
+              {resumable ? 'Begin a new voyage' : 'Take command'} <span>›</span>
             </button>
-          )}
-          <button className="start-begin is-secondary" onClick={() => onBegin(customSeed.trim() || undefined)}>
-            {resumable ? 'Begin a new voyage' : 'Take command'} <span>›</span>
-          </button>
-        </div>
+          </div>
+        </>}
         <label className="start-seed">
-          <span>galaxy seed</span>
+          <span>Galaxy seed</span>
           <input
             value={customSeed}
             onChange={(event) => setCustomSeed(event.target.value)}

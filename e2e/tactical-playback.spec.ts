@@ -20,7 +20,7 @@ for(const [width,height] of [[1366,768],[1440,900],[1920,1080]])test(`laptop arc
  await expect(page.locator('.tac-orders')).toBeHidden()
  expect(await page.locator('.tac-board').evaluate(e=>(e as SVGSVGElement).getScreenCTM()!.a)).toBeGreaterThan(scale)
  await page.screenshot({path:info.outputPath(`laptop-focus-${width}.png`)})
- await page.getByRole('button',{name:'Fit map',exact:true}).click();await page.keyboard.press('2');await expect(page.locator('.tac-orders h2')).toHaveText('Idris Okonkwo')
+ await page.getByRole('button',{name:'Fit map',exact:true}).click();await page.keyboard.press('2');await expect(page.locator('.tac-orders h2')).toHaveText(/Idris Okonkwo$/)
  expect(errors).toEqual([])
 })
 test('plays actual enemy shots in order, locks commands, then resumes with saved outcome',async({page},info)=>{

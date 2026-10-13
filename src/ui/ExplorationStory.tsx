@@ -9,10 +9,11 @@ export function ExplorationStory({ state, site, dispatch }: { state: Campaign; s
   const record = state.stories.find((r) => r.locationId === site.id)
   const chosen = story.choices.find((c) => c.id === record?.choiceId)
   return <section className="exp-story" aria-label={story.title}>
-    <span className="exp-eyebrow">{chosen ? `CAPTAIN’S RECORD / DAY ${record!.day}` : 'CAPTAIN’S DECISION / OPTIONAL'}</span>
     <h3>{story.title}</h3>
     <p>{chosen ? chosen.outcome : story.text}</p>
+    {chosen && <small>Captain’s record · {chosen.label} · day {record!.day}</small>}
     {!chosen && <>
+      <div className="exp-story-choices">
       {story.choices.map((choice) => {
         const action: CampaignAction = { type: 'story', locationId: site.id, choiceId: choice.id }
         const lock = actionLock(state, action)
@@ -25,6 +26,7 @@ export function ExplorationStory({ state, site, dispatch }: { state: Campaign; s
           {lock && <small>{lock}</small>}
         </div>
       })}
+      </div>
       <small>This is separate from cargo recovery. You can decide later.</small>
     </>}
   </section>
@@ -32,7 +34,7 @@ export function ExplorationStory({ state, site, dispatch }: { state: Campaign; s
 
 export function LettersObjective({ state }: { state: Campaign }) {
   if (!state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry')) return null
-  return <article className="exp-letter-objective"><span className="exp-eyebrow">{state.lettersDelivered ? 'SIDE VOYAGE COMPLETE' : 'SIDE VOYAGE / THE LAST POST'}</span>
+  return <article className="exp-letter-objective relay-objective"><span className="exp-eyebrow">{state.lettersDelivered ? 'Side voyage complete' : 'Side voyage / The last post'}</span>
     <h3>{state.lettersDelivered ? 'The letters are home' : '143 letters. One promise.'}</h3>
     <p>{state.lettersDelivered ? '“We kept the light on too.” The relay delivered the Courier’s final messages.' : 'Contact a station outside your arrival system to relay the Courier’s letters. Delivery: 1 day · +25 credits.'}</p>
   </article>

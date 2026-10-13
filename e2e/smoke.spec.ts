@@ -11,7 +11,8 @@ import { expect, test } from '@playwright/test'
  * with a priced walk-in collect option ("pay").
  */
 test('title → briefing → scene → collect', async ({ page }) => {
-  await page.goto('/')
+  // The classic voyage is reached from /?classic; the title screen leads with the expedition.
+  await page.goto('/?classic')
 
   // Title: name the sky, take command.
   await expect(page.getByRole('heading', { name: /starship/i })).toBeVisible()

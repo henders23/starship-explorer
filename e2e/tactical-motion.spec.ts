@@ -24,7 +24,6 @@ test('operatives animate along tile paths and capture real walking frames',async
   await page.goto('/')
   await page.getByRole('button',{name:'Resume expedition'}).click()
   await page.getByRole('button',{name:'Tile 4,4',exact:true}).click()
-  await page.getByRole('button',{name:'Move · 1 AP',exact:true}).click()
   const frames=await page.evaluate(()=>(window as typeof window&{__frames?:Keyframe[]}).__frames)
   expect(frames?.length).toBeGreaterThanOrEqual(3)
   expect(frames?.at(-1)?.transform).not.toEqual(frames?.[0]?.transform)
@@ -53,5 +52,5 @@ test('selected soldiers remain pointer-clickable during ambient effects',async({
   for(const label of ['Select Mara Chen','Select Idris Okonkwo','Select Mara Chen']){
     await page.getByRole('button',{name:label,exact:true}).click({timeout:5000})
   }
-  await expect(page.locator('.tac-orders h2')).toHaveText('Mara Chen')
+  await expect(page.locator('.tac-orders h2')).toHaveText(/Mara Chen$/)
 })
