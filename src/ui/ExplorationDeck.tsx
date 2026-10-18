@@ -24,20 +24,14 @@ import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
+import './crew-presence.css'
+import { CrewLine } from './crew-presence.js'
+import { ShipRooms, bridgeMessage } from './ShipRooms.js'
+import type { RoomId } from './ShipRooms.js'
 
 const LABELS: Record<LocationKind, string> = {
   station: 'Orbital station', world: 'Planetary survey', ruins: 'Buried installation', derelict: 'Derelict vessel',
   'resource-field': 'Resource field', anomaly: 'Spatial anomaly', outpost: 'Alien outpost', signal: 'Unidentified signal',
-}
-const SCENES: Record<LocationKind, string> = {
-  station: 'The docking lights answer in sequence. A station tender guides us to an outer berth. The exchange will accept recovered alloys; the yard can replenish fuel and repair the hull.',
-  world: 'River systems cross the night side like silver threads. We can map the atmosphere and send instruments down without disturbing the surface. There is time to do this carefully.',
-  ruins: 'The structures are almost buried, but their geometry is deliberate. A narrow shaft still radiates heat. Remote instruments can reconstruct the machinery before anyone goes near it.',
-  derelict: 'The hull is cold; one compartment still has power. Something inside has kept working long after the crew left. We can catalogue it with probes, or bring it aboard quickly.',
-  'resource-field': 'Metal-rich fragments drift through a narrow orbital band. We can collect them with remote tugs, or take the shuttle in for a faster recovery.',
-  anomaly: 'The instruments disagree about the distance to the same point in space. We should take measurements from several positions before approaching the field.',
-  outpost: 'A small settlement responds with a repeating pattern of light. We can keep our distance and record the exchange, or approach to deliver a survey package.',
-  signal: 'The transmission repeats, but its timing follows the rotation of a nearby object. A patient observation should tell us whether it is a beacon, an instrument, or a call for help.',
 }
 /** Full-bleed art for each kind of place. Kinds without their own art share the nebula. */
 const SCENE_ART: Record<LocationKind, [string, string]> = {
@@ -61,13 +55,14 @@ const ICONS: Record<LocationKind, ReactNode> = {
   signal: <path d="M12 13v8M8.5 9.5a5 5 0 0 1 7 0M5.5 6.5a9 9 0 0 1 13 0M12 13a1 1 0 1 0 0-2 1 1 0 0 0 0 2" />,
 }
 const DISCOVERY_NAMES = { 'exotic-energy': 'Exotic energy', 'spatial-observation': 'Spatial observations', 'alien-propulsion': 'Alien propulsion' }
-const TABS = { system: 'Current system', galaxy: 'Galaxy chart', lab: 'Research lab', archive: 'Discoveries' } as const
+const TABS = { system: 'Current system', ship: 'On board', galaxy: 'Galaxy chart', lab: 'Research lab', archive: 'Discoveries' } as const
 
 type Tab = keyof typeof TABS
 type Command = (action: CampaignAction, children: ReactNode, primary?: boolean) => ReactNode
 export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit: () => void }) {
   const [state, setState] = useState(initial)
   const [tab, setTab] = useState<Tab>('system')
+  const [shipRoom, setShipRoom] = useState<RoomId>('bridge')
   const [selectedSystem, setSelectedSystem] = useState<SystemId | null>(null)
   const [selectedSite, setSelectedSite] = useState<string | null>(null)
   const [saved, setSaved] = useState(true)
@@ -160,7 +155,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       <h2>{target.name}</h2>
       <p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}<br />
         {target.faction ? `Claimed by ${state.galaxy.factions.find((f) => f.id === target.faction)?.name}.` : 'No registered faction claim.'}</p>
-      <p>{current ? `${known.length} known ${plural(known.length, 'location')}. The Ithaca is here.`
+      <p>{current ? `${known.length} known ${plural(known.length, 'location')}. The Lodestar is here.`
         : state.visited.includes(id) ? `${locationsAt(state.world, id).filter((s) => state.exploration.statuses[s.id]).length} known locations. Your progress here is preserved.`
         : 'Unvisited. Local opportunities will appear on arrival and after scanning.'}</p>
       {!current && (plan && jumps > 0
@@ -178,6 +173,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const scene = tab === 'system' ? site ? 'site' : 'system' : tab
   return <main className="exp-deck" data-tab={tab} data-scene={scene} ref={deckRef}>
     <header className="exp-header" inert={modalOpen}>
+      <span className="exp-ship-mark">ISS LODESTAR</span>
       <nav className="exp-nav" aria-label="Exploration stations">
         {(Object.keys(TABS) as Tab[]).map((item) => <button key={item} aria-current={tab === item ? 'page' : undefined}
           onClick={() => { setTab(item); if (item === 'system') setSelectedSite(null) }}>
@@ -209,7 +205,12 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <div className="exp-system-hero">
           <h2>{here.name}</h2>
           <p>Orbiting {STAR_NAMES[here.star]}.<br />{known.length} known {plural(known.length, 'contact')} · {state.scans[state.at] ? `${state.scans[state.at]} scan complete` : 'passive sensors only'}</p>
+          <div className="exp-bridge-presence">
+            <CrewLine person="vale" compact>{bridgeMessage(state)}</CrewLine>
+            <button className="exp-button" onClick={() => { setShipRoom('bridge'); setTab('ship') }}>Visit the bridge</button>
+          </div>
           <div className="exp-actions">
+            {!state.research.active && !state.research.completed.includes('drive-diagnostics') && <button className="exp-button primary" onClick={() => setTab('lab')}>Start Return Drive research</button>}
             {command({ type: 'scan', tier: 'survey' }, 'Survey system · 1 day', true)}
             {command({ type: 'scan', tier: 'deep' }, 'Deep scan · 1 day')}
             {fitted(state, 'fuel-recycling') && command({ type: 'recycle-fuel' }, 'Recycle fuel · 3 materials · 1 day')}
@@ -238,6 +239,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       </section>}
       {scene === 'site' && site && <SiteScene key={site.id} state={state} site={site} dispatch={dispatch} command={command}
         onBack={() => setSelectedSite(null)} onBoard={() => { setDeploySite(site.id); setTeamOpen(true) }} />}
+      {tab === 'ship' && <ShipRooms state={state} room={shipRoom} onRoom={setShipRoom} onNavigate={setTab} onTeam={() => { setDeploySite(null); setTeamOpen(true) }} />}
       {tab === 'galaxy' && <ExpeditionGalaxyChart state={state} selected={selectedSystem} onSelect={setSelectedSystem} card={systemCard} status={saveStatus} />}
       {tab === 'lab' && <ExplorationResearch state={state} dispatch={dispatch} onShowSystem={locate} status={saveStatus} />}
       {tab === 'archive' && <Discoveries state={state} command={command} onLocate={locate} status={saveStatus} />}
@@ -277,17 +279,19 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
       <h2>{site.name}</h2>
       {storyShown ? <ExplorationStory state={state} site={site} dispatch={dispatch} />
         : <p>{detected ? `${LABELS[site.kind]}. Investigate this contact to uncover its story and identify recoverable supplies.` : LABELS[site.kind]}</p>}
+      {!detected && <div className="exp-scene-main-action"><button className="exp-button primary" onClick={() => setOpen(true)}>{site.kind === 'station' ? 'Open station services' : 'Review expedition options'}</button></div>}
     </div>
     <button className="exp-officer" aria-expanded={open} aria-controls="exp-briefing" onClick={toggle}>
       <img src="/assets/portraits/26_helen_morozova.png" alt="" />
-      <span>Helen Morozova<small>Briefing</small></span>
+      <span>Helen Morozova<small>{open ? 'Close briefing' : 'Open briefing'}</small></span>
     </button>
     {open && <aside id="exp-briefing" className="exp-detail exp-brief" aria-label="Science officer briefing" ref={briefRef}>
       <div className="exp-brief-head">
         <div><span className="exp-eyebrow">Science officer briefing</span><h3>{LABELS[site.kind]} · {status}</h3></div>
         <button className="exp-close" aria-label="Close briefing" onClick={() => setOpen(false)}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg></button>
       </div>
-      <p>“{detected ? 'We have a fix on the location. Investigate it to establish contact, assess the conditions and identify what can be recovered.' : site.name === 'The Silent Courier' ? 'Its crew shut down everything except the power cell. That cell has kept a tiny navigation beacon alive for decades. If we map its emissions, we can calibrate our sensors to recognise similar technology.' : SCENES[site.kind]}”</p>
+      <CrewLine person="morozova" compact>{detected ? 'We have a fix on the location. Investigate before choosing how to recover it.' : site.kind === 'station' ? 'The station has supplies and people with their own concerns. We should listen before we leave.' : site.kind === 'derelict' ? 'We can send probes or a boarding team. I want a clear plan before anyone crosses that hatch.' : 'We can learn something here without taking an unnecessary risk.'}</CrewLine>
+      {site.name === 'The Silent Courier' && !detected && <p>Its surviving power cell kept the transmitter alive. Studying it may point us towards the Return Drive.</p>}
       {detected ? command({ type: 'investigate', locationId: site.id }, site.kind === 'station' ? 'Establish contact · 1 day' : 'Investigate · 1 day', true) : <>
         {site.services.length > 0 ? <div className="exp-service-list">
           <SurvivorStation state={state} siteId={site.id} dispatch={dispatch} /><LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />

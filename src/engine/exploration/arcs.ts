@@ -67,7 +67,7 @@ export const RELAY_DIALOGUE = {
   reply: {
     speaker: 'Edda Sol · station keeper',
     heading: 'What came back',
-    repair: 'Edda sees the restored link before she sees the Ithaca. “The weather station has come back online. And the school. Tarek sent a few words for the family — not many, but enough.” She pauses. “You mended more than the message.”',
+    repair: 'Edda sees the restored link before she sees the Lodestar. “The weather station has come back online. And the school. Tarek sent a few words for the family — not many, but enough.” She pauses. “You mended more than the message.”',
     'local-copy': 'Edda opens the sealed private reply. “Tarek was right not to trust that damaged network. His family can read these words without wondering who else saw them.” She keeps the letter in her hands. “The relay is still dark. At least we know what needs doing.”',
   },
 } as const

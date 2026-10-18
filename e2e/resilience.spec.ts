@@ -6,7 +6,7 @@ test('plays without browser storage and warns before discarding the unsaved voya
     Object.defineProperty(window, 'localStorage', { configurable: true, get() { throw new DOMException('The operation is insecure.', 'SecurityError') } })
   })
   await page.goto('/')
-  await expect(page.getByRole('status').filter({ hasText: 'blocking site storage' })).toBeVisible()
+  await expect(page.getByRole('status').filter({ hasText: 'storage is blocked' })).toBeVisible()
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Autosave unavailable' })).toBeVisible()
   page.once('dialog', (dialog) => { expect(dialog.message()).toContain('could not be autosaved'); void dialog.dismiss() })
@@ -52,22 +52,13 @@ test('one sound switch mutes the music and is remembered', async ({ page }) => {
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
 
-test('a rendering fault shows a recovery screen instead of a blank page', async ({ page }) => {
+test('a corrupt expedition save is preserved and the player can begin a fresh voyage', async ({ page }) => {
+  await page.addInitScript(() => localStorage.setItem('starship-explorer-exploration-v2', 'not valid JSON'))
   await page.goto('/')
-  await expect(page.getByRole('button', { name: 'Begin expedition', exact: true })).toBeVisible()
-  // The dev build exposes the classic store; an impossible state makes the title screen throw.
-  await page.evaluate(() => {
-    const store = (window as unknown as { __game: { getState(): { state: unknown }; setState(s: object): void } }).__game
-    ;(window as unknown as { __kept: unknown }).__kept = store.getState().state
-    store.setState({ state: null })
-  })
-  await expect(page.getByRole('alert')).toContainText('stopped responding')
-  await page.evaluate(() => {
-    const w = window as unknown as { __game: { setState(s: object): void }; __kept: unknown }
-    w.__game.setState({ state: w.__kept })
-  })
-  await page.getByRole('button', { name: 'Return to title screen' }).click()
-  await expect(page.getByRole('button', { name: 'Begin expedition', exact: true })).toBeVisible()
+  await expect(page.getByRole('alert')).toContainText('could not be read')
+  page.once('dialog', dialog => void dialog.accept())
+  await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await expect(page.getByRole('navigation', { name: 'Exploration stations' })).toBeVisible()
 })
 
 test('serves a favicon', async ({ page }) => {

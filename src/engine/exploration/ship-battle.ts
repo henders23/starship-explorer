@@ -115,15 +115,15 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   if (kind !== 'missile' && shield > 0) {
     if (to === 'player') b.shield--; else b.enemy.shield--
     if (kind === 'ion') rooms.shields.ionUntil = b.time + 6
-    log(b, `${to === 'player' ? 'Ithaca' : 'Hostile'} shield absorbs ${kind}.`); return
+    log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} shield absorbs ${kind}.`); return
   }
   if (kind === 'ion') { rooms[target].ionUntil = b.time + 6; log(b, `${to === 'player' ? 'Our' : 'Enemy'} ${target} ionised for six seconds.`); return }
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
   b.volley.damage = damage
-  log(b, `${to === 'player' ? 'Ithaca' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
+  log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
   if (b.enemy.hull <= 0) finish(b, 'victory', 'The hostile ship breaks apart. The tender has a clear route.')
-  else if (b.hull <= 1) finish(b, 'disabled', 'Main power fails. The tender retrieves the disabled Ithaca under emergency tow.')
+  else if (b.hull <= 1) finish(b, 'disabled', 'Main power fails. The tender retrieves the disabled Lodestar under emergency tow.')
 }
 function fire(b: ShipBattle, i: number) {
   const w = b.weapons[i]!

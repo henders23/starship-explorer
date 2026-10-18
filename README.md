@@ -2,7 +2,7 @@
 
 **Explore strange worlds. Bring your people back. Build a way home.**
 
-A single-player space expedition for laptop and desktop browsers. Captain the ISS Ithaca in a
+A single-player space expedition for laptop and desktop browsers. Captain the ISS Lodestar in a
 seeded galaxy, recover scientific discoveries, lead boarding teams and defend
 survey ships. Research the Return Drive while the voyage continues, then decide
 when you are ready to leave.
@@ -15,10 +15,11 @@ Choose **Begin expedition** on the title screen. **Resume expedition**
 continues its browser autosave. Enter a galaxy seed to revisit the same
 generated world.
 
-Every expedition screen shares one slim bar: the four stations (**Current
-system**, **Galaxy chart**, **Research lab**, **Discoveries**), ship resources,
-**Away team**, **Title screen** and the sound switch. Art fills the rest of the
-screen; details open on demand.
+Every expedition screen has clear navigation: **Current system**, **On board**, **Galaxy chart**,
+**Research lab** and **Discoveries**. **On board** contains the bridge, science deck,
+engineering and shuttle bay. Choose a portrait to speak to a crew member in their
+room. The main screen presents one immediate priority, and relevant actions stay
+visible without burying them behind portraits.
 
 1. Open the **Research lab** and start **Drive Diagnostics** so research advances
    while you explore. The lab's tab is flagged **idle** whenever nothing is
@@ -27,8 +28,9 @@ screen; details open on demand.
    are met.
 2. Survey the arrival system and open **The Silent Courier** from the places
    along the bottom of the screen.
-3. Choose a story response. Select Helen Morozova's portrait for her briefing:
-   investigation, recovery, boarding and station services all live there.
+3. Choose a story response, with advice from named officers. The **Review
+   expedition options** or **Open station services** button exposes the location
+   controls. Helen Morozova's portrait still opens and closes the briefing.
 4. Follow research leads (shown in a project's details, nearest first), visit
    stations and collect independent spatial or propulsion discoveries. On the
    **Galaxy chart**, hover a star for a second or select it for its card, or use
@@ -40,8 +42,10 @@ screen; details open on demand.
 **Discoveries** keeps the voyage record: side voyages in progress, the
 captain's decisions, recovered sources and the full captain's log.
 
-The earlier deduction-led campaign, **Classic Voyage**, remains playable from
-`/?classic`, with its own save. Its clue puzzle and Rift Surges are separate rules.
+**Classic Voyage has been retired from the application.** Visiting `/?classic`
+also opens Open Expedition. The older engine code and legacy test fixtures remain
+in the repository for historical reference and save verification; Classic is no
+longer a player-selectable game. Its separate browser save is not erased.
 
 ## What is playable
 
@@ -54,7 +58,7 @@ The earlier deduction-led campaign, **Classic Voyage**, remains playable from
 | Tactical decisions | Cover, line of sight, fog, AP, aim, overwatch, equipment, extraction and persistent injuries/casualties |
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
 | Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power, compartment targeting, on-hull damage markers and a guided repair order |
-| Presentation | Interactive galactic atlas; six overhead warships; eight-direction rig-rendered crew and custodians; a detailed archive vault; laptop deck enlargement and keyboard shortcuts |
+| Presentation | Interactive galaxy atlas; four illustrated ship rooms with original crew portraits and contextual dialogue; cinematic site art; directional boarding animation; laptop controls |
 | Persistence | Version-10 expedition journals; versions 1–9 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
@@ -137,7 +141,7 @@ For constrained environments use `npm test -- --maxWorkers=2` and
 `npm run test:e2e -- --workers=2`. `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` can point
 to an existing compatible Chromium executable. Playwright starts Vite on port 4173.
 
-Latest implementation: **12 October 2026**. See
+Latest implementation: **19 October 2026**. See
 [the animation and survivor milestone](docs/ANIMATED-BOARDING-AND-SURVIVORS.md)
 for exact scope, validation, reproduction and real game captures. Vite still reports
 a JavaScript chunk-size advisory. Human balance and visual-quality playtesting remain open.
@@ -173,7 +177,7 @@ docs/                   Design, specification and milestone evidence
 
 React 19 · TypeScript · Vite · Tailwind/CSS · Vitest · Playwright. Expedition rules
 are pure seeded reducers. The UI requests actions and presents outcomes; it does
-not decide combat results. Classic Voyage has its own older architecture.
+not decide combat results. Retired Classic Voyage code is retained only as historical material.
 
 ## Contribution and release rules
 
@@ -188,4 +192,19 @@ not decide combat results. Classic Voyage has its own older architecture.
   controls and tactical information out of raster artwork.
 
 Repository: [henders23/starship-explorer](https://github.com/henders23/starship-explorer).
-The product name is **Starship Explorer**; the ship is the ISS Ithaca.
+The product name is **Starship Explorer**; the ship is the ISS Lodestar.
+
+## Character-led experience (19 October 2026)
+
+This update makes **ISS Lodestar** the ship's visible identity and focuses on people
+rather than menus. Captain Alexander Vale, science officer Helen Morozova,
+security chief Gabriel Cross, navigator Lena Mori and engineer Jonas Kerr have
+consistent portraits and concise dialogue in ship rooms, locations and decisions.
+Dialogue does not alter simulation rules; it reflects what the campaign actually
+knows. The current-system view keeps a captain's immediate priority visible, and
+the mission objective is expanded by default during boarding.
+
+The old start background remains in the repository until the supplied Lodestar
+image is available as a transferable asset. It is deliberately not replaced with
+an unrelated illustration. See [the character-led UX brief](docs/LODSTAR-EXPERIENCE.md).
+

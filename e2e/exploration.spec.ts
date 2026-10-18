@@ -92,8 +92,8 @@ test('exploration fits a narrow screen and the title leads with the expedition',
   await page.screenshot({ path: testInfo.outputPath('exploration-mobile.png'), fullPage: true })
 })
 
-test('the classic voyage stays reachable from /?classic', async ({ page }) => {
+test('Classic Voyage is retired even when the old URL is requested', async ({ page }) => {
   await page.goto('/?classic')
-  await expect(page.getByRole('button', { name: 'Take command' })).toBeVisible()
+  await expect(page.getByRole('button', { name: 'Take command' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible()
 })

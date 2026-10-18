@@ -1,3 +1,4 @@
+import { CrewLine } from './crew-presence.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock } from '../engine/exploration/campaign.js'
 import { RELAY_DIALOGUE, relaySummary, relayLaneDistance } from '../engine/exploration/arcs.js'
@@ -45,6 +46,7 @@ export function LongRelayStation({state,siteId,dispatch}:{state:Campaign;siteId:
     <span className="exp-eyebrow">OPTIONAL MISSION / THE LONG RELAY</span>
     <span className="relay-speaker">{heading.speaker}</span><h3>{heading.heading}</h3>
     <p>{text}</p>
+    <CrewLine person={finish ? 'vale' : 'morozova'} compact>{start ? 'These messages are somebody’s family. We should decide what promise we can keep.' : finish ? 'We made a decision, and they lived with it. Now we owe them an answer.' : 'There are people on both ends of this relay. Either choice carries a responsibility.'}</CrewLine>
     {!finish&&<p>{start?RELAY_DIALOGUE.start.followup:RELAY_DIALOGUE.relay.followup}</p>}
     {start&&choice({type:'start-arc',arcId:'long-relay',locationId:siteId},'Carry Edda’s message','Accept · no time or materials · no deadline')}
     {!start&&!finish&&<>

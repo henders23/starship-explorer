@@ -327,3 +327,16 @@
   .start-seed { flex-wrap:wrap; }
   .start-seed input { max-width:100%; }
 }
+
+/* A deliberate character-led revision: read the officer, then act. */
+.exp-system-hero .crew-voice { border-color:rgba(242,179,75,.35); }
+.exp-system-hero .crew-voice img { width:55px; height:65px; }
+.exp-scene-main-action .exp-button { min-height:40px; }
+.exp-scene .exp-brief .crew-voice p { margin:4px 0 0; }
+.exp-deck[data-scene=ship] { background:#07111b; }
+@media(max-width:1400px) {
+  .exp-header { gap:8px 12px; padding:8px 16px; }
+  .exp-nav { gap:0 6px; }
+  .exp-nav>button { font-size:12px; }
+  .exp-resources { gap:12px; }
+}

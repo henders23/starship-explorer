@@ -1,0 +1,41 @@
+
+/* The crew have one consistent visual language: portrait, name, short spoken line. */
+.crew-voice { display:flex; align-items:flex-start; gap:13px; margin:12px 0; max-width:580px; padding:10px; border:1px solid rgba(114,198,197,.28); background:rgba(3,13,20,.8); backdrop-filter:blur(8px); color:#e1eaf0; }
+.crew-voice img { flex:none; width:64px; height:76px; object-fit:cover; object-position:center top; border:1px solid rgba(155,206,216,.4); }
+.crew-voice figcaption { min-width:0; display:block; }
+.crew-voice strong { display:block; font-size:13px; font-weight:600; color:#f4e4c7; }
+.crew-voice span { display:block; color:#9fc7d2; text-transform:uppercase; letter-spacing:.1em; font-size:9px; }
+.crew-voice p { margin:5px 0 0; color:#dce6e8; line-height:1.5; font-size:13px; }
+.crew-voice.compact { gap:9px; padding:8px; margin:9px 0; }
+.crew-voice.compact img { width:45px; height:53px; }
+.crew-voice.compact p { font-size:12px; }
+.exp-ship-mark { font-size:10px; font-weight:600; color:#f4e4c7; letter-spacing:.13em; white-space:nowrap; }
+.exp-bridge-presence { display:flex; align-items:center; gap:12px; max-width:590px; margin:18px 0 0; }
+.exp-bridge-presence .crew-voice { flex:1; min-width:0; margin:0; }
+.exp-bridge-presence>.exp-button { flex:none; }
+.exp-scene-main-action { display:flex; flex-wrap:wrap; gap:10px; margin-top:14px; }
+.exp-scene .crew-voice { max-width:540px; }
+.ship-rooms { position:relative; flex:1; min-height:0; overflow:auto; display:flex; align-items:flex-end; }
+.ship-room-art,.ship-room-veil { position:absolute; inset:0; width:100%; height:100%; }
+.ship-room-art { object-fit:cover; object-position:center; }
+.ship-room-veil { background:linear-gradient(90deg,rgba(4,12,20,.94),rgba(4,12,20,.7) 39%,rgba(4,12,20,.14) 85%),linear-gradient(0deg,rgba(4,12,20,.65),transparent 60%); }
+.ship-room-content { position:relative; z-index:1; width:min(690px,100%); padding:28px 32px 38px; }
+.ship-room-content>h2 { font-family:var(--font-display); font-size:clamp(36px,4vw,62px); font-weight:400; margin:5px 0 20px; color:#f2e9d9; }
+.ship-room-people { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:15px; }
+.ship-room-people button { display:flex; flex-direction:column; gap:5px; align-items:center; padding:5px; border:1px solid rgba(114,198,197,.3); background:rgba(4,13,20,.76); min-width:86px; max-width:110px; }
+.ship-room-people button:hover,.ship-room-people button[aria-pressed=true] { border-color:#e4bb7b; background:rgba(16,38,49,.92); }
+.ship-room-people img { width:76px; height:80px; object-fit:cover; object-position:top; }
+.ship-room-people span { font-size:11px; color:#f4e4c7; }
+.ship-room-people small { display:block; color:#b6ced4; font-size:9px; }
+.ship-room-actions { display:flex; flex-wrap:wrap; gap:10px; }
+.ship-room-content .crew-voice { max-width:520px; }
+@media(max-width:1100px) { .exp-ship-mark { display:none; } }
+@media(max-width:760px) {
+ .exp-bridge-presence { align-items:flex-start; flex-direction:column; }
+ .exp-bridge-presence .crew-voice { width:100%; }
+ .ship-rooms { min-height:670px; align-items:flex-start; }
+ .ship-room-content { padding:30px 16px; }
+ .ship-room-people button { min-width:68px; }
+ .ship-room-people img { width:60px; height:64px; }
+ .exp-scene .crew-voice { margin-right:0; }
+}

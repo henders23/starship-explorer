@@ -116,7 +116,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
         {systems.map(s => {
           const p = spot(s.id), current = s.id === state.at, chosen = s.id === active, near = connected.has(s.id), seen = visited.has(s.id)
           return <g key={s.id} className={`exp-atlas-star ${current ? 'is-current' : ''} ${chosen ? 'is-selected' : ''}`}
-            role="button" tabIndex={0} aria-label={`${current ? 'Ithaca at' : 'Select'} ${s.name}`} aria-pressed={s.id === selected}
+            role="button" tabIndex={0} aria-label={`${current ? 'Lodestar at' : 'Select'} ${s.name}`} aria-pressed={s.id === selected}
             onPointerEnter={() => hoverSoon(s.id)} onPointerLeave={hideSoon}
             onFocus={() => { window.clearTimeout(hideTimer.current); setHovered(s.id) }} onBlur={hideSoon}
             onClick={() => pick(s.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(s.id) } }}>
@@ -126,7 +126,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
             {near && !current && <circle cx={p.x} cy={p.y} r={11} fill="none" stroke="#67c9e3" strokeOpacity=".55" strokeWidth=".8" pointerEvents="none"/>}
             <circle cx={p.x} cy={p.y} r={current ? 6.5 : seen ? 5.3 : near ? 4.5 : 3.8} fill={STAR_COLORS[s.star]} stroke={seen ? '#d6fcf3' : '#051a24'} strokeWidth={seen ? 1.3 : 1.6} opacity={seen || near ? 1 : .86} pointerEvents="none"/>
             {current && <image href="/assets/ships/expedition-ithaca.webp" x={p.x - 10} y={p.y - 22} width={20} height={30} className="exp-atlas-ithaca" pointerEvents="none"/>}
-            {(current || chosen) && <text x={p.x} y={p.y - (current ? 30 : 26)} textAnchor="middle" className={`exp-atlas-label${chosen && !current ? ' chosen' : ''}`} pointerEvents="none">{current ? 'ITHACA / ' : ''}{s.name}</text>}
+            {(current || chosen) && <text x={p.x} y={p.y - (current ? 30 : 26)} textAnchor="middle" className={`exp-atlas-label${chosen && !current ? ' chosen' : ''}`} pointerEvents="none">{current ? 'LODESTAR / ' : ''}{s.name}</text>}
           </g>
         })}
       </g>
@@ -149,7 +149,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     </section>}
     <div className="exp-atlas-key">
       <span><strong>GALACTIC ATLAS</strong> · {systems.length} systems · {state.visited.length} visited</span>
-      <span className="exp-atlas-legend"><span className="ithaca">▲ Ithaca</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span></span>
+      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span></span>
       {status}
     </div>
   </section>
