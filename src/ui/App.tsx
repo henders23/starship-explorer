@@ -16,6 +16,9 @@ function readExpedition(): ExplorationSave {
   catch { return { campaign: null, error: 'Expedition autosave cannot be read in this browser.' } }
 }
 
+/** Archived ship-hub modules retain this type for historical compilation. */
+export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
+
 export function App() {
   const [expedition, setExpedition] = useState<Campaign | null>(null)
   const [saved, setSaved] = useState<ExplorationSave>(readExpedition)
