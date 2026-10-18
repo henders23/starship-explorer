@@ -126,7 +126,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
             {near && !current && <circle cx={p.x} cy={p.y} r={11} fill="none" stroke="#67c9e3" strokeOpacity=".55" strokeWidth=".8" pointerEvents="none"/>}
             <circle cx={p.x} cy={p.y} r={current ? 6.5 : seen ? 5.3 : near ? 4.5 : 3.8} fill={STAR_COLORS[s.star]} stroke={seen ? '#d6fcf3' : '#051a24'} strokeWidth={seen ? 1.3 : 1.6} opacity={seen || near ? 1 : .86} pointerEvents="none"/>
             {current && <image href="/assets/ships/expedition-ithaca.webp" x={p.x - 10} y={p.y - 22} width={20} height={30} className="exp-atlas-ithaca" pointerEvents="none"/>}
-            {(current || chosen) && <text x={p.x} y={p.y - (current ? 30 : 26)} textAnchor="middle" className={`exp-atlas-label${chosen && !current ? ' chosen' : ''}`} pointerEvents="none">{current ? 'ITHACA / ' : ''}{s.name}</text>}
+            {(current || chosen) && <text x={p.x} y={p.y - (current ? 30 : 26)} textAnchor="middle" className={`exp-atlas-label${chosen && !current ? ' chosen' : ''}`} pointerEvents="none">{current ? 'LODESTAR / ' : ''}{s.name}</text>}
           </g>
         })}
       </g>
