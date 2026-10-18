@@ -1,3 +1,4 @@
+import { CrewLine } from './crew-presence.js'
 import { TacticalBoard } from './TacticalBoard.js'
 import { movementPreview, orderFeedback } from './tactical-guidance.js'
 import { DECK_NAMES, DECK_NOTES, siteVariant } from '../engine/tactical/variants.js'
@@ -30,8 +31,9 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
   const deploy: CampaignAction = recorder?{type:'deploy-recorder',squad}:operation === 'core' ? { type: 'deploy', locationId: locationId ?? '', squad } : { type: 'deploy-operation', locationId: locationId ?? '', squad, kind:operation, variant, rememberSurvivors:true }
   const lock = actionLock(state, deploy)
   return <div className="exp-modal-backdrop"><section className="exp-modal away-team" role="dialog" aria-modal="true" aria-label="Away team">
-    <span className="exp-eyebrow">ISS Ithaca / shuttle bay</span><h2>{site ? 'Choose your four.' : 'The away team.'}</h2>
+    <span className="exp-eyebrow">ISS Lodestar / shuttle bay</span><h2>{site ? 'Choose your four.' : 'The away team.'}</h2>
     <p>{site ? `${site.name}. ${recorder?2:Math.min(4, 2 + site.threat)} autonomous custodians guard the deck.` : 'Six berths. Each operative keeps their service record. Injuries heal as campaign days pass.'}</p>
+    <CrewLine person="cross" compact>A good mission is one we finish with everyone aboard. Choose a team and check the risks.</CrewLine>
     {site && !recorder && <section className="operation-briefing" aria-label="Mission briefing"><label>Mission contract<select aria-label="Mission contract" value={operation} onChange={(e) => setOperation(e.target.value as OperationKind | 'core')}>
       {OPERATION_KINDS.map((kind) => <option key={kind} value={kind}>{kind[0]!.toUpperCase() + kind.slice(1)} · {OPERATION_BRIEFINGS[kind].title}</option>)}<option value="core">Core recovery · original mission</option>
     </select></label>{site && <img className="away-briefing-art" src={operation === 'core' ? `/assets/exploration/${site.kind === 'ruins' ? 'buried-observatory' : 'silent-courier'}.webp` : operationArt(operation)} alt="Boarding destination environment" />}{briefing && <><h3>{briefing.title}</h3>{operation !== 'core' && <p className="operation-layout"><strong>{DECK_NAMES[operation][variant - 1]}</strong>{DECK_NOTES[operation][variant - 1]}</p>}<p>{briefing.description}</p><p className="operation-voice">{briefing.voice}</p><strong>{briefing.reward}</strong><small>{briefing.warning}</small></>}<small>Choose one operation for this site. A successful extraction also recovers its normal cargo and science, closing the other contracts.</small></section>}
@@ -86,7 +88,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
   const [targetId, setTarget] = useState<string | null>(null)
   const [confirmExtract, setConfirmExtract] = useState(false)
   const [expanded, setExpanded] = useState(false)
-  const [objectiveOpen, setObjectiveOpen] = useState(false)
+  const [objectiveOpen, setObjectiveOpen] = useState(true)
   const [lastOrder, setLastOrder] = useState<{before:Mission;action:TacticalAction}|null>(null)
   const feedback = lastOrder ? orderFeedback(lastOrder.before,m,lastOrder.action) : null
   const u = crew.find((unit) => unit.id === selected)!
@@ -141,7 +143,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
       <div className="exp-ending-stats"><span><b>{m.rescued.length}</b>returned</span><span><b>{lost.length}</b>lost</span><span><b>1</b>campaign day</span></div>
       <ul className="tac-roll">{crew.map((o) => <li key={o.id}><strong><em>{rank(o)}</em> {o.name}</strong><span>{!m.rescued.includes(o.id) ? 'Lost' : o.hp < o.maxHp ? `Medical recovery: ${state.research.completed.includes('trauma-protocols') ? 2 : 4} days` : 'Fit for duty'}</span></li>)}</ul>
       <p>Rewards and crew records are applied when you acknowledge this report.</p>
-      <button className="exp-button primary" onClick={() => dispatch({ type: 'debrief' })}>Return to the Ithaca</button>
+      <button className="exp-button primary" onClick={() => dispatch({ type: 'debrief' })}>Return to the Lodestar</button>
       <small>{saved ? 'Mission report saved' : 'Autosave unavailable — keep this tab open'}</small>
     </section></main>
   }

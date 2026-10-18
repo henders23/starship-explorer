@@ -468,7 +468,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.relayArc={version:1,id:'long-relay',originStationId:action.locationId,destinationStationId,
         stage:'accepted',approach:null,records:[{beatId:'start',choiceId:'accept',day:state.day}]}
       const destination=state.world.locations.find((site)=>site.id===destinationStationId)!
-      message='The Long Relay: Edda entrusts the Ithaca with an undelivered reply. Destination: '+destination.name+'.'
+      message='The Long Relay: Edda entrusts the Lodestar with an undelivered reply. Destination: '+destination.name+'.'
       break
     }
     case 'arc-choice': {
@@ -567,7 +567,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       if(mission.recorder)message=`${survivorSummary(next.survivorArc!)} ${lost.length?`Lost: ${lost.join(', ')}.`:'All operatives returned.'} No site cargo was awarded.`
       next.lastMission = mission; next.mission = null; break
     }
-    case 'rest-team': days = 1; message = 'One day of medical care aboard the Ithaca. The laboratory continues its work.'; break
+    case 'rest-team': days = 1; message = 'One day of medical care aboard the Lodestar. The laboratory continues its work.'; break
     case 'recruit': {
       const recruit = recruitOperative(state.recruits)
       next.roster = [...state.roster, recruit]; next.recruits++; next.exploration.credits -= 20; days = 1
@@ -695,7 +695,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       if (action.approach === 'shielded') next.hull -= 10
       message = 'The probe returns with matching timestamps. For the first time, the crew sees a route home. Prototype test complete; Drive Stabilisation is now possible.'; break
     case 'return-home':
-      next.outcome = 'home'; message = 'The stars settle into familiar positions. The Ithaca has returned home.'; break
+      next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'; break
   }
   next.day += days
   if (days) {

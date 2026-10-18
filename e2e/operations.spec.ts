@@ -56,7 +56,7 @@ for (const mobile of [false,true]) test(`operation briefings and withdrawal on $
   await page.getByRole('button',{name:'Extract team',exact:true}).click()
   await page.getByRole('button',{name:'Confirm extraction and losses'}).click()
   await expect(page.getByRole('region',{name:'Mission debrief'})).toContainText('No reward; the site remains available')
-  await page.getByRole('button',{name:'Return to the Ithaca'}).click()
+  await page.getByRole('button',{name:'Return to the Lodestar'}).click()
   expect(errors).toEqual([])
 })
 for(const kind of OPERATION_KINDS)test(`${kind} objective, reload, extraction and one-time reward`,async({page},info)=>{
@@ -80,7 +80,7 @@ for(const kind of OPERATION_KINDS)test(`${kind} objective, reload, extraction an
   await expect(page.getByRole('region',{name:'Mission debrief'})).toContainText('Rewards and crew records are applied when you acknowledge')
   await page.screenshot({path:info.outputPath(`${kind}-debrief.png`),fullPage:true})
   await page.reload();await page.getByRole('button',{name:'Resume expedition'}).click()
-  await page.getByRole('button',{name:'Return to the Ithaca'}).click()
+  await page.getByRole('button',{name:'Return to the Lodestar'}).click()
   await expect(page.getByTestId('exp-materials')).toHaveText(String(run.final.exploration.materials))
   await page.reload();await page.getByRole('button',{name:'Resume expedition'}).click()
   await expect(page.getByTestId('exp-materials')).toHaveText(String(run.final.exploration.materials))

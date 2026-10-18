@@ -1,4 +1,4 @@
-# Starship Ithaca — current roadmap
+# Starship Lodestar — current roadmap
 
 **11 October 2026 · Open Expedition · development branch of record: main**
 

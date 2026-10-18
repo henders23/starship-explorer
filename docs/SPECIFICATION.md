@@ -1,4 +1,4 @@
-# Starship Ithaca — implementation specification
+# Starship Lodestar — implementation specification
 
 **11 October 2026 · Open Expedition · baseline `babec95` · save envelope 7**
 

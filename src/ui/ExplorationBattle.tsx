@@ -8,6 +8,7 @@ import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
 import type { EnemyRoomKey } from '../engine/combat/ships.js'
 import './ship-battle.css'
+import { CrewLine } from './crew-presence.js'
 import { MuteButton } from './sound.js'
 
 export function EscortOffer({ state, locationId, dispatch }: { state: Campaign; locationId: string; dispatch: (a: CampaignAction) => void }) {
@@ -67,9 +68,10 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
   if (b.phase === 'contact') return <main className="exp-deck ship-contact"><section className="ship-contact-frame">
     <div className="ship-contact-art"><img className="reconstructed" data-testid="contact-recon-art" src={contactArtForClass(cls.id,cls.sprite)} alt={'Top-down sensor reconstruction of '+cls.name} /><span>SENSOR RECONSTRUCTION / {cls.layout.toUpperCase()} HULL</span></div>
     <div className="ship-contact-copy"><span className="exp-eyebrow">Survey escort / interception</span><h1>A ship across our bow.</h1><h2>{cls.name}</h2>
+      <CrewLine person="cross" compact>We can talk, slip past, or fight. Their systems tell us what a fight would cost.</CrewLine>
       <div className="ship-contact-stats"><span><b>{cls.hull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{cls.evade}%</b>evasion</span></div>
       <p>The tender’s captain keeps her voice level. “We can wait at the station. But if you’re taking us out, I need to know you can get us through.”</p>
-      <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Ithaca has {b.hull}/{b.hullMax} hull. The station supplies four missiles for this escort; unused ordnance is returned afterward.</p>
+      <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull. The station supplies four missiles for this escort; unused ordnance is returned afterward.</p>
       {b.hailed && <p className="ship-contact-response">{b.log.at(-1)}</p>}
       <div className="ship-contact-options">{button({ type: 'hail' }, 'Hail the contact')}
         {b.hailed && <>{button({ type: 'pay' }, `Pay passage · ${b.toll} credits`)}{b.upgrades.contextual ? button({ type: 'negotiate' }, 'Negotiate passage · no payment', true) : <small>Contextual Translation opens a negotiated passage without a toll.</small>}</>}
@@ -116,8 +118,8 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
     <section className="space-arena" aria-label="Ship battle area">
       {surrender && <div className="space-surrender"><p>Their hull is failing. The translator relays an offer to stand down.</p>{button({ type: 'accept-surrender' }, 'Accept surrender', true)}</div>}
       <article className={`space-ship friendly${repairing ? ' repairing' : ''}`} ref={friendly} onMouseMove={track}>
-        <ShipReadout name="ISS Ithaca" hull={b.hull} max={b.hullMax} shields={b.shield} capacity={shieldCapacity(b)} />
-        <div className="space-hull own"><img src="/assets/ships/indefatigable-combat.png" alt="Ithaca compartment cutaway" />{b.shield > 0 && <div className="space-shield" aria-hidden="true" />}
+        <ShipReadout name="ISS Lodestar" hull={b.hull} max={b.hullMax} shields={b.shield} capacity={shieldCapacity(b)} />
+        <div className="space-hull own"><img src="/assets/ships/indefatigable-combat.png" alt="Lodestar compartment cutaway" />{b.shield > 0 && <div className="space-shield" aria-hidden="true" />}
           {SHIP_ROOMS.map((key) => <Room key={key} b={b} side="player" room={key} selected={b.repair === key} onClick={() => { order({ type: 'repair', room: key }); setRepairing(null) }} />)}
           {volley?.side === 'enemy' && <Impact key={b.shots} volley={volley} box={OWN_ROOMS[volley.target]} />}
         </div>

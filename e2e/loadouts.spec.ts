@@ -32,6 +32,6 @@ for (const mobile of [false, true]) test(`research unlocks equipment that persis
   await expect(page.getByRole('meter', { name: 'Shield' })).toHaveAttribute('aria-valuetext', '4/4 shield')
   await page.getByRole('button', { name: 'Extract team', exact: true }).click()
   await page.getByRole('button', { name: 'Confirm safe extraction' }).click()
-  await page.getByRole('button', { name: 'Return to the Ithaca' }).click()
+  await page.getByRole('button', { name: 'Return to the Lodestar' }).click()
   await expect(page.getByTestId('exp-materials')).toHaveText(String(ready.exploration.materials - 4))
 })

@@ -4,6 +4,7 @@ import { courseFinder } from '../engine/exploration/navigation.js'
 import type { Course } from '../engine/exploration/navigation.js'
 import type { ReactNode } from 'react'
 import { useDialogDismiss } from './dialog.js'
+import { CrewLine } from './crew-presence.js'
 import { plural } from './plural.js'
 import { actionLock, buildLock, fitted, hasTech, researchProgress, researchRate, researchRequirements } from '../engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
@@ -108,7 +109,9 @@ export function ExplorationResearch({ state, dispatch, onShowSystem, status }: {
       <article aria-label={p.name}>
         <div className="exp-lab-detail-head"><span className="exp-eyebrow">{p.branch} / {stateOf(id)}{drive ? ' / Route home' : ''}</span>
           <button className="exp-close" aria-label="Close details" onClick={() => setSelected(null)}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg></button></div>
-        <h2>{p.name}</h2><p>{p.effect}</p>
+        <h2>{p.name}</h2>
+        {drive && <CrewLine person="morozova" compact>Every result gives us one more piece of a route home. This is our next step.</CrewLine>}
+        <p>{p.effect}</p>
         <div className="exp-dependencies"><span>After</span>{p.requires.length ? p.requires.map((parent) => <button key={parent} onClick={() => setSelected(parent)}>{hasTech(state, parent) ? '✓ ' : ''}{PROJECTS[parent].name}</button>) : <small>No research prerequisites</small>}</div>
         {p.discovery && <p className="exp-prerequisite">{p.discovery === 'any' ? 'Needs one scientific discovery.' : p.discovery === 'exotic' ? 'Needs one exotic-energy discovery.' : 'Needs two independent spatial or alien-propulsion sources; each station archive counts once.'}</p>}
         {id === 'drive-stabilisation' && <p className="exp-prerequisite">Needs a completed prototype field test.</p>}
@@ -169,7 +172,7 @@ function DriveTestDialog({ state, dispatch }: { state: Campaign; dispatch: (acti
 export function ReturnHomeScene({ state, dispatch, onClose }: { state: Campaign; dispatch: (action: CampaignAction) => void; onClose: () => void }) {
   useDialogDismiss(onClose)
   return <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Return home confirmation">
-    <span className="exp-eyebrow">ISS ITHACA / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Activating it ends this voyage. You can also stay and continue exploring.</p>
+    <span className="exp-eyebrow">ISS LODESTAR / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Activating it ends this voyage. You can also stay and continue exploring.</p>
     {state.survivorArc&&state.survivorArc.stage!=='complete'&&<p>Someone left behind remains unfinished. You may return home without completing this request.</p>}
     {state.relayArc && state.relayArc.stage!=='complete' && <p>The Long Relay remains unfinished. Returning home leaves Edda or Tarek waiting for a reply; this optional mission does not block departure.</p>}
     <ResearchAction state={state} dispatch={dispatch} action={{ type: 'return-home' }} primary>Activate Return Drive</ResearchAction>
@@ -188,10 +191,10 @@ export function ExplorationEnding({ state, onExit }: { state: Campaign; onExit: 
     {state.survivorArc&&<p>{state.survivorArc.survivor.name}: {survivorSummary(state.survivorArc)} {state.survivorArc.stage!=='complete'?'The station conversation remains unfinished.':'The survivor heard your report.'}</p>}
     {state.relayArc && <p>{state.relayArc.stage==='complete' ? state.relayArc.approach==='repair' ? 'The Long Relay is working again. Tarek’s answer reached Edda, and the communities along the line have their connection back.' : 'Edda received Tarek’s private reply. The wider line remains broken, but the words meant for one family reached them.' : state.relayArc.stage==='accepted' ? 'Edda’s message remains aboard, unanswered. The promised visit to Tarek will have to wait.' : 'Tarek’s reply is still aboard. Edda never received the answer she hoped for.'}</p>}
     {state.completedOperations.length > 0 && <p>{state.completedOperations.length} boarding {plural(state.completedOperations.length, 'contract')} completed.{rescued > 0 && ` ${rescued} rescued ${plural(rescued, 'surveyor has', 'surveyors have')} another chance to see their families.`}</p>}
-    {state.escortCompleted.length > 0 && <p>{state.escortCompleted.length} survey {plural(state.escortCompleted.length, 'tender reached its destination', 'tenders reached their destinations')} under the Ithaca’s protection.</p>}
+    {state.escortCompleted.length > 0 && <p>{state.escortCompleted.length} survey {plural(state.escortCompleted.length, 'tender reached its destination', 'tenders reached their destinations')} under the Lodestar’s protection.</p>}
     {state.roster.some((o) => o.dead) && <p>The crew reads the names of those who did not return: {state.roster.filter((o) => o.dead).map((o) => o.name).join(', ')}.</p>}
     {state.roster.some((o) => o.missions > 0 && !o.dead) && <p>The shuttle crews bring their mission records home, too. Every return to the hangar mattered.</p>}
-    <p>{hasTech(state, 'slipstream') ? 'Your navigators leave a chart of shortcuts for the next ship to follow.' : 'Every lane in the voyage log marks a place the Ithaca reached under her own power.'}</p>
+    <p>{hasTech(state, 'slipstream') ? 'Your navigators leave a chart of shortcuts for the next ship to follow.' : 'Every lane in the voyage log marks a place the Lodestar reached under her own power.'}</p>
     <button className="exp-button primary" onClick={onExit}>Return to title</button>
   </section></div>
 }

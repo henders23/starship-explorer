@@ -1,4 +1,4 @@
-# Starship Ithaca — full game design
+# Starship Lodestar — full game design
 
 **Design of record · 11 October 2026 · Open Expedition / exploration-v2**
 
@@ -10,7 +10,7 @@ This document supersedes the direction/status summaries in [REDESIGN-V2.md](REDE
 
 ## 1. The game we are making
 
-You captain the ISS Ithaca after a transit leaves it far from familiar space.
+You captain the ISS Lodestar after a transit leaves it far from familiar space.
 Home is something your crew can build a route to. Every system offers a question:
 what is worth learning, who needs help, and what can you risk before moving on?
 The pleasure lies in making a voyage that belongs to this crew.
@@ -64,7 +64,7 @@ exists in the expedition.
 
 The short loop: inspect a place, understand options, commit, see the result and
 choose whether to continue. The expedition loop: plan travel, discover sites,
-recover science/resources, improve the Ithaca and pursue leads. The long loop:
+recover science/resources, improve the Lodestar and pursue leads. The long loop:
 assemble the Return Drive and decide what to finish before leaving.
 
 Keep three clocks distinct:
