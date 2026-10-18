@@ -18,7 +18,7 @@ export function ExplorationStory({ state, site, dispatch }: { state: Campaign; s
         site.kind === 'world' ? 'We are visitors here. Observation may tell us more than interference.' :
         site.kind === 'resource-field' ? 'Useful material, yes. But we need to consider what taking it costs.' :
         'The signal is unusual. Let us understand it before we act.'}
-    </CrewLine>
+    </CrewLine>}
     <p>{chosen ? chosen.outcome : story.text}</p>
     {chosen && <small>Captain’s record · {chosen.label} · day {record!.day}</small>}
     {!chosen && <>
