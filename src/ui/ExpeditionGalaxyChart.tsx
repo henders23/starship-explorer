@@ -116,7 +116,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
         {systems.map(s => {
           const p = spot(s.id), current = s.id === state.at, chosen = s.id === active, near = connected.has(s.id), seen = visited.has(s.id)
           return <g key={s.id} className={`exp-atlas-star ${current ? 'is-current' : ''} ${chosen ? 'is-selected' : ''}`}
-            role="button" tabIndex={0} aria-label={`${current ? 'Ithaca at' : 'Select'} ${s.name}`} aria-pressed={s.id === selected}
+            role="button" tabIndex={0} aria-label={`${current ? 'Lodestar at' : 'Select'} ${s.name}`} aria-pressed={s.id === selected}
             onPointerEnter={() => hoverSoon(s.id)} onPointerLeave={hideSoon}
             onFocus={() => { window.clearTimeout(hideTimer.current); setHovered(s.id) }} onBlur={hideSoon}
             onClick={() => pick(s.id)} onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); pick(s.id) } }}>
@@ -149,7 +149,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     </section>}
     <div className="exp-atlas-key">
       <span><strong>GALACTIC ATLAS</strong> · {systems.length} systems · {state.visited.length} visited</span>
-      <span className="exp-atlas-legend"><span className="ithaca">▲ Ithaca</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span></span>
+      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span></span>
       {status}
     </div>
   </section>
