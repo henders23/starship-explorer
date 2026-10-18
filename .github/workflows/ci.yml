@@ -18,6 +18,7 @@ jobs:
       - run: npm run typecheck
       # Includes the golden-replay suite: recorded runs replayed by hash.
       - run: npm test
+      - run: npm run build
 
   smoke:
     name: Playwright smoke flow
