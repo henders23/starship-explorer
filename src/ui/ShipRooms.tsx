@@ -3,10 +3,11 @@ import type { Campaign } from '../engine/exploration/campaign.js'
 import { CREW, CrewLine } from './crew-presence.js'
 import type { CrewId } from './crew-presence.js'
 
-export const ROOM_IDS = ['bridge', 'science', 'engineering', 'security'] as const
+export const ROOM_IDS = ['bridge', 'navigation', 'science', 'engineering', 'security'] as const
 export type RoomId = typeof ROOM_IDS[number]
 const ROOMS: Record<RoomId, { title: string; image: string; crew: CrewId; action: string }> = {
   bridge: { title: 'The bridge', image: '/assets/rooms/bridge.png', crew: 'vale', action: 'Open galaxy chart' },
+  navigation: { title: 'Navigation', image: '/assets/rooms/communications.png', crew: 'mori', action: 'Open galaxy chart' },
   science: { title: 'Science deck', image: '/assets/rooms/science.png', crew: 'morozova', action: 'Open research lab' },
   engineering: { title: 'Engineering', image: '/assets/rooms/engineering.png', crew: 'kerr', action: 'Open research lab' },
   security: { title: 'Shuttle bay', image: '/assets/rooms/barracks.png', crew: 'cross', action: 'Review away team' },
@@ -28,6 +29,7 @@ export function ShipRooms({ state, room, onRoom, onNavigate, onTeam }: {
   const selected = ROOMS[room]
   const line = useMemo(() => ({
     bridge: bridgeMessage(state),
+    navigation: state.visited.length > 1 ? 'We know the lanes now. The question is which destination is worth our time.' : 'These stars are unfamiliar, but their distances are honest. I can get us to the next lead.',
     science: state.research.active
       ? 'The lab is working while we travel. The readings still need places, not just theories.'
       : 'Give me a question worth answering and a little time. We can work out the rest.',
@@ -52,7 +54,7 @@ export function ShipRooms({ state, room, onRoom, onNavigate, onTeam }: {
       </nav>
       <CrewLine person={selected.crew}>{line[room]}</CrewLine>
       <div className="ship-room-actions">
-        <button className="exp-button primary" onClick={() => room === 'security' ? onTeam() : onNavigate(room === 'bridge' ? 'galaxy' : 'lab')}>{selected.action}</button>
+        <button className="exp-button primary" onClick={() => room === 'security' ? onTeam() : onNavigate(room === 'bridge' || room === 'navigation' ? 'galaxy' : 'lab')}>{selected.action}</button>
         <button className="exp-button" onClick={() => onNavigate('system')}>Return to system</button>
       </div>
     </div>
