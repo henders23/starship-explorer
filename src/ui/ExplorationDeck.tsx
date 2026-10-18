@@ -291,6 +291,7 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
         <button className="exp-close" aria-label="Close briefing" onClick={() => setOpen(false)}><svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M2 2l10 10M12 2L2 12" /></svg></button>
       </div>
       <CrewLine person="morozova" compact>{detected ? 'We have a fix on the location. Investigate before choosing how to recover it.' : site.kind === 'station' ? 'The station has supplies and people with their own concerns. We should listen before we leave.' : site.kind === 'derelict' ? 'We can send probes or a boarding team. I want a clear plan before anyone crosses that hatch.' : 'We can learn something here without taking an unnecessary risk.'}</CrewLine>
+      {site.name === 'The Silent Courier' && !detected && <p>Its surviving power cell kept the transmitter alive. Studying it may point us towards the Return Drive.</p>}
       {detected ? command({ type: 'investigate', locationId: site.id }, site.kind === 'station' ? 'Establish contact · 1 day' : 'Investigate · 1 day', true) : <>
         {site.services.length > 0 ? <div className="exp-service-list">
           <SurvivorStation state={state} siteId={site.id} dispatch={dispatch} /><LongRelayStation state={state} siteId={site.id} dispatch={dispatch} />
