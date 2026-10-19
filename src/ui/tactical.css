@@ -216,3 +216,26 @@
   .away-team .away-briefing-art { aspect-ratio:1.8; }
 }
 @media(max-width:420px) { .away-gear-row { grid-template-columns:1fr; } }
+
+/* Human-first roster: use real face portraits rather than cropped animation frames. */
+.tac-sq{position:relative;min-height:54px;padding-left:60px;overflow:hidden}
+.tac-sq-face{position:absolute;left:7px;top:6px;bottom:6px;width:43px;height:44px;object-fit:cover;object-position:center 18%;border:1px solid rgba(154,196,199,.6);filter:saturate(.8)}
+.tac-sq[aria-expanded=true] .tac-sq-face{border-color:#edcb91;filter:none}
+.tac-portrait{background-size:cover!important;background-position:center 18%!important;background-repeat:no-repeat}
+.away-portrait{background-size:cover!important;background-position:center 18%!important}
+.tac-weapon{color:#d9e3dd}
+.tac-active-weapon{display:block;color:#d9c39b;font-size:10px;line-height:1.4;margin:0 0 8px}
+.tac-visible-weapon{filter:drop-shadow(0 2px 2px #000);opacity:.94}
+.tac-animated-unit[data-pose=fire] .tac-visible-weapon{animation:tac-rifle-recoil 160ms both}
+.tac-animated-unit.type-scout .tac-rig{filter:brightness(1.5) sepia(.4) hue-rotate(22deg) saturate(.7);transform:scale(.92);transform-origin:center}
+.tac-animated-unit.type-enforcer .tac-rig{filter:brightness(1.18) sepia(.7) hue-rotate(-13deg);transform:scale(1.13);transform-origin:center}
+.tac-animated-unit.type-sentinel .tac-rig{filter:brightness(1.32) sepia(.5) hue-rotate(-21deg);transform:scale(1.07);transform-origin:center}
+.tac-animated-unit.type-custodian .tac-rig{filter:brightness(1.55) sepia(.2)}
+.tac-deck-label{position:absolute;left:18px;top:15px;z-index:3;padding:7px 12px;border:1px solid #486779;background:rgba(5,17,26,.9);font-size:11px;letter-spacing:.08em;color:#ebdfc6;text-transform:uppercase;pointer-events:none}
+.tac-deck-label span{display:block;color:#9cb6c4;font-size:9px;margin-top:2px}
+.tac-board.mood-medical .tac-environment{filter:drop-shadow(0 0 7px #4b8582)}
+.tac-board.mood-relay .tac-environment{filter:drop-shadow(0 0 9px #53476c)}
+.tac-board.mood-reactor .tac-environment{filter:drop-shadow(0 0 8px #89593e)}
+.tac-board.mood-archive .tac-environment{filter:drop-shadow(0 0 9px #65709e)}
+@media(max-width:760px){.tac-deck-label{top:6px;left:6px;padding:4px 7px;font-size:9px}}
+@media(prefers-reduced-motion:reduce){.tac-visible-weapon{animation:none!important}}
