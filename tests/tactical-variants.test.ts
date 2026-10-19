@@ -64,7 +64,7 @@ describe('boarding deck variety', () => {
         const order=nextOperationOrder(m);expect(tacticalLock(m,order)).toBeNull();m=reduceMission(m,order)
       }
       expect(m.outcome,`${kind}/${variant}/${i}`).toBe('success')
-      expect(m.rescued.length).toBeGreaterThanOrEqual(3)
+      expect(m.rescued.length,`${kind}/${variant}/${i} crew extracted`).toBeGreaterThanOrEqual(3)
       returned+=m.rescued.length
     }
     expect(returned).toBeGreaterThanOrEqual(450)
