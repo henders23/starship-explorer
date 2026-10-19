@@ -6,6 +6,7 @@ import { TacticalFigure, TacticalStatus } from './TacticalFigure.js'
 import { point, diamond } from './isometric.js'
 import { facing, FRAMES, poseFrame, reaction, restPose, routeBetween } from './tactical-animation.js'
 import type { Pose } from './tactical-animation.js'
+import { weaponFacingAngle, shotMuzzle } from './tactical-figure-geometry.js'
 import { DeckArchitecture } from './DeckArchitecture.js'
 import { deckStyle } from './tactical-environment.js'
 import { enemyAppearance } from './tactical-identity.js'
@@ -68,6 +69,11 @@ function UnitFigure({unit,m,chosen,onChoose,onHover,firing,speed}:{unit:Tactical
       const frame=pose==='fall'&&!transient.current?28:poseFrame(pose,elapsed,loop)
       rig.style.backgroundPosition=`${-frame*80}px ${-direction.current*80}px`
       element.dataset.pose=pose;element.dataset.direction=String(direction.current)
+      // The gun belongs to the body rig: direction changes with walking and aiming,
+      // rather than keeping a decorative rifle pointing right in every frame.
+      const gun=element.querySelector<SVGGElement>('.tac-visible-weapon')
+      const orientation=`rotate(${weaponFacingAngle(direction.current)} 4 -32)`
+      if(gun?.getAttribute('transform')!==orientation)gun?.setAttribute('transform',orientation)
       const mark=element.closest('svg.tac-board')?.querySelector(`[data-status-id="${unit.id}"]`)
       mark?.setAttribute('transform',`translate(${screen.x} ${screen.y})`)
       const object=element.parentElement
@@ -176,7 +182,7 @@ export function TacticalBoard({m,unitId,sprint,destination,onHoverTile,onTile,se
       {m.operation?.crates.map((c,i)=><text key={i} x={point(c).x} y={point(c).y+20} fontSize={9} fill="#efdbb2" textAnchor="middle">{c.collected?'SECURED':`CASE ${i+1}`}</text>)}
       {(!m.operation||m.operation.kind==='sabotage') && m.seen.includes(m.objective.y*m.width+m.objective.x) && <text x={point(m.objective).x} y={point(m.objective).y+21} textAnchor="middle" fill="#ffd184" fontSize={9}>{m.recorder?m.recorder.carrierId?'CARRIED':'RECORDER':m.recovered?'SECURED':m.operation?'UPLINK':'CORE'}</text>}
     </g>
-    {m.lastShot && m.rolls>loadedRolls && <g key={`shot-${m.rolls}`} className="tac-shot-effect" pointerEvents="none"><circle className="tac-muzzle" cx={point(m.lastShot.from).x} cy={point(m.lastShot.from).y-15} r={4} fill="#fff4c1"/><line x1={point(m.lastShot.from).x} y1={point(m.lastShot.from).y-15} x2={point(m.lastShot.to).x} y2={point(m.lastShot.to).y-15} stroke={m.lastShot.hit?'#eafed0':'#e8a17a'} strokeWidth={3}/><circle cx={point(m.lastShot.to).x} cy={point(m.lastShot.to).y-15} r={12} fill="none" stroke="#ffdea0"/><text x={point(m.lastShot.to).x} y={point(m.lastShot.to).y-58} textAnchor="middle" fill="#fff2d1" fontSize={15}>{m.lastShot.hit?'HIT':'MISS'}</text></g>}
+    {m.lastShot && m.rolls>loadedRolls && <g key={`shot-${m.rolls}`} className="tac-shot-effect" pointerEvents="none"><circle className="tac-muzzle" cx={shotMuzzle(point(m.lastShot.from),point(m.lastShot.to)).x} cy={shotMuzzle(point(m.lastShot.from),point(m.lastShot.to)).y} r={4} fill="#fff4c1"/><line x1={shotMuzzle(point(m.lastShot.from),point(m.lastShot.to)).x} y1={shotMuzzle(point(m.lastShot.from),point(m.lastShot.to)).y} x2={point(m.lastShot.to).x} y2={point(m.lastShot.to).y-15} stroke={m.lastShot.hit?'#eafed0':'#e8a17a'} strokeWidth={3}/><circle cx={point(m.lastShot.to).x} cy={point(m.lastShot.to).y-15} r={12} fill="none" stroke="#ffdea0"/><text x={point(m.lastShot.to).x} y={point(m.lastShot.to).y-58} textAnchor="middle" fill="#fff2d1" fontSize={15}>{m.lastShot.hit?'HIT':'MISS'}</text></g>}
     <g className="tac-grain" pointerEvents="none" opacity=".018"><rect x="0" y="0" width="720" height="420" filter="url(#tac-noise)" /></g>
     {m.operation?.kind==='salvage' && <g pointerEvents="none" className="tac-heat-boundary"><path d="M 460 100 L 160 260" stroke="#f5b47b" strokeDasharray="4 5" strokeWidth={1.5}/><text x={447} y={99} fill="#ffd3a1" fontSize={9}>HEAT ZONE →</text></g>}
     <text x={23} y={391} fill="#69cbbd" fontSize={10}>SHUTTLE ←</text><text x={470} y={391} fill="#7fa0ae" fontSize={9}>{m.recorder?'RECORDER VAULT':m.operation?.variant?DECK_NAMES[m.operation.kind][m.operation.variant-1]!.toUpperCase():'RECOVERY DECK'} / 12 × 10</text>

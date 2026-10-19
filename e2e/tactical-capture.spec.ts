@@ -36,3 +36,22 @@ for (const width of [1440, 390]) test(`capture live boarding combat at ${width}p
   await page.screenshot({ path: info.outputPath(`mid-mission-controls-${width}.png`), animations:'disabled' })
   expect(await page.evaluate(() => document.documentElement.scrollWidth <= window.innerWidth)).toBe(true)
 })
+
+test('inspect a procedural 3D squad figure without modifying a mission', async ({page}) => {
+  const state=deployBoarding('3d-figure-inspection')
+  let saved=''
+  saveExploration(state,{getItem:()=>null,removeItem:()=>{},setItem:(_,value)=>{saved=value}})
+  await page.addInitScript(({key,value})=>localStorage.setItem(key,value),{key:EXPLORATION_SAVE_KEY,value:saved})
+  await page.goto('/')
+  await page.getByRole('button',{name:'Resume expedition'}).click()
+  const orders=page.getByRole('region',{name:'Tactical map'})
+  await expect(orders).toBeVisible()
+  await page.getByRole('button',{name:'Inspect equipment in 3D'}).click()
+  const inspector=page.getByRole('dialog',{name:'3D combat figure inspection'})
+  await expect(inspector).toBeVisible()
+  await expect(inspector.getByText(/Procedural reference model/)).toBeVisible()
+  await inspector.getByRole('button',{name:'Return to mission'}).click()
+  await expect(inspector).toHaveCount(0)
+  await expect(orders).toBeVisible()
+  await expect(page.getByRole('button',{name:'Tile 3,4',exact:true})).toBeVisible()
+})
