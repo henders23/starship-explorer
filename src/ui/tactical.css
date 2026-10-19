@@ -260,3 +260,15 @@
 .tac-enemy-intel{display:block;color:#eac69b;font-size:10px;letter-spacing:.075em;text-transform:uppercase;margin-bottom:5px}
 @keyframes tac-weapon-kick{0%{transform:translateX(0)}28%{transform:translateX(-3px)}100%{transform:translateX(0)}}
 @media(prefers-reduced-motion:reduce){.tac-weapon-body{animation:none!important}}
+
+/* On-demand Three.js model inspection, borrowed in spirit from procedural rigs.
+   It never blocks the tactical action bar until explicitly opened. */
+.tac-inspect-backdrop{z-index:45}
+.tac-inspect{width:min(420px,95vw);max-height:96vh;overflow:auto;text-align:center}
+.tac-inspect h2{font-size:21px;margin:9px 0 5px}
+.tac-inspect>p{font-size:12px;color:#c9dce4}
+.tac-inspect-canvas{width:min(280px,100%);height:280px;display:flex;align-items:center;justify-content:center;margin:12px auto;background:radial-gradient(circle at 50% 32%,#294252,#06141e 74%);border:1px solid #456675;border-radius:8px;overflow:hidden}
+.tac-inspect-note{font-size:10px!important;max-width:36ch;margin:8px auto 18px;color:#9cb8c2!important}
+.tac-inspect .exp-button{width:100%}
+.tac-inspect-button{font-size:10px;color:#b9d9dc;border:1px solid #40636e;padding:5px 8px;margin:7px 0}
+.tac-inspect-button:hover{border-color:#97d8d8;color:#ebffff}

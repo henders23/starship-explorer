@@ -99,7 +99,7 @@ export function TacticalModelInspector({unit,onClose}:{unit:TacticalUnit;onClose
      block(.36,.13,.27,[0,1.48,.26],visor)
      const head=ball(.26,[0,1.92,0],armour)
      head.scale.set(1,.94,1.05)
-     const shield=block(.39,.093,.08,[0,1.92,.255],visor)
+     block(.39,.093,.08,[0,1.92,.255],visor)
      shield.rotation.z=-.06
      for(const side of [-1,1]){
        ball(heavy?.26:.19,[side*.47,1.65,0],trim)
