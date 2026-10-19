@@ -1,11 +1,10 @@
-import { operativePortrait, gunName, enemyAppearance } from './tactical-identity.js'
+import { operativePortrait, gunName } from './tactical-identity.js'
 import { playTacticalCue, cueForTacticalOrder } from './tactical-audio.js'
 import { ReportImage } from './ReportImage.js'
 import { CrewLine } from './crew-presence.js'
 import { TacticalBoard } from './TacticalBoard.js'
 import { movementPreview, orderFeedback } from './tactical-guidance.js'
 import { DECK_NAMES, DECK_NOTES, siteVariant } from '../engine/tactical/variants.js'
-import { rigAsset } from './TacticalFigure.js'
 import { OPERATION_KINDS, OPERATION_BRIEFINGS, operationArt } from '../engine/tactical/operations.js'
 import type { OperationKind } from '../engine/tactical/operations.js'
 import { useEffect, useRef, useState } from 'react'
@@ -70,7 +69,6 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
   </section></div>
 }
 const ROLE_LABEL: Record<TacticalUnit['role'], string> = { assault: 'Assault', recon: 'Recon', engineer: 'Engineer', medic: 'Medic', heavy: 'Heavy' }
-const weaponName = (u: TacticalUnit) => `${u.weapon === 'plasma' ? 'Plasma ' : ''}${u.role === 'heavy' ? 'cannon' : 'rifle'}`
 /** A segmented bar: one block per point, so counts read at a glance. */
 function StatBar({ label, name, value, max, color, text }: { label: string; name: string; value: number; max: number; color: string; text: string }) {
   return <div className="tac-stat"><span>{label}</span>

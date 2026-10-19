@@ -9,7 +9,7 @@ export const DECK_NAMES: Record<OperationKind, [string,string,string,string,stri
   sabotage: ['Relay hall', 'Signal gallery', 'Control spine', 'Power junction', 'Broadcast array'],
   salvage: ['Cargo hold', 'Freight interchange', 'Maintenance stores', 'Ore refinery', 'Coolant loading dock'],
 }
-export const DECK_NOTES: Record<OperationKind, [string, string, string]> = {
+export const DECK_NOTES: Record<OperationKind, [string,string,string,string,string]> = {
   rescue: ['Two sheltered wards share a central approach.', 'The wards open on opposite sides of a divided deck.', 'The survivors are separated at the far corners. Split the team or escort them one at a time.', 'Four isolation cells surround a service spine. Find the survivors beyond the shutters.', 'A large evacuation bay has crossing aisles and exposed medical stations.'],
   sabotage: ['An open approach leads to the guarded uplink.', 'The uplink sits across a reversed service gallery.', 'A service partition divides the approach. The uplink is beyond the eastern opening.', 'The power junction has offset machinery and a heavily guarded centre.', 'The broadcast array wraps around multiple exposed access aisles.'],
   salvage: ['Cargo gets progressively farther from the shuttle.', 'Cases are spread across the freight lanes. Keep the exit clear.', 'The last case is beyond the maintenance bays. The first can be secured from the near aisle.', 'Refinery machinery narrows the paths to three valuable cases.', 'The coolant bay has long exposed avenues and staggered blast shields.'],
