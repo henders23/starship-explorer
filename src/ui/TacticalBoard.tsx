@@ -130,16 +130,8 @@ export function TacticalBoard({m,unitId,sprint,destination,onHoverTile,onTile,se
     </defs>
     <rect width="720" height="420" fill="#061018"/>
     <rect width="720" height="420" fill="url(#deck-glow)"/>
-    <g pointerEvents="none" className="tac-scene-architecture" aria-hidden="true">
-      <path d="M0 110 L345 -10 L720 111 V165 L356 37 L0 182 Z" fill={mood.floor} opacity=".41"/>
-      <path d="M0 108 L345 -11 L720 111" stroke={mood.accent} strokeWidth="2.4" opacity=".6" fill="none"/>
-      <path d="M52 304 L353 404 L691 258" stroke={mood.light} strokeWidth="9" opacity=".1" fill="none"/>
-      <path d="M58 298 L353 395 L691 248" stroke={mood.accent} strokeWidth="1" opacity=".5" strokeDasharray="13 9" fill="none"/>
-      <g opacity=".56">
-        {Array.from({length:6},(_,i)=><g key={i} transform={`translate(${75+i*98} ${57+15*(i%2)})`}><rect width="48" height="23" rx="2" fill="#0b1b25" stroke={mood.accent}/><path d="M5 16H42M5 10H25M30 10H42" stroke={mood.light} strokeWidth="2" opacity=".7"/></g>)}
-      </g>
-      <text x="20" y="26" fontSize="12" fontFamily="monospace" letterSpacing="2" fill={mood.accent}>{mood.warning}</text>
-    </g>
+    <rect width="720" height="420" fill={mood.floor} opacity=".11" pointerEvents="none"/>
+    <ellipse cx="540" cy="190" rx="220" ry="170" fill={mood.light} opacity=".035" pointerEvents="none"/>
     <g pointerEvents="none" className="tac-environment">
       <path d="M 0 64 L 100 12 L 222 12 M 720 30 L 630 72 L 624 135 M 0 339 L 92 381 L 189 381" stroke="#34505b" strokeWidth="12" fill="none" opacity=".35"/>
       <path d="M 0 64 L 100 12 L 222 12 M 720 30 L 630 72 L 624 135 M 0 339 L 92 381 L 189 381" stroke="#8fa8a8" strokeWidth="1.2" fill="none" opacity=".4"/>
