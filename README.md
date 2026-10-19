@@ -216,3 +216,7 @@ New expeditions open with a short, skippable briefing from Mori, Kerr and Vale, 
 ### Report image quality pass (19 October 2026)
 
 Eight of the narrative dossier illustrations now display cinematic, generated WebP scenes instead of their original SVG first-pass artwork (Silent Courier, mining tug, derelict greenhouse, ancient reservoir, temporal probe, alien settlement, relay control and damaged survey shuttle). WebP assets are 900×507 and remain inside the report or the captain’s record, never as system backgrounds. Original SVG scenes are retained for fallback/history. Four other report illustrations remain vector-based.
+
+## Tactical combat visual and audio pass
+
+The ground-combat interface now shows distinct face portraits for the six starting soldiers, visible equipped gun silhouettes and names, layered Web Audio tactical cues respecting the global mute, and operation-dependent scene lighting and labels. Fifteen authored layouts are available across rescue, sabotage and salvage, up from nine. The core deterministic tactical engine and existing journals remain compatible. See [the ground-combat playtest review](docs/GROUND-COMBAT-PLAYTEST-REVIEW.md) for QA, limits and next priorities.

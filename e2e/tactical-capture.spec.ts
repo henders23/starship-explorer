@@ -12,6 +12,12 @@ for (const width of [1440, 390]) test(`capture live boarding combat at ${width}p
   await page.goto('/')
   await page.getByRole('button', { name: 'Resume expedition' }).click()
   await expect(page.getByRole('region', { name: 'Tactical map' })).toBeVisible()
+  // Identity, weapon and environment must survive first render and narrow layouts.
+  await expect(page.locator('img.tac-sq-face')).toHaveCount(4)
+  await expect(page.locator('.tac-portrait')).toHaveCSS('background-size','cover')
+  await expect(page.locator('.tac-board')).toHaveAttribute('data-environment', /medical|relay|reactor|archive|industrial|freight/)
+  await expect(page.locator('.tac-visible-weapon').first()).toBeVisible()
+  await expect(page.getByText('Equipped ·', {exact:false})).toBeVisible()
   await page.getByRole('button', { name: 'Tile 3,4', exact: true }).click()
   await page.getByRole('button', { name: 'Target Custodian 1', exact: true }).click()
   await expect(page.getByRole('status', { name: 'Last order' })).toContainText(/Shot hit|Shot missed/)
