@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { createCampaign } from '../engine/exploration/campaign.js'
 import type { Campaign } from '../engine/exploration/campaign.js'
 import { ExplorationDeck } from './ExplorationDeck.js'
+import { OpeningBriefing } from './OpeningBriefing.js'
 import { loadExploration } from './exploration-save.js'
 import type { ExplorationSave } from './exploration-save.js'
 import { browserStorage } from './save.js'
@@ -21,6 +22,7 @@ export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
 
 export function App() {
   const [expedition, setExpedition] = useState<Campaign | null>(null)
+  const [opening, setOpening] = useState<Campaign | null>(null)
   const [saved, setSaved] = useState<ExplorationSave>(readExpedition)
   const [storageBlocked] = useState(() => browserStorage() === null)
   const muted = useSound((s) => s.muted)
@@ -36,15 +38,19 @@ export function App() {
   }, [])
   useEffect(() => { if (music.current) music.current.muted = muted }, [muted])
 
-  const leave = () => { setExpedition(null); setSaved(readExpedition()) }
+  const leave = () => { setOpening(null); setExpedition(null); setSaved(readExpedition()) }
   const enter = (seed?: string, resume = false) => {
     const campaign = resume ? saved.campaign : createCampaign((seed || `explore-${Date.now().toString(36)}`).slice(0, 200))
     if (!campaign) return
     void music.current?.play().catch(() => {})
-    setExpedition(campaign)
+    if (resume) setExpedition(campaign)
+    else setOpening(campaign)
   }
 
-  return expedition
+  return opening ? <OpeningBriefing
+    onBack={() => setOpening(null)}
+    onComplete={() => { setExpedition(opening); setOpening(null) }}
+  /> : expedition
     ? <ExplorationDeck initial={expedition} onExit={leave} />
     : <div className="crt app-shell h-full"><StartScreen
         onExplore={enter}

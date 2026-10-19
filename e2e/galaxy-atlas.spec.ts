@@ -5,6 +5,7 @@ for(const width of [1440,390])test(`new galaxy atlas draws real generated world 
   const errors:string[]=[];page.on('pageerror',e=>errors.push(e.message))
   await page.goto('/')
   await page.getByRole('button',{name:'Begin expedition'}).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
   await page.getByRole('button',{name:/Galaxy chart/}).click()
   const chart=page.getByRole('region',{name:'Interactive stellar chart'})
   await expect(chart).toBeVisible()

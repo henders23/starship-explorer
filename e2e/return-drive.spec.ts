@@ -55,6 +55,7 @@ test('mobile research explains locks and queues a dependent project', async ({ p
   await page.setViewportSize({ width: 390, height: 844 })
   await page.goto('/')
   await page.getByRole('button', { name: 'Begin expedition' }).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
   await page.getByRole('button', { name: /Research lab/ }).first().click()
   const diagnostics = await openProject(page, 'Drive Diagnostics')
   await diagnostics.getByRole('button', { name: 'Begin research', exact: true }).click()
