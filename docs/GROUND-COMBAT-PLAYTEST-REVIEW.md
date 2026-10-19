@@ -32,12 +32,12 @@
 
 ## This playable polish pass
 
-- Six distinct existing human portrait assets displayed across squad cards and equipment briefing instead of animation-sheet crops. A separate pack of six new AI-generated portrait crops was produced for later artist review.
+- Six new AI-generated fictional face portraits, cropped from generated combat concept artwork, now ship as dedicated WebP assets for the six starting operatives. Their identities remain consistent across squad and deployment views; recruited operatives reuse the existing portrait library.
 - Visible SVG weapon attachments in the combat space and named equipped weapon in the sidebar.
 - Web Audio layered SFX for rifle/plasma/heavy shots, movement, reload, shield and health impacts, selection, healing, alarms and turn change. Honour the global mute; no external sound download or new game-state fields.
 - Rescued, sabotaged, salvaged and archival decks receive separate light/floor/ambient readouts.
 - Six extra authored variations bring the **three main operation categories from nine to fifteen deterministic layout configurations**. Existing variants 1–3 and saved journal instructions are unchanged.
-- Extra unit and browser assertions, replay checks and automated mission sweeps.
+- Extra unit and browser assertions, replay checks and automated mission sweeps. Actual screenshot QA caught overdrawn environmental lines and oversized floating weapon silhouettes; both have since been reduced to unobtrusive details.
 
 ## Adversarial QA
 
@@ -47,7 +47,7 @@ New layouts must pass pathing from shuttle to every objective, no spawn inside a
 
 1. **Add genuinely differentiated enemy behaviours:** flanking scout, suppressor, armoured shield bearer, drone spotter, engineer jammer, melee interceptor. Make their intention visually clear one turn ahead.
 2. **Commission real recorded/processed game audio:** positional shots, reverb by room, metallic damage, distinctive weapon tails, restrained machinery ambience; mix and loudness controls.
-3. **Build high-resolution portrait / enemy / weapon asset atlas:** one identifiable face for each operative, four directional hero rigs per class, varied robot silhouettes, consistent scale and lighting. The new AI-generated portrait crop pack is an early prototype, not final AAA art.
+3. **Build high-resolution portrait / enemy / weapon asset atlas:** one identifiable face for each operative, four directional hero rigs per class, varied robot silhouettes, consistent scale and lighting. The six generated portraits in the game are a first-pass prototype, not final AAA art.
 4. **Upgrade the renderer** from static SVG textures to a richer hybrid 2.5D/3D pipeline (or tightly drawn perspective-consistent 2D), with physically believable shadows, impact particles and contextual cover destruction; do not obscure the tile logic.
 5. **Meaningful tactical progression:** at least one distinctive earned ability per class, plus threat-based enemy introductions.
 6. **Scenario pacing and variety:** a carefully authored tutorial boarding mission, one rare environmental surprise and a short mission debarkation reaction tied to injuries/survivors.
