@@ -9,9 +9,9 @@ import type { CampaignAction } from '../src/engine/exploration/campaign.js'
 import { saveExploration, loadExploration } from '../src/ui/exploration-save.js'
 
 describe('boarding deck variety', () => {
-  it('has nine deterministic, distinct deck configurations with clear spawn points and connected objectives', () => {
+  it('has fifteen deterministic, distinct deck configurations with clear spawn points and connected objectives', () => {
     const signatures = new Set<string>()
-    for(const kind of OPERATION_KINDS) for(const variant of [1,2,3] as const) {
+    for(const kind of OPERATION_KINDS) for(const variant of [1,2,3,4,5] as const) {
       const args = ['layout-test','site','Deck',initialRoster().slice(0,4),2,{},kind,variant] as const
       const m = createOperation(...args)
       expect(createOperation(...args)).toEqual(m)
@@ -21,7 +21,7 @@ describe('boarding deck variety', () => {
       const points = [...m.operation!.survivors,...m.operation!.crates,m.objective]
       for(const p of points) { expect(tileAt(m,p)).toBe('floor'); expect(pathTo(m,m.units[0]!,p,false)?.length).toBeGreaterThan(0) }
     }
-    expect(signatures.size).toBe(9)
+    expect(signatures.size).toBe(15)
   })
   it('keeps a site’s people and deck stable on retry, with diversity across sites', () => {
     const casts = new Set<string>(), decks = new Set<DeckVariant>()
@@ -32,20 +32,20 @@ describe('boarding deck variety', () => {
       const deck=siteVariant('expedition',`site-${i}`);decks.add(deck)
       expect(siteVariant('expedition',`site-${i}`)).toBe(deck)
     }
-    expect(casts.size).toBeGreaterThan(20);expect(decks.size).toBe(3)
+    expect(casts.size).toBeGreaterThan(20);expect(decks.size).toBe(5)
   })
   it('rejects forged variant values while accepting the original journal format', () => {
     const launched=launchOperation('variant-validation','rescue',1)
     const order=launched.actions.at(-1)!
     const ready=readyOperation('variant-validation')
-    for(const variant of [0,4,-1,NaN,'1',null]) expect(actionLock(ready,{...order,variant} as CampaignAction)).toBeTruthy()
+    for(const variant of [0,6,-1,NaN,'1',null]) expect(actionLock(ready,{...order,variant} as CampaignAction)).toBeTruthy()
     const old=launchOperation('variant-validation','rescue')
     expect(old.mission!.operation!.variant).toBeUndefined()
     expect(old.mission!.operation!.survivors[0]!.name).toBe('Dr Imani Hale')
   })
   it('replays new variants through active objectives and reports; older envelopes reject the new field', () => {
     let raw='';const storage={getItem:()=>raw,setItem:(_:string,v:string)=>{raw=v},removeItem:()=>{}}
-    for(const kind of OPERATION_KINDS) for(const variant of [1,2,3] as const) {
+    for(const kind of OPERATION_KINDS) for(const variant of [1,2,3,4,5] as const) {
       const run=completeOperation('variant-journal',kind,3,variant)
       for(const state of [run.interaction!,run.extraction!,run.report,run.final]) {
         saveExploration(state,storage);expect(loadExploration(storage).campaign).toEqual(state)
@@ -56,9 +56,9 @@ describe('boarding deck variety', () => {
     const old=launchOperation('old-journal','salvage');saveExploration(old,storage)
     raw=JSON.stringify({...JSON.parse(raw),version:6});expect(loadExploration(storage).campaign).toEqual(old)
   })
-  it('completes 72 legal varied missions at introductory through maximum threat', () => {
+  it('completes 120 legal varied missions at introductory through maximum threat', () => {
     let returned=0
-    for(const kind of OPERATION_KINDS) for(const variant of [1,2,3] as const) for(let i=0;i<8;i++) {
+    for(const kind of OPERATION_KINDS) for(const variant of [1,2,3,4,5] as const) for(let i=0;i<8;i++) {
       let m=createOperation(`variant-${i}`,'s','Variation',initialRoster().slice(0,4),i%3,{},kind,variant)
       for(let n=0;n<300 && m.outcome==='active';n++) {
         const order=nextOperationOrder(m);expect(tacticalLock(m,order)).toBeNull();m=reduceMission(m,order)
@@ -67,6 +67,6 @@ describe('boarding deck variety', () => {
       expect(m.rescued.length).toBeGreaterThanOrEqual(3)
       returned+=m.rescued.length
     }
-    expect(returned).toBeGreaterThanOrEqual(280)
+    expect(returned).toBeGreaterThanOrEqual(450)
   })
 })

@@ -15,6 +15,6 @@ export function deckStyle(m:Pick<Mission,'operation'|'recorder'>):DeckStyle {
  if(m.recorder)return DECK_STYLES.archive
  if(m.operation?.kind==='rescue')return DECK_STYLES.medical
  if(m.operation?.kind==='sabotage')return DECK_STYLES.relay
- if(m.operation?.kind==='salvage')return DECK_STYLES.reactor
+ if(m.operation?.kind==='salvage')return m.operation?.variant===5?DECK_STYLES.freight:DECK_STYLES.reactor
  return DECK_STYLES.industrial
 }

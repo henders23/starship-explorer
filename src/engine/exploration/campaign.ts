@@ -281,7 +281,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     case 'deploy': case 'deploy-operation': {
       if(action.type==='deploy-operation'&&action.rememberSurvivors!==undefined&&action.rememberSurvivors!==true)return 'Invalid survivor record option'
       if (action.type === 'deploy-operation' && !OPERATION_KINDS.includes(action.kind)) return 'Unknown operation'
-      if (action.type === 'deploy-operation' && action.variant !== undefined && ![1,2,3].includes(action.variant)) return 'Unknown deck plan'
+      if (action.type === 'deploy-operation' && action.variant !== undefined && ![1,2,3,4,5].includes(action.variant)) return 'Unknown deck plan'
       const site = state.world.locations.find((s) => s.id === action.locationId && s.systemId === state.at)
       if (!site || !['derelict', 'ruins'].includes(site.kind) || state.exploration.statuses[site.id] !== 'investigated') return 'Investigate an unresolved derelict or ruin first'
       if (!Array.isArray(action.squad) || action.squad.length !== 4 || new Set(action.squad).size !== 4) return 'Choose four different operatives'
