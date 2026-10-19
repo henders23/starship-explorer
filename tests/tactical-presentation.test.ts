@@ -11,7 +11,7 @@ describe('tactical presentation', () => {
   const roster=initialRoster()
   const ids=roster.map(operativePortrait)
   expect(new Set(ids).size).toBe(roster.length)
-  for(const url of ids)expect(url).toMatch(/^\/assets\/portraits\/\d+_/)
+  for(const url of ids)expect(url).toMatch(/^\/assets\/tactical\/portraits\/[a-z-]+\.webp$/)
   expect(operativePortrait({id:'recruit-9'})).toBe(operativePortrait({id:'recruit-9'}))
  })
  it('distinguishes four enemy visual archetypes without touching combat rules',()=>{

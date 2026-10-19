@@ -2,12 +2,12 @@ import type { Operative, TacticalUnit } from '../engine/tactical/mission.js'
 
 /** Distinct, existing human face artworks give the boarding roster continuity. */
 const FIRST_ROSTER_FACES = [
-  '/assets/portraits/15_victoria_lin.png',     // Mara Chen: assault
-  '/assets/portraits/16_darius_cole.png',      // Idris Okonkwo: recon
-  '/assets/portraits/13_maria_sanchez.png',    // Sofia Reyes: engineer
-  '/assets/portraits/21_lucas_haines.png',     // Elias Noor: medic
-  '/assets/portraits/20_kiara_n_dala.png',     // Anika Rao: heavy
-  '/assets/portraits/23_oliver_petrov.png',    // Tomás Vega: assault
+  '/assets/tactical/portraits/mara-chen.webp',
+  '/assets/tactical/portraits/idris-okonkwo.webp',
+  '/assets/tactical/portraits/sofia-reyes.webp',
+  '/assets/tactical/portraits/elias-noor.webp',
+  '/assets/tactical/portraits/anika-rao.webp',
+  '/assets/tactical/portraits/tomas-vega.webp',
 ] as const
 const RECRUIT_FACES = [
   '/assets/portraits/04_talia_ryder.png', '/assets/portraits/10_insu_park.png',
