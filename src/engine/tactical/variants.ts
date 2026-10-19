@@ -32,7 +32,7 @@ export function survivorNames(seed: string, locationId: string): [string, string
 export const EXTENDED_LAYOUTS: Record<OperationKind, [{ walls:number[][];cover:number[][];objective:Point;targets:Point[] },{ walls:number[][];cover:number[][];objective:Point;targets:Point[] }]> = {
  rescue:[
   {walls:[[4,1],[4,2],[4,7],[4,8],[7,1],[7,2],[7,7],[7,8],[9,5]],cover:[[3,4],[5,5],[8,4]],objective:{x:8,y:3},targets:[{x:8,y:3},{x:9,y:6}]},
-  {walls:[[4,2],[4,3],[7,6],[7,7],[9,1],[9,2],[5,8]],cover:[[3,6],[6,3],[8,5]],objective:{x:7,y:3},targets:[{x:7,y:3},{x:9,y:7}]},
+  {walls:[[4,1],[4,2],[7,7],[7,8],[9,1],[9,2],[5,8]],cover:[[3,6],[6,3],[8,5]],objective:{x:7,y:3},targets:[{x:7,y:3},{x:9,y:7}]},
  ],
  sabotage:[
   {walls:[[4,1],[4,2],[5,7],[6,7],[8,1],[8,2],[8,7],[8,8]],cover:[[4,5],[6,3],[7,6]],objective:{x:10,y:5},targets:[]},
