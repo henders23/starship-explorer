@@ -17,6 +17,8 @@ for (const width of [1440, 390]) test(`capture live boarding combat at ${width}p
   await expect(page.locator('.tac-portrait')).toHaveCSS('background-size','cover')
   await expect(page.locator('.tac-board')).toHaveAttribute('data-environment', /medical|relay|reactor|archive|industrial|freight/)
   await expect(page.locator('.tac-visible-weapon').first()).toBeVisible()
+  await expect(page.locator('.tac-scene-architecture')).toHaveCount(0)
+  await expect(page.locator('svg.tac-board')).toContainText('LODESTAR / BOARDING FEED')
   await expect(page.getByText('Equipped ·', {exact:false})).toBeVisible()
   await page.getByRole('button', { name: 'Tile 3,4', exact: true }).click()
   await page.getByRole('button', { name: 'Target Custodian 1', exact: true }).click()
