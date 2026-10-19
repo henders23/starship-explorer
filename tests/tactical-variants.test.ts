@@ -16,10 +16,10 @@ describe('boarding deck variety', () => {
       const m = createOperation(...args)
       expect(createOperation(...args)).toEqual(m)
       signatures.add(JSON.stringify({tiles:m.tiles,objective:m.objective,targets:[...m.operation!.survivors,...m.operation!.crates]}))
-      expect(m.units.every((u)=>tileAt(m,u)==='floor')).toBe(true)
+      expect(m.units.every((u)=>tileAt(m,u)==='floor'),`${kind}/${variant} units ${m.units.map(u=>`${u.id}:${tileAt(m,u)}@${u.x},${u.y}`).join(',')}`).toBe(true)
       expect(new Set(m.units.map(u=>`${u.x},${u.y}`)).size).toBe(m.units.length)
       const points = [...m.operation!.survivors,...m.operation!.crates,m.objective]
-      for(const p of points) { expect(tileAt(m,p)).toBe('floor'); expect(pathTo(m,m.units[0]!,p,false)?.length).toBeGreaterThan(0) }
+      for(const p of points) { expect(tileAt(m,p)).toBe('floor'); expect(pathTo(m,m.units[0]!,p,false)?.length,`${kind}/${variant} goal at ${p.x},${p.y}`).toBeGreaterThan(0) }
     }
     expect(signatures.size).toBe(15)
   })
