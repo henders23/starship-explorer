@@ -100,7 +100,7 @@ export function TacticalModelInspector({unit,onClose}:{unit:TacticalUnit;onClose
      const head=ball(.26,[0,1.92,0],armour)
      head.scale.set(1,.94,1.05)
      block(.39,.093,.08,[0,1.92,.255],visor)
-     shield.rotation.z=-.06
+     // Visor plate follows the helmet's front axis.
      for(const side of [-1,1]){
        ball(heavy?.26:.19,[side*.47,1.65,0],trim)
        limb(side*.45,1.55,0,side*.55,1.13,.18,.13,undersuit)
