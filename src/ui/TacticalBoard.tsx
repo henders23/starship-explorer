@@ -7,6 +7,8 @@ import { point, diamond } from './isometric.js'
 import { facing, FRAMES, poseFrame, reaction, restPose, routeBetween } from './tactical-animation.js'
 import type { Pose } from './tactical-animation.js'
 import { DeckArchitecture } from './DeckArchitecture.js'
+import { deckStyle } from './tactical-environment.js'
+import { enemyAppearance } from './tactical-identity.js'
 import { sceneOrder } from './tactical-scene.js'
 
 /**
@@ -15,7 +17,7 @@ import { sceneOrder } from './tactical-scene.js'
  * The moving sprite follows the actual A* / BFS tile route where available.
  */
 function UnitFigure({unit,m,chosen,onChoose,onHover,firing,speed}:{unit:TacticalUnit;m:Mission;chosen:boolean;onChoose:(immediate:boolean)=>void;onHover:()=>void;firing:boolean;speed:number}) {
-  const p=point(unit),ally=unit.side==='crew'
+  const p=point(unit),ally=unit.side==='crew',look=enemyAppearance(unit)
   const node=useRef<SVGGElement>(null)
   const previous=useRef<{mission:Mission;unit:TacticalUnit}|null>(null)
   const motion=useRef<Animation|null>(null)
@@ -83,7 +85,7 @@ function UnitFigure({unit,m,chosen,onChoose,onHover,firing,speed}:{unit:Tactical
     // figures. Cancel only a real unmount, not that connected-node replay.
     return ()=>{queueMicrotask(()=>{if(!element?.isConnected){motion.current?.cancel();cancelAnimationFrame(ticker.current)}})}
   },[])
-  return <g ref={node} data-testid={`tactical-unit-${unit.id}`} className={`tac-animated-unit ${ally?'crew':'hostile'}`}
+  return <g ref={node} data-testid={`tactical-unit-${unit.id}`} className={`tac-animated-unit ${ally?'crew':'hostile'} ${ally?'':'type-'+look.kind}`}
     style={{transform:`translate(${p.x}px, ${p.y}px)`}}
     role="button" tabIndex={0} aria-label={`${ally?'Select':'Target'} ${unit.name}`}
     onPointerEnter={onHover} onFocus={onHover}
@@ -104,12 +106,12 @@ const finePointer = (event: MouseEvent) => !('pointerType' in event) || !['touch
  * previews a shot. Clicking carries the order out.
  */
 export function TacticalBoard({m,unitId,sprint,destination,onHoverTile,onTile,selected,targetId,onSelect,onHoverTarget,onTarget,onLeave,loadedRolls,activeActor,playbackSpeed=1}:{m:Mission;unitId:string;sprint:boolean;destination:Point|null;onHoverTile:(p:Point)=>void;onTile:(p:Point,immediate:boolean)=>void;selected:string;targetId:string|null;onSelect:(id:string)=>void;onHoverTarget:(id:string)=>void;onTarget:(id:string,immediate:boolean)=>void;onLeave:()=>void;loadedRolls:number;activeActor?:string;playbackSpeed?:number}) {
-  const crew=m.units.filter((u)=>u.side==='crew'),unit=m.units.find((u)=>u.id===unitId)!
+  const crew=m.units.filter((u)=>u.side==='crew'),unit=m.units.find((u)=>u.id===unitId)!, mood=deckStyle(m)
   const path=destination?pathTo(m,unit,destination):null
   const legal=destination && !tacticalLock(m,{type:'move',unitId,...destination,sprint})
   const target=m.units.find((u)=>u.id===targetId && u.side==='hostile' && u.hp>0 && visible(m,u))
   const canShoot=target && shotInfo(m,unit,target).possible
-  return <svg viewBox="0 0 720 420" className="tac-board" aria-label="Isometric boarding deck" onPointerLeave={(e)=>{if(e.pointerType==='mouse')onLeave()}}>
+  return <svg viewBox="0 0 720 420" className={`tac-board mood-${mood.key}`} data-environment={mood.key} aria-label={`Isometric boarding deck: ${mood.name}`} onPointerLeave={(e)=>{if(e.pointerType==='mouse')onLeave()}}>
     <defs>
       <radialGradient id="deck-glow"><stop stopColor="#183941"/><stop offset="1" stopColor="#08131c"/></radialGradient>
       <linearGradient id="bulkhead-top" x2="0" y2="1"><stop stopColor="#74919c"/><stop offset="1" stopColor="#3b5260"/></linearGradient>
@@ -128,6 +130,8 @@ export function TacticalBoard({m,unitId,sprint,destination,onHoverTile,onTile,se
     </defs>
     <rect width="720" height="420" fill="#061018"/>
     <rect width="720" height="420" fill="url(#deck-glow)"/>
+    <rect width="720" height="420" fill={mood.floor} opacity=".11" pointerEvents="none"/>
+    <ellipse cx="540" cy="190" rx="220" ry="170" fill={mood.light} opacity=".035" pointerEvents="none"/>
     <g pointerEvents="none" className="tac-environment">
       <path d="M 0 64 L 100 12 L 222 12 M 720 30 L 630 72 L 624 135 M 0 339 L 92 381 L 189 381" stroke="#34505b" strokeWidth="12" fill="none" opacity=".35"/>
       <path d="M 0 64 L 100 12 L 222 12 M 720 30 L 630 72 L 624 135 M 0 339 L 92 381 L 189 381" stroke="#8fa8a8" strokeWidth="1.2" fill="none" opacity=".4"/>
