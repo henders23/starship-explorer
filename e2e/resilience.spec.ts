@@ -8,6 +8,7 @@ test('plays without browser storage and warns before discarding the unsaved voya
   await page.goto('/')
   await expect(page.getByRole('status').filter({ hasText: 'storage is blocked' })).toBeVisible()
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
   await expect(page.getByRole('status').filter({ hasText: 'Autosave unavailable' })).toBeVisible()
   page.once('dialog', (dialog) => { expect(dialog.message()).toContain('could not be autosaved'); void dialog.dismiss() })
   await page.getByRole('button', { name: 'Title screen', exact: true }).click()
@@ -21,6 +22,7 @@ test('plays without browser storage and warns before discarding the unsaved voya
 test('Escape closes expedition dialogs and returns focus to the control that opened them', async ({ page }) => {
   await page.goto('/')
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
   const opener = page.getByRole('button', { name: 'Away team', exact: true })
   await opener.click()
   await expect(page.getByRole('dialog', { name: 'Away team', exact: true })).toBeVisible()
@@ -46,6 +48,7 @@ test('one sound switch mutes the music and is remembered', async ({ page }) => {
   await expect(page.getByRole('button', { name: 'Unmute sound' })).toBeVisible()
   expect(await themeMuted()).toBe(true)
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
   await page.getByRole('button', { name: 'Unmute sound' }).click()
   expect(await themeMuted()).toBe(false)
   await page.setViewportSize({ width: 320, height: 720 })
@@ -58,6 +61,7 @@ test('a corrupt expedition save is preserved and the player can begin a fresh vo
   await expect(page.getByRole('alert')).toContainText('could not be read')
   page.once('dialog', dialog => void dialog.accept())
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
   await expect(page.getByRole('navigation', { name: 'Exploration stations' })).toBeVisible()
 })
 
