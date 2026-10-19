@@ -247,3 +247,16 @@
 .tac-sq-top{gap:4px;align-items:center}
 .tac-sq-top small{font-size:8px;letter-spacing:0;white-space:nowrap}
 .tac-sq-top small+small{font-size:8px;white-space:nowrap}
+
+/* Weapon sight alignment is a scene effect, never a tactical hitbox. */
+.tac-visible-weapon{transform-box:view-box;transform-origin:4px -32px}
+.tac-visible-weapon .tac-weapon-body{filter:drop-shadow(0 1px 2px #000b)}
+.tac-animated-unit[data-pose=fire] .tac-visible-weapon{animation:none}
+.tac-animated-unit[data-pose=fire] .tac-weapon-body{animation:tac-weapon-kick .19s ease-out both}
+.tac-animated-unit[data-pose=aim] .tac-weapon-body{filter:drop-shadow(0 0 3px #cbdfe688)}
+.tac-enemy-equipment{filter:drop-shadow(0 1.5px 3px #000b)}
+.tac-animated-unit.type-scout .tac-enemy-equipment{opacity:.85}
+.tac-animated-unit.type-enforcer .tac-enemy-equipment{opacity:1}
+.tac-enemy-intel{display:block;color:#eac69b;font-size:10px;letter-spacing:.075em;text-transform:uppercase;margin-bottom:5px}
+@keyframes tac-weapon-kick{0%{transform:translateX(0)}28%{transform:translateX(-3px)}100%{transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.tac-weapon-body{animation:none!important}}

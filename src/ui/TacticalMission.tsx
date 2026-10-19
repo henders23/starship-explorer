@@ -1,4 +1,4 @@
-import { operativePortrait, gunName } from './tactical-identity.js'
+import { operativePortrait, gunName, enemyAppearance } from './tactical-identity.js'
 import { playTacticalCue, cueForTacticalOrder } from './tactical-audio.js'
 import { ReportImage } from './ReportImage.js'
 import { CrewLine } from './crew-presence.js'
@@ -235,7 +235,9 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
               {preview.heat>0 && <p className="tac-danger">End-turn heat here: −{preview.heat} health. Shields do not protect against heat.</p>}
               {preview.remainingAP===0 && <p>No AP left after this move: you cannot fire or interact until next turn.</p>}
               <small>Click to move. Guards may move. Unseen threats are not included.</small></div>)}
-          {target && shot && <div className="tac-shot"><strong>{shot.possible ? `Fire at ${target.name} · ${shot.chance}%` : `No clear shot at ${target.name}`}</strong>
+          {target && shot && <div className="tac-shot">
+            <span className="tac-enemy-intel">Visual identification · {enemyAppearance(target).name}</span>
+            <strong>{shot.possible ? `Fire at ${target.name} · ${shot.chance}%` : `No clear shot at ${target.name}`}</strong>
             <small>75 base − {shot.cover} cover − {shot.rangePenalty} range + {shot.aim} aim · {target.hp} HP</small>
             <small>{lockOf({ type: 'shoot', unitId: u.id, targetId: target.id }) ?? 'Click to fire · 1 AP'}</small></div>}
         </div>}
