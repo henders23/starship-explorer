@@ -11,7 +11,7 @@ when you are ready to leave.
 
 ## Play the current game
 
-Choose **Begin expedition** on the title screen. **Resume expedition**
+Choose **Begin expedition** to see a three-part crew briefing, then take command. **Resume expedition**
 continues its browser autosave. Enter a galaxy seed to revisit the same
 generated world.
 
@@ -208,3 +208,7 @@ The old start background remains in the repository until the supplied Lodestar
 image is available as a transferable asset. It is deliberately not replaced with
 an unrelated illustration. See [the character-led UX brief](docs/LODSTAR-EXPERIENCE.md).
 
+
+## Opening and report illustrations
+
+New expeditions open with a short, skippable briefing from Mori, Kerr and Vale, establishing how the Lodestar became stranded and the first priorities. Event reports have a separate illustration layer keyed to the *event*, not the location or system background; the same image follows each decision into the captain's record. For implementation details see [the experience spec](docs/OPENING-REPORT-UX.md).
