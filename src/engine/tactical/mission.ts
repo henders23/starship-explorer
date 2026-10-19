@@ -371,7 +371,7 @@ export function reduceMission(state: Mission, action: TacticalAction, observe?: 
     m.outcome = m.recovered ? 'success' : 'retreat'
     if(m.recorder)m.log.push(operationStatus(m))
     else if (m.operation) m.log.push(`${operationStatus(m)} ${m.recovered ? 'Operation complete.' : 'Withdrawal without a reward.'}`)
-    else m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Ithaca.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
+    else m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Lodestar.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
   } else {
     const u = m.units.find((unit) => unit.id === action.unitId)!
     u.ap -= action.type === 'move' && action.sprint ? 2 : 1
