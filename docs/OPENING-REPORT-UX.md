@@ -14,11 +14,11 @@ Each beat uses an **existing illustrated ship room**, a **consistent portrait**,
 
 ## 2. Event dossier contract
 
-A dossier is tied to a unique **story ID**, not a system ID or procedural location kind. Source: `src/ui/report-art.tsx`. It includes an accessible alt description, an event-specific illustration, and a concise caption. `ExplorationStory` renders the art alongside the report text and decisions; `Discoveries` repeats the same artwork in the captain's record so consequences are remembered.
+A dossier is tied to a unique **story ID**, not a system ID or procedural location kind. Source: `src/ui/report-art.ts`. It includes an accessible alt description, an event-specific illustration, and a concise caption. `ExplorationStory` renders the art alongside the report text and decisions; `Discoveries` repeats the same artwork in the captain's record so consequences are remembered.
 
 Situational first pack: tethered mining tug, damaged habitat capsule, ship greenhouse, navigator's route chart, ancient rain reservoir, tidal lights, alien settlement, temporal probe, silent courier, night orchestra. The independent ship-contact tactical art and full-bleed system artwork are retained. Report art **must not** replace the full system background. Additional side-mission briefs use matching report assets.
 
-Artwork is first-pass in-repo vector illustrations suitable for the smaller dossier viewport; higher-fidelity scene art can replace any SVG without changing the UI's contract.
+Eight key dossiers now use optimised 900px-wide photorealistic WebP images generated for the game, including the mining tug, Silent Courier, greenhouse, rain vault, shuttle, relay room, probe and alien settlement. Four secondary dossier images (star chart, resonant towers, tidal ocean, cryopod) retain their original vector art until the next asset batch. The mapping remains keyed to event identity and leaves system art unchanged.
 
 ## 3. Readability criteria
 
