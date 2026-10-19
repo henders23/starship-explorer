@@ -162,8 +162,8 @@ export function createOperation(seed: string, locationId: string, name: string, 
       for(const [i,point] of [...m.operation!.survivors,...m.operation!.crates].entries())Object.assign(point,layout.targets[i]!)
       // All guards occupy floor, not scenery. Do not block the extraction corridor.
       m.units.filter(u=>u.side==='hostile').forEach((u,i)=>{
-        u.x=[7,10,10,8][i%4]!
-        u.y=[4,6,3,8][i%4]!
+        u.x=[7,10,10,10][i%4]!
+        u.y=[4,6,3,9][i%4]!
       })
     }
     m.log.push(`${DECK_NAMES[kind][variant - 1]}. ${DECK_NOTES[kind][variant - 1]}`)
