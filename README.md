@@ -212,3 +212,7 @@ an unrelated illustration. See [the character-led UX brief](docs/LODSTAR-EXPERIE
 ## Opening and report illustrations
 
 New expeditions open with a short, skippable briefing from Mori, Kerr and Vale, establishing how the Lodestar became stranded and the first priorities. Event reports have a separate illustration layer keyed to the *event*, not the location or system background; the same image follows each decision into the captain's record. For implementation details see [the experience spec](docs/OPENING-REPORT-UX.md).
+
+### Report image quality pass (19 October 2026)
+
+Eight of the narrative dossier illustrations now display cinematic, generated WebP scenes instead of their original SVG first-pass artwork (Silent Courier, mining tug, derelict greenhouse, ancient reservoir, temporal probe, alien settlement, relay control and damaged survey shuttle). WebP assets are 900×507 and remain inside the report or the captain’s record, never as system backgrounds. Original SVG scenes are retained for fallback/history. Four other report illustrations remain vector-based.

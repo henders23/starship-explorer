@@ -47,7 +47,7 @@ test('mining tug report appears in its own dossier, never replacing the location
   await page.getByRole('button', { name: 'Investigate · 1 day' }).click()
   const report = page.getByTestId('report-image-tethered-tug')
   await expect(report).toBeVisible()
-  await expect(report.locator('img')).toHaveAttribute('src', '/assets/reports/mining-tug.svg')
+  await expect(report.locator('img')).toHaveAttribute('src', '/assets/reports/mining-tug.webp')
   await expect(page.locator('.exp-scene-art')).not.toHaveAttribute('src', /mining-tug/)
   await expect(page.getByRole('button', { name: /Transfer propellant/ })).toBeVisible()
 })
