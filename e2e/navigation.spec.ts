@@ -18,6 +18,7 @@ async function begin(page: Page) {
   await page.goto('/')
   await page.getByRole('textbox').fill(SEED)
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Skip briefing' }).click()
 }
 const chart = chartTo
 

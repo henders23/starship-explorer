@@ -1,3 +1,4 @@
+import { ReportImage } from './ReportImage.js'
 import { CrewLine } from './crew-presence.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock } from '../engine/exploration/campaign.js'
@@ -22,6 +23,7 @@ export function SurvivorStation({state,siteId,dispatch}:{state:Campaign;siteId:s
  const lock=actionLock(state,action)
  return <section className="relay-conversation" aria-label="Someone left behind"><span className="exp-eyebrow">OPTIONAL / SOMEONE LEFT BEHIND</span><span className="relay-speaker">{person.name} · rescued surveyor</span>
  <h3>{arc?'What we brought back':'One signal we never answered'}</h3>
+ <ReportImage eventId="survivor" compact />
  <CrewLine person="cross" compact>{arc ? 'We brought our team home with the answer we could carry. I hope it helps.' : 'We have a choice. We can follow that signal, but bringing everyone back matters more than the recorder.'}</CrewLine>
  {!arc?<><p>“I remember your shuttle door closing. I thought that would be the moment I could stop listening.” {person.name} puts a field log on the table. “My team sent one last signal from another installation. Their recorder may still have it.”</p><p>“I want to know what happened. But I am not asking you to trade four people for an answer. Go and look. If it is too much, come back and tell me.”</p><small>Optional boarding mission · carry a fragile recorder or withdraw · 24 credits for recovered evidence, no payment for withdrawal · no deadline.</small></>:
  arc.result==='evidence'?<><p>“Play it again. From the part where she says the beacon is on.” The recording is clear: security had marked the evacuation signal as hostile. The field team had been trying to warn the next shuttle.</p><p>{person.name} closes the log. “We thought they had stopped trying. They were still trying to get someone else home.” The station issues a beacon warning to visiting crews.</p><small>24 credits once · the warning is preserved in your voyage record. This does not disable custodians at other sites.</small></>:

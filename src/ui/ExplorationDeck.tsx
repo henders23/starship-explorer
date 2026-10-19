@@ -26,6 +26,7 @@ import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
 import './crew-presence.css'
 import { CrewLine } from './crew-presence.js'
+import { ReportImage } from './ReportImage.js'
 import { ShipRooms, bridgeMessage } from './ShipRooms.js'
 import type { RoomId } from './ShipRooms.js'
 
@@ -332,7 +333,7 @@ function Discoveries({ state, command, onLocate, status }: { state: Campaign; co
       {state.stories.length > 0 && <section className="exp-captains-record" aria-label="Captain’s record"><h3>Captain’s record</h3>{state.stories.map((record) => {
         const place = state.world.locations.find((s) => s.id === record.locationId)!
         const story = storyAt(state.seed, place)!, choice = story.choices.find((c) => c.id === record.choiceId)!
-        return <article className="exp-finding" key={record.locationId}><span className="exp-eyebrow">Day {record.day} / {place.name}</span><h3>{story.title}</h3><strong>{choice.label}</strong><p>{choice.outcome}</p><button className="exp-text-button" onClick={() => onLocate(place.systemId)}>Locate encounter on chart</button></article>
+        return <article className="exp-finding" key={record.locationId}><span className="exp-eyebrow">Day {record.day} / {place.name}</span><h3>{story.title}</h3><ReportImage eventId={story.id} compact /><strong>{choice.label}</strong><p>{choice.outcome}</p><button className="exp-text-button" onClick={() => onLocate(place.systemId)}>Locate encounter on chart</button></article>
       })}</section>}
       <LongRelayArchive state={state} /><SurvivorArchive state={state} />
       <h3 className="exp-archive-label">Recovered sources</h3>

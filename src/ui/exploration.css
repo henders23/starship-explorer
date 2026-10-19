@@ -340,3 +340,14 @@
   .exp-nav>button { font-size:12px; }
   .exp-resources { gap:12px; }
 }
+
+/* An illustrated report is a small, contained scene, NOT the location background. */
+.report-dossier-art{float:right;width:min(43%,302px);margin:0 0 16px 18px;border:1px solid rgba(111,173,190,.48);background:#06111b;box-shadow:0 12px 35px rgba(0,0,0,.4)}
+.report-dossier-art img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover}
+.report-dossier-art figcaption{display:block;padding:8px 11px;color:#cddce0;font-size:10px;letter-spacing:.025em;background:rgba(5,18,28,.98)}
+.report-dossier-art figcaption .exp-eyebrow{font-size:8px;color:#88b8c4}
+.report-dossier-art.compact{width:min(36%,240px);margin:0 0 12px 14px}
+.exp-story-choices{clear:both}
+.exp-story::after,.exp-finding::after,.relay-conversation::after,.operation-briefing::after{content:"";display:block;clear:both}
+.exp-story .report-dossier-art{margin-top:3px}
+@media(max-width:760px){.report-dossier-art,.report-dossier-art.compact{float:none;width:100%;max-width:520px;margin:8px 0 15px}.report-dossier-art img{max-height:240px;object-fit:cover}}
