@@ -1,3 +1,4 @@
+import { ReportImage } from './ReportImage.js'
 import { CrewLine } from './crew-presence.js'
 import { actionLock, fuelCapacity } from '../engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
@@ -11,6 +12,7 @@ export function ExplorationStory({ state, site, dispatch }: { state: Campaign; s
   const chosen = story.choices.find((c) => c.id === record?.choiceId)
   return <section className="exp-story" aria-label={story.title}>
     <h3>{story.title}</h3>
+    <ReportImage eventId={story.id} />
     {!chosen && <CrewLine person={site.kind === 'derelict' || site.kind === 'outpost' ? 'cross' : site.kind === 'resource-field' ? 'kerr' : 'morozova'} compact>
       {site.name === 'The Silent Courier' ? 'Someone kept this beacon alive for decades. We should find out what they were protecting.' :
         site.kind === 'derelict' ? 'We can take what we need, but first I want to know who left this place.' :
