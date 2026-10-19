@@ -239,3 +239,11 @@
 .tac-board.mood-archive .tac-environment{filter:drop-shadow(0 0 9px #65709e)}
 @media(max-width:760px){.tac-deck-label{top:6px;left:6px;padding:4px 7px;font-size:9px}}
 @media(prefers-reduced-motion:reduce){.tac-visible-weapon{animation:none!important}}
+
+/* Visual QA: weapons must appear attached to the animation, not as floating icon signs. */
+.tac-visible-weapon{transform:translate(-6px, 8px) scale(.62);transform-box:fill-box;transform-origin:center;opacity:.82}
+.tac-sq{padding-left:54px;min-height:54px}
+.tac-sq-face{width:40px;height:42px}
+.tac-sq-top{gap:4px;align-items:center}
+.tac-sq-top small{font-size:8px;letter-spacing:0;white-space:nowrap}
+.tac-sq-top small+small{font-size:8px;white-space:nowrap}
