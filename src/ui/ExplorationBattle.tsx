@@ -9,7 +9,7 @@ import { contactArtForClass } from './ship-contact-art.js'
 import type { EnemyRoomKey } from '../engine/combat/ships.js'
 import './ship-battle.css'
 import { CREW, CrewLine } from './crew-presence.js'
-import { MuteButton } from './sound.js'
+import { MuteButton, useSoundscape } from './sound.js'
 import { playCombatSound, unlockCombatAudio } from './combat-sfx.js'
 import type { CombatSound } from './combat-sfx.js'
 
@@ -149,6 +149,12 @@ type Fx = { key: string; type: 'burst' | 'hull-burst' | 'ripple' | 'flyby' | 'io
 
 function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: Campaign; dispatch: (a: CampaignAction) => void; onExit: () => void; outro: ShipBattleResult | null; onSkipOutro: () => void }) {
   const b = state.shipBattle!, cls = SHIP_BY_ID[b.classId]!
+  // Battle stations: the engines swell, the music ducks, and a short klaxon sounds as the fight opens.
+  useEffect(() => {
+    useSoundscape.getState().set('battle')
+    if (b.time === 0) playCombatSound('alarm', { volume: 0.45 })
+    return () => useSoundscape.getState().set('voyage')
+  }, [])
   const live = b.phase === 'battle' && !outro
   const [running, setRunning] = useState(false)
   const [selectedWeapon, setWeapon] = useState(0)

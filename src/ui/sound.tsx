@@ -25,6 +25,11 @@ export const useSound = create<{ muted: boolean; toggle: () => void }>((set, get
   },
 }))
 
+/** Where the soundscape is: the hum and the theme are balanced differently in battle. */
+export const useSoundscape = create<{ scene: 'voyage' | 'battle'; set: (scene: 'voyage' | 'battle') => void }>((set) => ({
+  scene: 'voyage', set: (scene) => set({ scene }),
+}))
+
 export function MuteButton({ className = 'exp-button', icon = false }: { className?: string; icon?: boolean }) {
   const muted = useSound((s) => s.muted)
   const toggle = useSound((s) => s.toggle)
