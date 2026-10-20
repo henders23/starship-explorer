@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
-import { createCampaign } from '../engine/exploration/campaign.js'
+import { createCampaign, reduceCampaign } from '../engine/exploration/campaign.js'
 import type { Campaign } from '../engine/exploration/campaign.js'
 import { ExplorationDeck } from './ExplorationDeck.js'
 import { OpeningBriefing } from './OpeningBriefing.js'
@@ -68,8 +68,9 @@ export function App() {
   }, [aboard, scene])
 
   const leave = () => { setOpening(null); setExpedition(null); setSaved(readExpedition()) }
-  const enter = (seed?: string, resume = false) => {
-    const campaign = resume ? saved.campaign : createCampaign((seed || `explore-${Date.now().toString(36)}`).slice(0, 200))
+  const enter = (seed?: string, resume = false, hardcore = false) => {
+    const fresh = resume ? null : createCampaign((seed || `explore-${Date.now().toString(36)}`).slice(0, 200))
+    const campaign = resume ? saved.campaign : hardcore ? reduceCampaign(fresh!, { type: 'hardcore' }) : fresh
     if (!campaign) return
     void music.current?.play().catch(() => {})
     if (resume) setExpedition(campaign)

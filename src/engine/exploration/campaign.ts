@@ -58,7 +58,9 @@ export interface Campaign {
   research: { active: ProjectId | null; progress: Partial<Record<ProjectId, number>>; completed: ProjectId[]; queue: ProjectId[] }
   built: BuildId[]; equipped: BuildId[]; deepArray: boolean
   driveTest: 'idle' | 'calibrating' | 'complete'
-  outcome: 'exploring' | 'home'
+  outcome: 'exploring' | 'home' | 'lost'
+  /** Hardcore voyages end when the ship is lost in battle: no tow home, and no mercy for a wreck. */
+  hardcore?: true
   roster: Operative[]; mission: Mission | null; missionAttempts: number; recruits: number
   lastMission: Mission | null
   shipBattle: ShipBattle | null; escortCompleted: string[]; lastShipBattle: ShipBattle | null
@@ -84,6 +86,8 @@ export type CampaignAction =
   /** `hazards` turns on interceptions after the jump; journals before save version 11 carry none. */
   | { type: 'travel'; systemId: SystemId; hazards?: 1 }
   | { type: 'signal'; choiceId: string }
+  /** The voyage's first order, if any: losing the ship ends it. */
+  | { type: 'hardcore' }
   | { type: 'buy-weapon'; locationId: string; weapon: ArmouryWeaponId }
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
@@ -209,6 +213,7 @@ function contacted(state: Campaign, id: string) {
 export function actionLock(state: Campaign, action: CampaignAction): string | null {
   if (!action || typeof action !== 'object') return 'Invalid action'
   if (state.outcome === 'home') return 'This voyage has returned home'
+  if (state.outcome === 'lost') return 'The Lodestar is lost; this voyage is over'
   if (state.shipBattle && !['ship-order', 'ship-debrief'].includes(action.type)) return 'Resolve the ship encounter first'
   if (state.signal && action.type !== 'signal') return 'Answer the signal first'
   if (state.mission && !['tactical', 'debrief'].includes(action.type)) return 'Extract or finish the away mission first'
@@ -333,6 +338,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (state.armoury.length >= ARMOURY_SLOTS) return `All ${ARMOURY_SLOTS} hardpoints are full`
       return state.exploration.credits < ARMOURY[action.weapon].price ? `Requires ${ARMOURY[action.weapon].price} credits` : null
     }
+    case 'hardcore': return state.actions.length === 0 && !state.hardcore ? null : 'Hardcore is chosen before the voyage begins'
     case 'signal': {
       const choice = state.signal && SIGNAL_BY_ID[state.signal.id]?.choices.find((c) => c.id === action.choiceId)
       if (!choice) return state.signal ? 'Unknown response' : 'No signal to answer'
@@ -504,7 +510,7 @@ export function interceptionSpoils(battle: ShipBattle): { materials: number; cre
 export function interceptor(state: Campaign): ShipClass | null {
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
   const threat = REGIONAL_THREAT[system.region], torn = rifted(state, system.id)
-  if ((state.at === state.galaxy.start && !torn) || state.hull <= WRECK_HULL) return null
+  if ((state.at === state.galaxy.start && !torn) || (state.hull <= WRECK_HULL && !state.hardcore)) return null
   const chance = (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[threat]) - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
@@ -568,7 +574,7 @@ export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const torn = rifted(state, systemId), reaches = riftReaches(state, systemId)
   const front = !torn && reaches !== null ? ` The rift reaches it on day ${reaches}.` : ''
   const chance = Math.max(0, (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]]) - (fitted(state, 'countermeasures') ? 8 : 0))
-  if (state.hull <= WRECK_HULL && chance) return 'Hostile space, but our hull is too damaged to be worth attacking.' + front
+  if (state.hull <= WRECK_HULL && chance && !state.hardcore) return 'Hostile space, but our hull is too damaged to be worth attacking.' + front
   if (torn) return `Rift-touched: interception risk ${chance}% from heavy hulls. Stations have evacuated.`
   if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.' + front
   const who = state.galaxy.factions.find((f) => f.id === system.faction)
@@ -676,12 +682,15 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = next.shipBattle.log.at(-1)!; break
     case 'ship-debrief': {
       const battle = state.shipBattle!
-      // Rules 2 battles fire from the ship's own magazine; what was spent stays spent.
       // Missiles spent stay spent; a station's escort Hellions are kept only for an escort carried through.
       const carried = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)
       if (battle.rules === 2) next.missiles = battle.kind === 'interception' || carried ? battle.missiles : Math.min(state.missiles, battle.missiles)
       // The voyage's first real exchange of fire has happened once a rules-2 battle ran its clock.
       if (battle.rules === 2 && battle.time > 0) next.fought = true
+      if (state.hardcore && battle.result === 'disabled') {
+        next.outcome = 'lost'; next.hull = 0; next.lastShipBattle = battle; next.shipBattle = null; next.signalAfterBattle = undefined
+        message = 'Main power never comes back. There is no tow out here. The Lodestar is lost with all hands.'; break
+      }
       if (battle.kind === 'interception') {
         const spoils = interceptionSpoils(battle)
         days = battle.result === 'disabled' ? 3 : 0
@@ -787,6 +796,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       }
       break
     }
+    case 'hardcore':
+      next.hardcore = true; message = 'Hardcore voyage: if the Lodestar is lost in battle, there is no tow home.'; break
     case 'buy-weapon':
       next.exploration.credits -= ARMOURY[action.weapon].price; next.armoury = [...state.armoury, action.weapon]
       message = `The armourers mount a ${ARMOURY[action.weapon].weapon.name} on a spare hardpoint. Power it from the weapons system in battle.`; break
@@ -811,7 +822,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', tier: 'survey', systemId: s.id }, s.id)
       }
       // Bait springs on anyone worth robbing; a near-wreck is left alone, as on arrival.
-      if (outcome.ambush && state.hull <= WRECK_HULL) message += ' They take one look at our hull and burn away for richer prey.'
+      if (outcome.ambush && state.hull <= WRECK_HULL && !state.hardcore) message += ' They take one look at our hull and burn away for richer prey.'
       else if (outcome.ambush) {
         const rng = createRng(`${state.seed}:signal:${pending.systemId}:ambush`)
         next.shipBattle = { ...intercept(next, hostileFor(state, rng), `${state.seed}:${pending.systemId}:ambush:${state.day}`), log: [outcome.text] }

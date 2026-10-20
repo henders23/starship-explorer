@@ -103,6 +103,9 @@ Each station's **armoury** stocks one weapon (Burst laser II, Heavy laser or Twi
 Hellion) for two spare hardpoints. Missiles are a finite magazine, sold at
 stations. More weapons than the reactor can power is the point.
 
+**Hardcore** (a checkbox on the title screen): losing the ship in battle ends the
+voyage. There is no tow home, and raiders show no mercy to a wreck.
+
 Victory over an interceptor salvages materials, credits and fuel. A disabled ship
 is towed home at a cost. See [docs/FTL-COMBAT.md](docs/FTL-COMBAT.md).
 

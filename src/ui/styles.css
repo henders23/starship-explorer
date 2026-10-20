@@ -209,6 +209,9 @@ button:disabled {
 .start-begin.is-secondary { border-color: var(--color-rule); color: var(--color-ink-dim); }
 .start-begin.is-secondary:hover { border-color: var(--color-ink); color: var(--color-ink); }
 .start-seed { display: flex; align-items: center; gap: 10px; margin-top: 18px; }
+.start-hardcore { display: flex; align-items: flex-start; gap: 10px; max-width: 460px; margin-top: 14px; font-size: 11px; line-height: 1.6; color: #a9bcc5; cursor: pointer; }
+.start-hardcore input { margin-top: 3px; accent-color: #ff6b5e; }
+.start-hardcore strong { display: block; color: #ffb3a8; letter-spacing: .08em; font-weight: 500; }
 .start-seed span { color: var(--color-ink-faint); font-size: 9px; letter-spacing: .18em; text-transform: uppercase; }
 .start-seed input {
   width: 220px;

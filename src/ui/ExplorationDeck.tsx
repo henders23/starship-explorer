@@ -27,6 +27,7 @@ import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { SignalScene } from './SignalScene.js'
 import type { PendingSignal } from '../engine/exploration/signals.js'
 import { ARMOURY, ARMOURY_SLOTS } from '../engine/exploration/ship-battle.js'
+import { SHIP_BY_ID } from '../engine/combat/ships.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
 import './crew-presence.css'
@@ -188,7 +189,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const scene = tab === 'system' ? site ? 'site' : 'system' : tab
   return <main className="exp-deck" data-tab={tab} data-scene={scene} ref={deckRef}>
     <header className="exp-header" inert={modalOpen}>
-      <span className="exp-ship-mark">ISS LODESTAR</span>
+      <span className="exp-ship-mark">ISS LODESTAR{state.hardcore && <small className="exp-hardcore-mark" title="Losing the ship in battle ends the voyage">HARDCORE</small>}</span>
       <nav className="exp-nav" aria-label="Exploration stations">
         {(Object.keys(TABS) as Tab[]).map((item) => <button key={item} aria-current={tab === item ? 'page' : undefined}
           onClick={() => { setTab(item); if (item === 'system') setSelectedSite(null) }}>
@@ -269,7 +270,20 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       onAnswer={(choiceId) => setSignalShown({ ...state.signal!, choiceId })} onClose={() => setSignalShown(null)} />}
     {returnConfirm && state.outcome !== 'home' && <ReturnHomeScene state={state} dispatch={dispatch} onClose={() => setReturnConfirm(false)} />}
     {state.outcome === 'home' && <ExplorationEnding state={state} onExit={exit} />}
+    {state.outcome === 'lost' && <VoyageLost state={state} onExit={exit} />}
   </main>
+}
+
+/** A hardcore voyage's end: the ship lost in battle. */
+function VoyageLost({ state, onExit }: { state: Campaign; onExit: () => void }) {
+  const foe = state.lastShipBattle ? SHIP_BY_ID[state.lastShipBattle.classId]?.name : null
+  return <div className="exp-modal-backdrop"><section className="exp-modal exp-ending exp-lost" role="dialog" aria-modal="true" aria-label="Voyage lost">
+    <span className="exp-eyebrow">HARDCORE VOYAGE / DAY {state.day}</span><h2>The Lodestar is lost.</h2>
+    <p>{foe ? `${foe[0]!.toUpperCase()}${foe.slice(1)} finished what the rift began.` : 'The rift finished what it began.'} Somewhere far from home, the last transmission is a list of names.</p>
+    <div className="exp-ending-stats"><span><b>{state.visited.length}</b>{plural(state.visited.length, 'system')} visited</span><span><b>{state.findings.length}</b>scientific {plural(state.findings.length, 'source')}</span><span><b>{state.research.completed.length}</b>{plural(state.research.completed.length, 'project')} completed</span></div>
+    <p>The voyage record survives in the archive. Another crew, another sky: begin a new expedition from the title screen.</p>
+    <button className="exp-button primary" onClick={onExit}>Return to title</button>
+  </section></div>
 }
 
 /** The station armoury: one weapon in stock, mounted on a spare hardpoint. */

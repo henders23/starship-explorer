@@ -66,7 +66,7 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
     return () => window.clearTimeout(done)
   }, [outro])
   if (b.phase === 'contact') return <ContactScreen state={state} dispatch={dispatch} saved={saved} />
-  if (b.phase === 'report' && !outro) return <ReportScreen b={b} dispatch={dispatch} saved={saved} />
+  if (b.phase === 'report' && !outro) return <ReportScreen b={b} dispatch={dispatch} saved={saved} hardcore={!!state.hardcore} />
   return <BattleScreen state={state} dispatch={dispatch} onExit={onExit} outro={outro} onSkipOutro={() => setOutro(null)} />
 }
 
@@ -98,7 +98,11 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
   </section></main>
 }
 
-function ReportScreen({ b, dispatch, saved }: { b: ShipBattle; dispatch: (a: CampaignAction) => void; saved: boolean }) {
+function ReportScreen({ b, dispatch, saved, hardcore }: { b: ShipBattle; dispatch: (a: CampaignAction) => void; saved: boolean; hardcore: boolean }) {
+  if (hardcore && b.result === 'disabled') return <main className="exp-deck ship-report"><section className="exp-modal exp-ending exp-lost"><span className="exp-eyebrow">Hardcore / {b.time} combat seconds</span><h2>Main power lost.</h2>
+    <p>The reactor will not restart. Out here, there is no one to tow us home.</p>
+    <button className="exp-button primary" onClick={() => dispatch({ type: 'ship-debrief' })}>Final log entry</button><small>{saved ? 'Report saved' : 'Autosave unavailable'}</small>
+  </section></main>
   const intercept = b.kind === 'interception'
   const title = intercept
     ? { victory: 'Wreckage and salvage.', negotiated: 'Paid and on our way.', evaded: 'Lock broken.', yielded: 'Their hold, our lives.', fled: 'Lost them in the wake.', disabled: 'A tow back to port.', cancelled: '' }[b.result!]

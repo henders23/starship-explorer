@@ -5,12 +5,13 @@ import { MuteButton } from './sound.js'
 export function StartScreen({
   onExplore, explorationSaved, explorationError, storageBlocked = false,
 }: {
-  onExplore: (seed?: string, resumeSaved?: boolean) => void
+  onExplore: (seed?: string, resumeSaved?: boolean, hardcore?: boolean) => void
   explorationSaved: boolean
   explorationError: string | null
   storageBlocked?: boolean
 }) {
   const [customSeed, setCustomSeed] = useState('')
+  const [hardcore, setHardcore] = useState(false)
   return <main className="start-screen">
     <div className="start-art" aria-hidden="true" />
     <div className="start-veil" aria-hidden="true" />
@@ -22,7 +23,7 @@ export function StartScreen({
         {explorationSaved && <button className="exp-button primary" onClick={() => onExplore(undefined, true)}>Resume expedition</button>}
         <button className="exp-button primary" onClick={() => {
           if ((explorationSaved || explorationError) && !window.confirm('Replace your saved expedition with a new voyage?')) return
-          onExplore(customSeed.trim() || undefined)
+          onExplore(customSeed.trim() || undefined, false, hardcore)
         }}>Begin expedition</button>
         {explorationError && <p role="alert">{explorationError}</p>}
         {storageBlocked && <p role="status">Browser storage is blocked. Progress will not be saved after this tab closes.</p>}
@@ -30,6 +31,8 @@ export function StartScreen({
       <label className="start-seed"><span>Galaxy seed (optional)</span><input value={customSeed}
         onChange={event => setCustomSeed(event.target.value)} maxLength={200} placeholder="A different sky each voyage"
         spellCheck={false} /></label>
+      <label className="start-hardcore"><input type="checkbox" checked={hardcore} onChange={(event) => setHardcore(event.target.checked)} />
+        <span><strong>Hardcore</strong> Losing the ship in battle ends the voyage. No tow home, and raiders show no mercy to a wreck.</span></label>
       <MuteButton className="start-mute" />
     </div>
   </main>
