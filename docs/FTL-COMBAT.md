@@ -33,6 +33,9 @@ Rules-1 equivalence was fuzzed over 4000 battles against the previous reducer.
 | Reactor | Seven power (rules 1 kept eight): shields, engines and weapons cannot all be maxed. |
 | Enemy damage control | Patches a point every 8 s, weapons first, then shields, helm and engines. Disabling their guns buys time, not victory. |
 | Interceptions | 14/24/34% on arrival in threat 1/2/3 regions, never in the Shallows or at the start, 8 points lower with countermeasures, and never against a hull of 10 or less. Faction patrols in claimed space, raiders elsewhere; tier 2 at the rift margin and in late-voyage threat-2 space. Breaking the lock burns 2 fuel per attempt. Victory salvages 10 materials, 22 credits and 1 fuel (half again from tier-2 hulls) plus one seeded find from the wreck. |
+| Rift front | Starts at the voyage's first hazard-aware jump. After 15 days it swallows one jump-ring from the arrival system every 6 days. Rift-touched arrivals: 55% interception, heavy tier only. Stations there evacuate (no services, armoury, recruits or escorts). |
+| Signals | 45% of first arrivals raise one of 18 arrival signals; none repeats until all have been met. Every signal has a walk-away choice, risky choices show their odds, and outcomes show resource chips. An intercepted arrival's signal waits for the debrief. |
+| Armoury | Each station stocks one of Burst laser II, Heavy laser or Twin Hellion, for two spare hardpoints. |
 | Magazine | The Lodestar carries 6 Hellions to start, 12 at most. Rules-2 battles spend them. Stations sell two for 14 credits, with no day spent; a flown escort adds two. |
 
 ## Balance
