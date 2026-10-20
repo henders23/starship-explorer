@@ -166,6 +166,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     window.addEventListener('keydown', key)
     return () => window.removeEventListener('keydown', key)
   }, [repairing])
+  // An order in hand lapses when its officer is carried off or the fight ends.
+  const chosen = repairing?.crew ? b.crew?.find((c) => c.id === repairing.crew) : null
+  useEffect(() => { if (repairing && (!live || (chosen && chosen.hp <= 0))) setRepairing(null) }, [live, chosen?.hp])
   useEffect(() => {
     const hide = () => { if (document.hidden) setRunning(false) }
     document.addEventListener('visibilitychange', hide)
@@ -374,7 +377,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         {b.crew ? <div className="space-crew" role="group" aria-label="Crew at battle stations">
           {b.crew.map((c) => {
             const person = CREW[c.id], r = b.rooms[c.room]
-            const doing = c.hp <= 0 ? `Medical bay · ${c.moving}s` : c.moving ? `Moving to ${c.room}` : burning(r) ? `Fighting the ${c.room} fire` : r.hp < r.max ? `Repairing ${c.room}` : `Manning ${c.room}`
+            const doing = c.hp <= 0 ? `Medical bay · ${c.recovery}s` : c.moving ? `Moving to ${c.room}` : burning(r) ? `Fighting the ${c.room} fire` : r.hp < r.max ? `Repairing ${c.room}` : `Manning ${c.room}`
             return <button key={c.id} className={`space-crew-card${repairing?.crew === c.id ? ' chosen' : ''}${c.hp <= 0 ? ' down' : ''}`} disabled={!live || c.hp <= 0} aria-pressed={repairing?.crew === c.id}
               aria-label={`${person.name}, ${doing}`} onClick={(e) => startRepair(e.currentTarget, c.id)}>
               <img src={person.portrait} alt="" /><span><strong>{person.name.split(' ')[1]}</strong><small>{doing}</small>
@@ -513,7 +516,7 @@ function Room({ b, side, room, selected, onClick, register, markers = [], threat
   const r = side === 'player' ? b.rooms[room] : b.enemy.rooms[room]
   const ion = r.ionUntil > b.time, fire = burning(r)
   return <button ref={register} className={`space-room ${selected && !b.crew ? 'selected' : ''} ${threats.length ? 'targeted' : ''} ${r.hp === 0 ? 'disabled-room' : r.hp < r.max ? 'damaged' : ''} ${ion ? 'ionised' : ''} ${fire ? 'burning' : ''}`} style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
-    aria-label={`${side === 'enemy' ? 'Target' : b.crew ? 'Order crew to' : 'Repair'} ${room}`} aria-pressed={selected} title={ROOM_EFFECT[room]} onClick={onClick}>
+    aria-label={`${side === 'enemy' ? 'Target' : b.crew ? 'Order crew to' : 'Repair'} ${room}`} aria-pressed={side === 'enemy' || !b.crew ? selected : undefined} title={ROOM_EFFECT[room]} onClick={onClick}>
     {fire && <span className="space-flames" aria-hidden="true"><i /><i /><i /></span>}
     <SystemIcon room={room} />
     <strong>{room}</strong><span className="space-room-pips" aria-hidden="true">{Array.from({ length: r.max }, (_, i) => <i key={i} className={i < r.hp ? 'ok' : ''} />)}</span>

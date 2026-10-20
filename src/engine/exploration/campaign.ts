@@ -470,8 +470,9 @@ export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const system = state.galaxy.systems.find((s) => s.id === systemId)!
   const chance = Math.max(0, INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]] - (fitted(state, 'countermeasures') ? 8 : 0))
   if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.'
+  if (state.hull < 25) return 'Hostile space, but our hull is too damaged to be worth attacking.'
   const who = state.galaxy.factions.find((f) => f.id === system.faction)
-  return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}${state.hull < 25 ? ' (they ignore a hull this damaged)' : ''}.`
+  return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}.`
 }
 function fitUpgrade(state: Campaign, id: BuildId): Campaign {
   if (equipLock(state, id)) return state

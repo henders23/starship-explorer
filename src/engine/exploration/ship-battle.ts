@@ -42,7 +42,8 @@ export type BattleEvent =
   | { id: number; type: 'wounded' | 'down' | 'returned'; side: 'player'; target: EnemyRoomKey; crew: CrewId }
 /** The Lodestar's bridge crew at battle stations (rules 2). */
 export type CrewId = 'mori' | 'cross' | 'morozova' | 'kerr'
-export interface BattleCrew { id: CrewId; room: EnemyRoomKey; moving: number; hp: number; work: number }
+/** `moving`: seconds still crossing the ship. `recovery`: seconds left in the medical bay. `rest`: seconds healing. */
+export interface BattleCrew { id: CrewId; room: EnemyRoomKey; moving: number; recovery: number; rest: number; hp: number; work: number }
 export const CREW_HP = 4
 /** Seconds a crew member spends crossing the ship. */
 export const CREW_MOVE_SECONDS = 2
@@ -135,7 +136,7 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     // choosing the right compartment is the captain's first decision.
     b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
     for (const w of b.weapons) w.target = 'shields'
-    b.crew = (Object.keys(CREW_STATIONS) as CrewId[]).map((id) => ({ id, room: CREW_STATIONS[id], moving: 0, hp: CREW_HP, work: 0 }))
+    b.crew = (Object.keys(CREW_STATIONS) as CrewId[]).map((id) => ({ id, room: CREW_STATIONS[id], moving: 0, recovery: 0, rest: 0, hp: CREW_HP, work: 0 }))
     if (kind) { b.kind = kind; b.log = [TEXT[kind].open] }
     for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
   }
@@ -247,6 +248,8 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   impact('hit', damage)
   if (b.rules === 2 && !burning(rooms[target]) && roll(b, FIRE_CHANCE[kind])) {
     rooms[target].fire = FIRE_SECONDS
+    // Whatever the officers there were doing, they start again on the fire.
+    for (const c of b.crew ?? []) if (to === 'player' && c.room === target) c.work = 0
     log(b, `Fire in the ${to === 'player' ? 'Lodestar' : 'hostile'} ${target} compartment.`)
     emit(b, { type: 'fire', side: to, target })
   }
@@ -300,19 +303,19 @@ export function enemyGunEta(b: ShipBattle, i: number): number | null {
 function wound(b: ShipBattle, room: EnemyRoomKey) {
   for (const c of b.crew ?? []) {
     if (c.room !== room || c.moving || c.hp <= 0) continue
-    c.hp--
+    c.hp--; c.rest = 0
     emit(b, { type: c.hp ? 'wounded' : 'down', side: 'player', target: room, crew: c.id })
-    if (!c.hp) { c.moving = CREW_RECOVERY_SECONDS; c.work = 0; log(b, `Crew down in the ${room}. They are carried to the medical bay.`) }
+    if (!c.hp) { c.recovery = CREW_RECOVERY_SECONDS; c.work = 0; log(b, `Crew down in the ${room}. They are carried to the medical bay.`) }
   }
 }
 /** Rules 2: officers fight fires, then patch their compartment. The engineer works half again as fast. */
 function crewWork(b: ShipBattle) {
   for (const c of b.crew!) {
-    // A downed officer's `moving` counts down their time in the medical bay.
-    if (c.hp <= 0) { if (--c.moving <= 0) { c.hp = 1; c.moving = 0; c.room = CREW_STATIONS[c.id]; emit(b, { type: 'returned', side: 'player', target: c.room, crew: c.id }) } continue }
+    if (c.hp <= 0) { if (--c.recovery <= 0) { c.hp = 1; c.recovery = 0; c.moving = 0; c.rest = 0; c.room = CREW_STATIONS[c.id]; emit(b, { type: 'returned', side: 'player', target: c.room, crew: c.id }) } continue }
     if (c.moving) { c.moving--; continue }
     const r = b.rooms[c.room]
-    if (c.hp < CREW_HP && !burning(r) && b.time % 10 === 0) c.hp++
+    // The wounded heal a point for every ten quiet seconds away from fire.
+    if (c.hp < CREW_HP && !burning(r) && ++c.rest >= 10) { c.hp++; c.rest = 0 }
     if (!burning(r) && r.hp >= r.max) { c.work = 0; continue }
     c.work += c.id === 'kerr' ? 1.5 : 1
     if (burning(r) && c.work >= CREW_FIRE_WORK) { r.fire = 0; c.work = 0; log(b, `Fire out in the ${c.room}.`); emit(b, { type: 'extinguished', side: 'player', target: c.room }) }
@@ -378,9 +381,9 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
   if (shipOrderLock(state, a)) return state
   const b = structuredClone(state)
   switch (a.type) {
-    case 'hail': b.hailed = true; b.toll = b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to clear the tender's route.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
+    case 'hail': b.hailed = true; b.toll = b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to ${b.kind === 'interception' ? 'let us leave the jump point' : 'clear the tender\'s route'}.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
     case 'pay': finish(b, 'negotiated', text(b).paid); break
-    case 'negotiate': finish(b, 'negotiated', 'We offer a public navigation advisory. Their captain calls it sufficient courtesy and opens the lane.'); break
+    case 'negotiate': finish(b, 'negotiated', b.kind === 'interception' ? 'We share our survey charts of the lanes behind us. Their captain calls it a fair trade and powers down weapons.' : 'We offer a public navigation advisory. Their captain calls it sufficient courtesy and opens the lane.'); break
     case 'evade':
       if (roll(b, evadeChance(b))) finish(b, 'evaded', text(b).evaded)
       else {

@@ -61,7 +61,7 @@
 
 /* Ships: they float, they shake, they burn. */
 .space-hull { position:relative; margin:18px auto 4px; }
-.space-hull.own { width:100%; aspect-ratio:1696/927; }
+.space-hull.own { width:min(100%,calc((100dvh - 440px) * 1696 / 927)); min-width:min(100%,420px); aspect-ratio:1696/927; }
 .space-hull.enemy { width:auto; height:min(470px,calc(100dvh - 360px)); min-height:300px; aspect-ratio:167/273; margin-top:16px; }
 .space-bob { position:absolute; inset:0; animation:space-bob 7s ease-in-out infinite; }
 .space-bob.slow { animation-duration:9s; animation-delay:-3s; }
@@ -130,7 +130,7 @@
 .space-crew-hp b { width:8px; height:3px; background:#5a2420; }
 .space-crew-hp b.ok { background:#7dffa8; }
 .space-crew-hint { flex-basis:100%; font-size:10px; color:#8fa6b1; }
-.space-room-crew { position:absolute; left:3px; bottom:3px; display:flex; gap:2px; }
+.space-room-crew { position:absolute; right:3px; top:3px; display:flex; gap:2px; }
 .space-room-crew img { width:18px; height:18px; object-fit:cover; border:1px solid #7ce2cb; border-radius:50%; box-shadow:0 0 4px #000; }
 .space-room-crew img.hurt { border-color:#ff8b7a; }
 .space-room-crew img.moving { opacity:.45; border-style:dashed; }
@@ -285,6 +285,8 @@
   .space-ship.hostile { margin-top:24px; padding-top:16px; border-top:1px solid #4f4c42; }
   .space-hull.enemy { height:320px; min-height:0; }
   .space-outro strong { font-size:26px; }
+  .space-room-crew img { width:12px; height:12px; }
+  .space-hull.own { width:100%; min-width:0; }
   .space-surrender { position:relative; top:auto; left:auto; transform:none; flex-direction:column; align-items:stretch; margin-bottom:16px; }
   .space-console { padding:14px 16px; }
   .space-battery>article { flex-wrap:wrap; }
