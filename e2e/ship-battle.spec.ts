@@ -38,7 +38,7 @@ test('station escort contact, negotiation, one-time reward and saved report', as
 test('real-time battle pauses, targets rooms, saves and completes a combat escort', async ({ page }, info) => {
   const errors: string[] = []; page.on('pageerror', (e) => errors.push(e.message))
   const run = runEscort('escort-sweep-1')
-  await page.addInitScript(({ key, raw }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, raw) }, { key: EXPLORATION_SAVE_KEY, raw: envelope(run.nearEnd) })
+  await page.addInitScript(({ key, raw }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, raw) }, { key: EXPLORATION_SAVE_KEY, raw: envelope(run.battle) })
   await page.goto('/')
   await page.getByRole('button', { name: 'Resume expedition', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Resume battle', exact: true })).toBeVisible()
@@ -54,7 +54,7 @@ test('real-time battle pauses, targets rooms, saves and completes a combat escor
   expect(arena.height).toBeGreaterThan(400)
   expect((await page.locator('.space-console').boundingBox())!.y).toBeGreaterThanOrEqual(arena.y + arena.height - 1)
   await page.screenshot({ path: info.outputPath('ship-battle-desktop.png'), fullPage: true })
-  // Test the actual clock while weapons are off so the report cannot race the pause button.
+  // Test the actual clock from the opening, with weapons off, so the report cannot race the pause button.
   await page.getByRole('article', { name: 'Pulse laser', exact: true }).getByRole('button', { name: 'off', exact: true }).click()
   await page.getByRole('article', { name: 'Hellion missile', exact: true }).getByRole('button', { name: 'off', exact: true }).click()
   await page.getByRole('button', { name: 'Resume battle', exact: true }).click()
@@ -68,7 +68,9 @@ test('real-time battle pauses, targets rooms, saves and completes a combat escor
   await expect(page.getByRole('button', { name: 'Resume battle', exact: true })).toBeVisible()
   await page.getByRole('article', { name: 'Pulse laser', exact: true }).getByRole('button', { name: 'auto', exact: true }).click()
   await page.getByRole('article', { name: 'Hellion missile', exact: true }).getByRole('button', { name: 'auto', exact: true }).click()
-  for (let i = 0; i < 50 && await page.getByRole('button', { name: 'Advance 1 second', exact: true }).isVisible(); i++) await page.getByRole('button', { name: 'Advance 1 second', exact: true }).click()
+  for (let i = 0; i < 120 && await page.getByRole('button', { name: 'Advance 1 second', exact: true }).isVisible(); i++) await page.getByRole('button', { name: 'Advance 1 second', exact: true }).click()
+  // The hostile breaks apart on screen before the report.
+  await expect(page.getByRole('status').filter({ hasText: 'Target destroyed' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'The lane is clear.' })).toBeVisible()
   await page.getByRole('button', { name: 'Acknowledge escort report' }).click()
   expect(errors).toEqual([])

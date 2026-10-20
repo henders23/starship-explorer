@@ -6,8 +6,29 @@ export const SHIP_ROOMS: EnemyRoomKey[] = ['helm', 'weapons', 'shields', 'engine
 export const REACTOR_POWER = 8
 /** The longest single advance order; the campaign journal batches live seconds up to it. */
 export const MAX_ADVANCE_SECONDS = 5
+/**
+ * Battle rules carried by the escort order. Rules 1 (absent) resolve every
+ * shot the instant it fires and stay frozen so earlier journals replay exactly.
+ * Rules 2 fly projectiles between the ships (one second; missiles two), roll
+ * evasion when they arrive, and let hull hits start compartment fires.
+ */
+export const BATTLE_RULES = 2
+export type BattleRules = 1 | 2
 export type ShipWeaponKind = 'laser' | 'missile' | 'ion' | 'beam'
-export interface BattleRoom { hp: number; max: number; ionUntil: number }
+/** Seconds a projectile spends crossing between the ships under rules 2. Beams are instant. */
+export const FLIGHT_SECONDS: Record<ShipWeaponKind, number> = { laser: 1, ion: 1, missile: 2, beam: 0 }
+/** Chance a hull hit sets the struck compartment burning, under rules 2. */
+export const FIRE_CHANCE: Record<ShipWeaponKind, number> = { laser: 10, ion: 0, missile: 35, beam: 25 }
+/** A fire burns this long unless damage control puts it out, costing a compartment point every five seconds. */
+export const FIRE_SECONDS = 10
+export interface BattleRoom { hp: number; max: number; ionUntil: number; fire?: number }
+export interface Projectile { id: number; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; damage: number; launched: number; lands: number; shot: number }
+export type ImpactOutcome = 'miss' | 'shield' | 'blocked' | 'hit' | 'ion'
+/** What happened during the latest simulated second, for presentation. Ids only ever increase. */
+export type BattleEvent =
+  | { id: number; type: 'launch'; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; shot: number }
+  | { id: number; type: 'impact'; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; shot: number; outcome: ImpactOutcome; damage: number }
+  | { id: number; type: 'fire' | 'extinguished' | 'repaired'; side: 'player' | 'enemy'; target: EnemyRoomKey }
 export interface ShipWeapon { kind: ShipWeaponKind; name: string; cost: number; charge: number; period: number; damage: number; shots: number; mode: 'off' | 'hold' | 'auto'; target: EnemyRoomKey }
 export interface BattleUpgrades { fireControl: boolean; ion: boolean; beam: boolean; layered: boolean; adaptive: boolean; translated: boolean; contextual: boolean; countermeasures: boolean }
 export type ShipBattleResult = 'victory' | 'negotiated' | 'evaded' | 'yielded' | 'fled' | 'disabled' | 'cancelled'
@@ -19,6 +40,9 @@ export interface ShipBattle {
   weapons: ShipWeapon[]; escape: boolean; escapeWork: number
   enemy: { hull: number; maxHull: number; shield: number; shieldWork: number; repairWork: number; rooms: Record<EnemyRoomKey, BattleRoom>; charges: number[] }
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
+  /** Present from rules 2; absent means the frozen rules 1. */
+  rules?: BattleRules; inFlight?: Projectile[]
+  events?: BattleEvent[]; eventSeq?: number
 }
 export type ShipOrder =
   | { type: 'hail' | 'negotiate' | 'pay' | 'evade' | 'engage' | 'cancel' }
@@ -35,19 +59,24 @@ export function escortClass(seed: string, locationId: string, threat: number): S
   const ids = threat >= 2 ? ['carrion-jack', 'reaver'] : ['rust-queen', 'magpie']
   return SHIP_BY_ID[createRng(`${seed}:${locationId}:escort-class`).pick(ids)]!
 }
-export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades): ShipBattle {
+export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1): ShipBattle {
   const weapons: ShipWeapon[] = [
     { kind: 'laser', name: 'Pulse laser', cost: 1, period: 8, charge: 0, damage: 1, shots: 2, mode: 'auto', target: 'weapons' },
     { kind: 'missile', name: 'Hellion missile', cost: 1, period: 13, charge: 0, damage: 2, shots: 1, mode: 'off', target: 'weapons' },
   ]
   if (upgrades.ion) weapons.push({ kind: 'ion', name: 'Ion projector', cost: 1, period: 7, charge: 0, damage: 0, shots: 1, mode: 'off', target: 'shields' })
   if (upgrades.beam) weapons.push({ kind: 'beam', name: 'Focus beam', cost: 2, period: 15, charge: 0, damage: 3, shots: 1, mode: 'off', target: 'weapons' })
-  return { seed, locationId, classId: cls.id, phase: 'contact', hailed: false, result: null, hull, hullMax, upgrades, time: 0, rolls: 0, toll: 0,
+  const b: ShipBattle = { seed, locationId, classId: cls.id, phase: 'contact', hailed: false, result: null, hull, hullMax, upgrades, time: 0, rolls: 0, toll: 0,
     power: { shields: 2, engines: 2, weapons: 2 }, rooms: { helm: room(2), weapons: room(4), shields: room(4), engines: room(3) },
     shield: 1, shieldWork: 0, repair: 'weapons', repairWork: 0, missiles: 4, weapons, escape: false, escapeWork: 0,
     enemy: { hull: cls.hull, maxHull: cls.hull, shield: cls.shields, shieldWork: 0, repairWork: 0,
       rooms: { helm: room(cls.rooms.helm), weapons: room(cls.rooms.weapons), shields: room(cls.rooms.shields), engines: room(cls.rooms.engines) }, charges: cls.guns.map(() => 0) },
     log: ['The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.'], volley: null, shots: 0 }
+  if (rules === 2) {
+    b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0
+    for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
+  }
+  return b
 }
 export const effectiveRoom = (b: ShipBattle, side: 'player' | 'enemy', key: EnemyRoomKey) => {
   const r = side === 'player' ? b.rooms[key] : b.enemy.rooms[key]
@@ -58,6 +87,15 @@ export const weaponPower = (b: ShipBattle) => b.weapons.reduce((n, w) => n + (w.
 export const shieldCapacity = (b: ShipBattle) => Math.min(b.upgrades.layered ? 2 : 1, Math.floor(Math.min(b.power.shields, effectiveRoom(b, 'player', 'shields')) / 2))
 export const enemyShieldCapacity = (b: ShipBattle) => Math.min(SHIP_BY_ID[b.classId]!.shields, Math.floor(effectiveRoom(b, 'enemy', 'shields') / 2))
 export const evadeChance = (b: ShipBattle) => b.upgrades.countermeasures ? 85 : 65
+/** The chance, in percent, that a shot at the Lodestar misses right now. */
+export const playerEvasion = (b: ShipBattle) => effectiveRoom(b, 'player', 'helm') ? 10 + Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) * 7 + (b.upgrades.countermeasures ? 10 : 0) : 0
+/** The chance, in percent, that our shot at the hostile misses right now. */
+export const enemyEvasion = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'helm') && effectiveRoom(b, 'enemy', 'engines') ? SHIP_BY_ID[b.classId]!.evade : 0
+export const burning = (r: BattleRoom) => (r.fire ?? 0) > 0
+/** Charge gained per second by each powered player weapon. */
+export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
+/** Charge gained per second by each hostile gun. */
+export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
 export const surrenderAvailable = (b: ShipBattle) => b.phase === 'battle' && b.upgrades.contextual && b.enemy.hull <= b.enemy.maxHull * 0.3
 export function fireLock(b: ShipBattle, index: number): string | null {
   const w = b.weapons[index]
@@ -102,37 +140,74 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
 function log(b: ShipBattle, text: string) { b.log.push(`${b.time}s · ${text}`); b.log = b.log.slice(-35) }
 function finish(b: ShipBattle, result: ShipBattleResult, text: string) { b.phase = 'report'; b.result = result; log(b, text) }
 function roll(b: ShipBattle, percent: number) { return createRng(`${b.seed}:roll:${b.rolls++}`).int(100) < percent }
-function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, target: EnemyRoomKey, damage: number) {
+function emit(b: ShipBattle, e: DistributiveOmit<BattleEvent, 'id'>) {
+  if (!b.events) return
+  b.eventSeq = (b.eventSeq ?? 0) + 1
+  b.events.push({ ...e, id: b.eventSeq } as BattleEvent)
+}
+type DistributiveOmit<T, K extends PropertyKey> = T extends unknown ? Omit<T, K> : never
+function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, target: EnemyRoomKey, damage: number, shot = 0) {
   const to = side === 'player' ? 'enemy' : 'player'
   const rooms = to === 'player' ? b.rooms : b.enemy.rooms
   const shield = to === 'player' ? b.shield : b.enemy.shield
-  const evade = to === 'player' ? effectiveRoom(b, 'player', 'helm') ? 10 + Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) * 7 + (b.upgrades.countermeasures ? 10 : 0) : 0
-    : effectiveRoom(b, 'enemy', 'helm') && effectiveRoom(b, 'enemy', 'engines') ? SHIP_BY_ID[b.classId]!.evade : 0
+  const evade = to === 'player' ? playerEvasion(b) : enemyEvasion(b)
   const hit = kind === 'beam' || !roll(b, evade)
+  const impact = (outcome: ImpactOutcome, dealt = 0) => emit(b, { type: 'impact', side, kind, target, shot, outcome, damage: dealt })
   b.volley = { side, kind, target, hit, damage: 0, id: ++b.shots }
-  if (!hit) { log(b, `${side === 'player' ? 'Our' : 'Hostile'} ${kind} misses.`); return }
-  if (kind === 'beam' && shield > 0) { log(b, 'Beam blocked by shields.'); return }
+  if (!hit) { log(b, `${side === 'player' ? 'Our' : 'Hostile'} ${kind} misses.`); impact('miss'); return }
+  if (kind === 'beam' && shield > 0) { log(b, 'Beam blocked by shields.'); impact('blocked'); return }
   if (kind !== 'missile' && shield > 0) {
     if (to === 'player') b.shield--; else b.enemy.shield--
     if (kind === 'ion') rooms.shields.ionUntil = b.time + 6
-    log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} shield absorbs ${kind}.`); return
+    log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} shield absorbs ${kind}.`); impact('shield'); return
   }
-  if (kind === 'ion') { rooms[target].ionUntil = b.time + 6; log(b, `${to === 'player' ? 'Our' : 'Enemy'} ${target} ionised for six seconds.`); return }
+  if (kind === 'ion') { rooms[target].ionUntil = b.time + 6; log(b, `${to === 'player' ? 'Our' : 'Enemy'} ${target} ionised for six seconds.`); impact('ion'); return }
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
   b.volley.damage = damage
   log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
+  impact('hit', damage)
+  if (b.rules === 2 && !burning(rooms[target]) && roll(b, FIRE_CHANCE[kind])) {
+    rooms[target].fire = FIRE_SECONDS
+    log(b, `Fire in the ${to === 'player' ? 'Lodestar' : 'hostile'} ${target} compartment.`)
+    emit(b, { type: 'fire', side: to, target })
+  }
   if (b.enemy.hull <= 0) finish(b, 'victory', 'The hostile ship breaks apart. The tender has a clear route.')
   else if (b.hull <= 1) finish(b, 'disabled', 'Main power fails. The tender retrieves the disabled Lodestar under emergency tow.')
+}
+/** Rules 2: a shot leaves the gun now and is resolved when it arrives. */
+function launch(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, target: EnemyRoomKey, damage: number, shot: number) {
+  emit(b, { type: 'launch', side, kind, target, shot })
+  if (!FLIGHT_SECONDS[kind]) { attack(b, side, kind, target, damage, shot); return }
+  b.eventSeq = (b.eventSeq ?? 0) + 1
+  b.inFlight!.push({ id: b.eventSeq, side, kind, target, damage, launched: b.time, lands: b.time + FLIGHT_SECONDS[kind], shot })
+}
+function shoot(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, target: EnemyRoomKey, damage: number, shots: number) {
+  for (let j = 0; j < shots && b.phase === 'battle'; j++) {
+    if (b.rules === 2) launch(b, side, kind, target, damage, j)
+    else attack(b, side, kind, target, damage, j)
+  }
 }
 function fire(b: ShipBattle, i: number) {
   const w = b.weapons[i]!
   w.charge = 0
   if (w.kind === 'missile') b.missiles--
-  for (let j = 0; j < w.shots && b.phase === 'battle'; j++) attack(b, 'player', w.kind, w.target, w.damage)
+  shoot(b, 'player', w.kind, w.target, w.damage, w.shots)
+}
+/** Rules 2: fires burn down their compartment until put out or burnt out. */
+function burn(b: ShipBattle, side: 'player' | 'enemy') {
+  const rooms = side === 'player' ? b.rooms : b.enemy.rooms
+  for (const key of SHIP_ROOMS) {
+    const r = rooms[key]
+    if (!burning(r)) continue
+    r.fire!--
+    if (r.fire! % 5 === 0 && r.hp > 0) { r.hp--; log(b, `Fire damages the ${side === 'player' ? 'Lodestar' : 'hostile'} ${key}.`) }
+    if (!r.fire) emit(b, { type: 'extinguished', side, target: key })
+  }
 }
 function tick(b: ShipBattle) {
   b.time++
+  if (b.events) b.events = []
   if (b.escape) {
     b.escapeWork += Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2
     if (b.escapeWork >= 10) { finish(b, 'fled', 'Escape jump complete. The tender turns back with us; no contract payment.'); return }
@@ -142,12 +217,31 @@ function tick(b: ShipBattle) {
   if (b.shieldWork >= 4) { if (b.shield < shieldCapacity(b)) b.shield++; b.shieldWork -= 4 }
   b.enemy.shieldWork++
   if (b.enemy.shieldWork >= 5) { if (b.enemy.shield < enemyShieldCapacity(b)) b.enemy.shield++; b.enemy.shieldWork = 0 }
-  if (++b.repairWork >= 6) { const r = b.rooms[b.repair]; r.hp = Math.min(r.max, r.hp + 1); b.repairWork = 0 }
-  if (++b.enemy.repairWork >= 12) {
-    const key = SHIP_ROOMS.find((r) => b.enemy.rooms[r].hp < b.enemy.rooms[r].max)
-    if (key) b.enemy.rooms[key].hp++; b.enemy.repairWork = 0
+  if (b.rules === 2) {
+    burn(b, 'player'); burn(b, 'enemy')
+    const r = b.rooms[b.repair]
+    // Damage control fights a fire before it patches the compartment.
+    if (burning(r)) { if (++b.repairWork >= 3) { r.fire = 0; b.repairWork = 0; log(b, `Damage control puts out the ${b.repair} fire.`); emit(b, { type: 'extinguished', side: 'player', target: b.repair }) } }
+    else if (++b.repairWork >= 6) { if (r.hp < r.max) { r.hp++; emit(b, { type: 'repaired', side: 'player', target: b.repair }) } b.repairWork = 0 }
+    const fire = SHIP_ROOMS.find((k) => burning(b.enemy.rooms[k]))
+    if (++b.enemy.repairWork >= 5 && fire) { b.enemy.rooms[fire].fire = 0; b.enemy.repairWork = 0; emit(b, { type: 'extinguished', side: 'enemy', target: fire }) }
+    else if (b.enemy.repairWork >= 12) {
+      const key = SHIP_ROOMS.find((k) => b.enemy.rooms[k].hp < b.enemy.rooms[k].max)
+      if (key) { b.enemy.rooms[key].hp++; emit(b, { type: 'repaired', side: 'enemy', target: key }) }
+      b.enemy.repairWork = 0
+    }
+    const arriving = b.inFlight!.filter((p) => p.lands <= b.time)
+    b.inFlight = b.inFlight!.filter((p) => p.lands > b.time)
+    for (const p of arriving) if (b.phase === 'battle') attack(b, p.side, p.kind, p.target, p.damage, p.shot)
+    if (b.phase !== 'battle') { b.inFlight = []; return }
+  } else {
+    if (++b.repairWork >= 6) { const r = b.rooms[b.repair]; r.hp = Math.min(r.max, r.hp + 1); b.repairWork = 0 }
+    if (++b.enemy.repairWork >= 12) {
+      const key = SHIP_ROOMS.find((r) => b.enemy.rooms[r].hp < b.enemy.rooms[r].max)
+      if (key) b.enemy.rooms[key].hp++; b.enemy.repairWork = 0
+    }
   }
-  const chargeRate = (b.upgrades.fireControl ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
+  const chargeRate = playerChargeRate(b)
   for (let i = 0; i < b.weapons.length && b.phase === 'battle'; i++) {
     const w = b.weapons[i]!
     if (w.mode === 'off' || (w.kind === 'missile' && !b.missiles)) continue
@@ -155,14 +249,14 @@ function tick(b: ShipBattle) {
     if (w.mode === 'auto' && !fireLock(b, i)) fire(b, i)
   }
   const cls = SHIP_BY_ID[b.classId]!
-  const enemyRate = effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
+  const enemyRate = enemyChargeRate(b)
   for (let i = 0; i < cls.guns.length && b.phase === 'battle'; i++) {
     const g = cls.guns[i]!
     b.enemy.charges[i] = Math.min(g.time, b.enemy.charges[i]! + enemyRate)
     if (b.enemy.charges[i]! >= g.time) {
       b.enemy.charges[i] = 0
       const target = createRng(`${b.seed}:target:${b.rolls++}`).pick(SHIP_ROOMS)
-      for (let j = 0; j < g.shots && b.phase === 'battle'; j++) attack(b, 'enemy', g.kind, target, g.dmg)
+      shoot(b, 'enemy', g.kind, target, g.dmg, g.shots)
     }
   }
 }
@@ -184,7 +278,8 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
     case 'weapon': b.weapons[a.index]!.mode = a.mode; if (a.mode === 'off') b.weapons[a.index]!.charge = 0; break
     case 'target': b.weapons[a.index]!.target = a.room; break
     case 'fire': fire(b, a.index); break
-    case 'repair': b.repair = a.room; b.repairWork = 0; break
+    // Rules 2 keep the team's progress when the same compartment is chosen again.
+    case 'repair': if (b.rules !== 2 || b.repair !== a.room) b.repairWork = 0; b.repair = a.room; break
     case 'retreat': b.escape = a.active; if (!a.active) b.escapeWork = 0; break
     case 'accept-surrender': finish(b, 'yielded', 'The hostile captain powers down. We accept the surrender and escort the tender through.'); break
   }

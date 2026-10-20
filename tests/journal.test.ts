@@ -9,8 +9,8 @@ const second: CampaignAction = { type: 'ship-order', order: { type: 'advance', s
 const envelope = (s: Campaign, actions: unknown[]) => JSON.stringify({ version: 9, ruleset: s.ruleset, seed: s.seed, legacyActions: null, actions })
 
 /** Plays a battle the way the live clock does: one second per order, with orders between. */
-function liveBattle(seed: string) {
-  let s = shipApply(escortContact(seed), { type: 'ship-order', order: { type: 'engage' } })
+function liveBattle(seed: string, rules: 1 | 2) {
+  let s = shipApply(escortContact(seed, rules), { type: 'ship-order', order: { type: 'engage' } })
   const start = s.actions.length
   for (let i = 0; i < 7; i++) s = shipApply(s, second)
   s = shipApply(s, { type: 'ship-order', order: { type: 'power', system: 'engines', amount: 3 } })
@@ -20,7 +20,7 @@ function liveBattle(seed: string) {
 
 describe('expedition journal length', () => {
   it('journals consecutive battle seconds together and replays to the identical voyage', () => {
-    const { s, start } = liveBattle('journal-live')
+    const { s, start } = liveBattle('journal-live', 2)
     expect(s.shipBattle!.time).toBe(20)
     // 7 seconds → 5 + 2; one power order; 13 seconds → 5 + 5 + 3.
     expect(s.actions.slice(start).map((a) => a.type === 'ship-order' && a.order.type === 'advance' ? a.order.seconds : 'order'))
@@ -29,7 +29,8 @@ describe('expedition journal length', () => {
     expect(loadExploration(storage)).toEqual({ campaign: s, error: null })
   })
   it('loads journals written one second at a time by earlier builds, unchanged in outcome', () => {
-    const { s, start } = liveBattle('journal-old')
+    // Earlier builds wrote escorts without a rules field: they replay under rules 1.
+    const { s, start } = liveBattle('journal-old', 1)
     const contact = s.actions.slice(0, start)
     const old: CampaignAction[] = [...contact, ...Array<CampaignAction>(7).fill(second), { type: 'ship-order', order: { type: 'power', system: 'engines', amount: 3 } }, ...Array<CampaignAction>(13).fill(second)]
     const storage = mem(); storage.setItem(EXPLORATION_SAVE_KEY, envelope(s, old))

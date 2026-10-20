@@ -7,7 +7,7 @@ import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
-import { MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
+import { BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ShipBattle, ShipOrder } from './ship-battle.js'
 import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
@@ -54,7 +54,8 @@ export type CampaignAction =
   | { type: 'loadout'; operativeId: string; weapon: OperativeLoadout['weapon']; gadget: OperativeLoadout['gadget'] }
   | { type: 'story'; locationId: string; choiceId: string }
   | { type: 'deliver-letters'; locationId: string }
-  | { type: 'escort'; locationId: string }
+  /** `rules` selects the battle rules; journals before save version 11 carry none (rules 1). */
+  | { type: 'escort'; locationId: string; rules?: 2 }
   | { type: 'ship-order'; order: ShipOrder }
   | { type: 'ship-debrief' }
   | { type: 'deploy'; locationId: string; squad: string[] }
@@ -268,6 +269,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return 'Unknown story stage'
     }
     case 'escort': {
+      if (action.rules !== undefined && action.rules !== BATTLE_RULES) return 'Unknown battle rules'
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
       if (state.escortCompleted.includes(station.id)) return 'This station’s survey escort is complete'
@@ -496,7 +498,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           fireControl: hasTech(state, 'fire-control'), ion: fitted(state, 'ion-projector'), beam: fitted(state, 'focus-beam'),
           layered: hasTech(state, 'layered-shields'), adaptive: hasTech(state, 'adaptive-shields'),
           translated: hasTech(state, 'trade-language'), contextual: hasTech(state, 'contextual-translation'), countermeasures: fitted(state, 'countermeasures'),
-        })
+        }, action.rules ?? 1)
       message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
     }
     case 'ship-order':

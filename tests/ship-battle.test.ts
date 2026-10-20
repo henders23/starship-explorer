@@ -160,3 +160,73 @@ describe('escort campaign integration', () => {
     expect(loadExploration(storage).error).toBeTruthy()
   })
 })
+
+describe('rules 2: projectiles, flight time and fires', () => {
+  const v2 = (upgrades: Partial<BattleUpgrades> = {}, cls = 'carrion-jack') => reduceShipBattle(createShipBattle('ship-v2', 'station', SHIP_BY_ID[cls]!, 100, 100, { ...base, ...upgrades }, 2), { type: 'engage' })
+  const quiet = (b: ShipBattle) => { b.enemy.rooms.weapons.hp = 0; b.enemy.rooms.helm.hp = 0; b.enemy.shield = 0; return b }
+  it('flies lasers for one second and resolves them on arrival', () => {
+    let b = quiet(v2()); b.weapons[0]!.mode = 'hold'; b.weapons[0]!.charge = 8
+    const hull = b.enemy.hull
+    b = apply(b, { type: 'fire', index: 0 })
+    expect(b.inFlight).toHaveLength(2); expect(b.enemy.hull).toBe(hull)
+    expect(b.events!.filter((e) => e.type === 'launch').map((e) => e.type === 'launch' && e.shot)).toEqual([0, 1])
+    b = apply(b, { type: 'advance', seconds: 1 })
+    expect(b.inFlight).toHaveLength(0); expect(b.enemy.hull).toBe(hull - 2)
+    expect(b.events!.filter((e) => e.type === 'impact' && e.outcome === 'hit')).toHaveLength(2)
+  })
+  it('gives missiles a two-second flight and beams none', () => {
+    let b = quiet(v2({ beam: true })); b.power.weapons = 4; b.weapons[0]!.mode = 'off'; b.weapons[1]!.mode = 'hold'; b.weapons[1]!.charge = 13
+    const hull = b.enemy.hull
+    b = apply(b, { type: 'fire', index: 1 }); b = apply(b, { type: 'advance', seconds: 1 })
+    expect(b.enemy.hull).toBe(hull); expect(b.inFlight).toHaveLength(1)
+    b = apply(b, { type: 'advance', seconds: 1 }); expect(b.enemy.hull).toBe(hull - 2)
+    b.weapons[1]!.mode = 'off'; b.weapons[2]!.mode = 'hold'; b.weapons[2]!.charge = 15
+    b = apply(b, { type: 'fire', index: 2 }); expect(b.enemy.hull).toBe(hull - 5); expect(b.inFlight).toHaveLength(0)
+  })
+  it('lets fires burn compartments until damage control puts them out', () => {
+    let b = quiet(v2()); b.weapons[0]!.mode = 'off'
+    b.rooms.shields.fire = 10; b.rooms.engines.fire = 10
+    b = apply(b, { type: 'repair', room: 'shields' })
+    b = apply(b, { type: 'advance', seconds: 3 })
+    expect(b.rooms.shields.fire).toBe(0); expect(b.rooms.shields.hp).toBe(4)
+    b = apply(b, { type: 'advance', seconds: 5 })
+    expect(b.rooms.engines.fire).toBe(2); expect(b.rooms.engines.hp).toBe(2)
+    b = apply(b, { type: 'advance', seconds: 2 })
+    expect(b.rooms.engines.fire).toBe(0); expect(b.rooms.engines.hp).toBe(1)
+    expect(b.events!.some((e) => e.type === 'extinguished' && e.target === 'engines')).toBe(true)
+  })
+  it('starts fires from hull hits, deterministically', () => {
+    let fires = 0
+    for (let i = 0; i < 12; i++) {
+      let b = reduceShipBattle(createShipBattle(`fire-${i}`, 'station', SHIP_BY_ID['carrion-jack']!, 100, 100, base, 2), { type: 'engage' })
+      b = apply(b, { type: 'weapon', index: 1, mode: 'auto' })
+      let again = structuredClone(b)
+      for (let t = 0; t < 60 && b.phase === 'battle'; t++) {
+        b = apply(b, { type: 'advance', seconds: 1 }); again = apply(again, { type: 'advance', seconds: 1 })
+        fires += b.events!.filter((e) => e.type === 'fire').length
+      }
+      expect(b).toEqual(again)
+    }
+    expect(fires).toBeGreaterThan(0)
+  })
+  it('batches seconds identically with projectiles in flight and numbers events monotonically', () => {
+    let b = v2(); b = apply(b, { type: 'weapon', index: 1, mode: 'auto' })
+    let steps = b; for (let i = 0; i < 25 && steps.phase === 'battle'; i++) steps = apply(steps, { type: 'advance', seconds: 1 })
+    let batched = b; for (let i = 0; i < 5; i++) batched = apply(batched, { type: 'advance', seconds: 5 })
+    expect(batched).toEqual(steps)
+    const ids = steps.events!.map((e) => e.id); expect([...ids].sort((x, y) => x - y)).toEqual(ids)
+  })
+  it('keeps rules-1 battles free of projectiles and fires', () => {
+    let b = battle(); b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 5 })
+    expect(b.rules).toBeUndefined(); expect(b.inFlight).toBeUndefined(); expect(b.events).toBeUndefined()
+  })
+  it('rejects rules-2 escorts in journals written before save version 11', () => {
+    const s = escortContact('rules-gate'), storage = mem(); saveExploration(s, storage)
+    const old = JSON.parse(storage.getItem()!); old.version = 10; storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(old))
+    expect(loadExploration(storage).error).toBeTruthy()
+    const legacy = escortContact('rules-gate', 1); saveExploration(legacy, storage)
+    const ok = JSON.parse(storage.getItem()!); ok.version = 10; storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(ok))
+    expect(loadExploration(storage).campaign!.shipBattle!.rules).toBeUndefined()
+    expect(actionLock({ ...legacy, shipBattle: null }, { type: 'escort', locationId: legacy.shipBattle!.locationId, rules: 3 as 2 })).toBe('Unknown battle rules')
+  })
+})

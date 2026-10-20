@@ -1,3 +1,5 @@
+import { BATTLE_RULES } from '../src/engine/exploration/ship-battle.js'
+import type { BattleRules } from '../src/engine/exploration/ship-battle.js'
 import { createCampaign, reduceCampaign, actionLock } from '../src/engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../src/engine/exploration/campaign.js'
 export function shipApply(s: Campaign, a: CampaignAction) {
@@ -5,14 +7,14 @@ export function shipApply(s: Campaign, a: CampaignAction) {
   if (lock) throw new Error(`${JSON.stringify(a)}: ${lock}`)
   return reduceCampaign(s, a)
 }
-export function escortContact(seed: string): Campaign {
+export function escortContact(seed: string, rules: BattleRules = BATTLE_RULES): Campaign {
   let s = createCampaign(seed)
   const site = s.world.locations.find((l) => l.systemId === s.at && l.kind === 'station')!
   s = shipApply(s, { type: 'investigate', locationId: site.id })
-  return shipApply(s, { type: 'escort', locationId: site.id })
+  return shipApply(s, { type: 'escort', locationId: site.id, ...(rules === 2 ? { rules } : {}) })
 }
-export function runEscort(seed: string) {
-  const contact = escortContact(seed)
+export function runEscort(seed: string, rules: BattleRules = BATTLE_RULES) {
+  const contact = escortContact(seed, rules)
   let s = shipApply(contact, { type: 'ship-order', order: { type: 'engage' } })
   s = shipApply(s, { type: 'ship-order', order: { type: 'weapon', index: 1, mode: 'auto' } })
   s = shipApply(s, { type: 'ship-order', order: { type: 'power', system: 'engines', amount: 3 } })
