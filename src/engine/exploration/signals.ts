@@ -50,7 +50,7 @@ export const SIGNALS: ArrivalSignal[] = [
       { id: 'strip', label: 'Strip it for parts', odds: 75,
         good: { text: 'Kerr\'s team cuts out the whole ore processor and a crate of fittings.', materials: 10 },
         bad: { text: 'A bulkhead fails as we pull away; the decompression slams the hulk into our flank. We still get some of it aboard.', materials: 4, hull: -8 } },
-      { id: 'scan', label: 'Survey it from range', good: { text: 'Remote drones pull loose plating without risking the ship.', materials: 3 } },
+      { id: 'scan', label: 'Survey it from range', days: 1, good: { text: 'A day of remote drone work pulls loose plating without risking the ship.', materials: 3 } },
       { id: 'leave', label: 'Leave it drifting', good: { text: 'Kerr watches it tumble away on the rear camera, and says nothing.' } },
     ] },
   { id: 'trader', title: 'A trader with a full tank', speaker: 'mori', line: 'They are offering a deal before we have even said hello. Fuel or ordnance, captain?',
@@ -83,7 +83,7 @@ export const SIGNALS: ArrivalSignal[] = [
   { id: 'depot', title: 'An automated fuel depot', speaker: 'mori', line: 'It will sell to anyone with a licence. We do not have one. I could talk it round, or it could call for help.',
     text: 'An unmanned refuelling platform hails us in a corporate dialect and offers a visitor\'s allowance.',
     choices: [
-      { id: 'draw', label: 'Take the visitor\'s allowance', good: { text: 'The depot meters out three units and logs our hull number.', fuel: 3 } },
+      { id: 'draw', label: 'Take the visitor\'s allowance', days: 1, good: { text: 'The depot meters out three units, slowly, over a day, and logs our hull number.', fuel: 3 } },
       { id: 'override', label: 'Override the lockout', odds: 55,
         good: { text: 'Mori\'s override holds. We fill the tanks before the depot notices.', fuel: 8 },
         bad: { text: 'The depot screams for its owners, and someone was already close.', ambush: true } },
@@ -122,7 +122,7 @@ export const SIGNALS: ArrivalSignal[] = [
   { id: 'buoy', title: 'A science buoy still recording', speaker: 'morozova', line: 'It has been charting this neighbourhood for years. If we can read its memory, we will not be flying blind.',
     text: 'An academic survey buoy, abandoned when its grant ran out, is still logging every ship and star within a lane of here.',
     choices: [
-      { id: 'download', label: 'Download its survey', good: { text: 'The buoy gives up years of observations. Every system one lane out is now surveyed.', charts: true } },
+      { id: 'download', label: 'Download its survey', days: 1, good: { text: 'A day on its narrow band, and the buoy gives up years of observations. Every system one lane out is now surveyed.', charts: true } },
       { id: 'leave', label: 'Leave it to its work', good: { text: 'Morozova adds a note to its log: still listening.' } },
     ] },
   { id: 'pods', title: 'Escape pods in a slow spiral', speaker: 'cross', line: 'Three pods, one heartbeat strong enough to wake. It will take a day to bring them all in.',
