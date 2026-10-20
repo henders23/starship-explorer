@@ -14,6 +14,8 @@ export const MAX_ADVANCE_SECONDS = 5
  */
 export const BATTLE_RULES = 2
 export type BattleRules = 1 | 2
+/** Every rules version an escort order may name; older ones stay valid so their journals load. */
+export const KNOWN_BATTLE_RULES: readonly number[] = [2]
 export type ShipWeaponKind = 'laser' | 'missile' | 'ion' | 'beam'
 /** Seconds a projectile spends crossing between the ships under rules 2. Beams are instant. */
 export const FLIGHT_SECONDS: Record<ShipWeaponKind, number> = { laser: 1, ion: 1, missile: 2, beam: 0 }
@@ -166,7 +168,10 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
   }
 }
 function log(b: ShipBattle, text: string) { b.log.push(`${b.time}s · ${text}`); b.log = b.log.slice(-35) }
-function finish(b: ShipBattle, result: ShipBattleResult, text: string) { b.phase = 'report'; b.result = result; log(b, text) }
+function finish(b: ShipBattle, result: ShipBattleResult, text: string) {
+  b.phase = 'report'; b.result = result; log(b, text)
+  if (b.inFlight) b.inFlight = []
+}
 function roll(b: ShipBattle, percent: number) { return createRng(`${b.seed}:roll:${b.rolls++}`).int(100) < percent }
 function emit(b: ShipBattle, e: DistributiveOmit<BattleEvent, 'id'>) {
   if (!b.events) return

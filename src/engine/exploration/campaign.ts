@@ -7,7 +7,7 @@ import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
-import { BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
+import { BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
 import { classPool } from '../combat/ships.js'
 import type { ShipClass } from '../combat/ships.js'
@@ -272,7 +272,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return 'Unknown story stage'
     }
     case 'escort': {
-      if (action.rules !== undefined && action.rules !== BATTLE_RULES) return 'Unknown battle rules'
+      if (action.rules !== undefined && !KNOWN_BATTLE_RULES.includes(action.rules)) return 'Unknown battle rules'
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
       if (state.escortCompleted.includes(station.id)) return 'This station’s survey escort is complete'

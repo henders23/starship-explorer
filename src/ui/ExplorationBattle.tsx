@@ -41,21 +41,20 @@ const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia
 
 export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: Campaign; dispatch: (a: CampaignAction) => void; saved: boolean; onExit: () => void }) {
   const b = state.shipBattle!
-  // A battle that ends while on screen plays its ending before the report.
+  // A battle that ends while on screen plays its ending before the report. The
+  // ending is decided during render so the battle screen is never torn down
+  // between the killing blow and the outro.
   const [outro, setOutro] = useState<ShipBattleResult | null>(null)
-  const fought = useRef(b.phase === 'battle')
-  useEffect(() => {
-    if (b.phase === 'battle') fought.current = true
-    else if (b.phase === 'report' && fought.current && b.result && OUTRO[b.result].title) {
-      fought.current = false
-      setOutro(b.result)
-      const sound = OUTRO[b.result].sound
-      if (sound) playCombatSound(sound)
-      if (b.result === 'victory') playCombatSound('victory', { delay: 1.1 })
-    }
-  }, [b.phase, b.result])
+  const [phase, setPhase] = useState(b.phase)
+  if (phase !== b.phase) {
+    setPhase(b.phase)
+    if (phase === 'battle' && b.phase === 'report' && b.result && OUTRO[b.result].title) setOutro(b.result)
+  }
   useEffect(() => {
     if (!outro) return
+    const sound = OUTRO[outro].sound
+    if (sound) playCombatSound(sound)
+    if (outro === 'victory') playCombatSound('victory', { delay: 1.1 })
     const done = window.setTimeout(() => setOutro(null), reducedMotion() ? 900 : 3000)
     return () => window.clearTimeout(done)
   }, [outro])
@@ -146,7 +145,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const [selectedWeapon, setWeapon] = useState(0)
   const [repairing, setRepairing] = useState<{ origin: Point; cursor: Point } | null>(null)
   const [fx, setFx] = useState<Fx[]>([])
-  const [shake, setShake] = useState<{ side: 'player' | 'enemy'; id: number } | null>(null)
+  const [shake, setShake] = useState<{ side: 'player' | 'enemy'; n: number } | null>(null)
+  const shakes = useRef(0)
   const arena = useRef<HTMLElement>(null)
   const friendly = useRef<HTMLElement>(null)
   const repairButton = useRef<HTMLButtonElement>(null)
@@ -155,7 +155,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const bridgeDispatch = useRef(dispatch); bridgeDispatch.current = dispatch
   const order = (a: ShipOrder) => dispatch({ type: 'ship-order', order: a })
   const { frac, reset } = useBattleClock(running && live, () => bridgeDispatch.current({ type: 'ship-order', order: { type: 'advance', seconds: 1 } }))
-  const now = b.time + (running && live ? frac : 0)
+  // Pausing holds the fraction of a second already elapsed, so shots freeze where they are.
+  const now = b.time + (live ? frac : 0)
 
   useEffect(() => {
     if (!repairing) return
@@ -200,12 +201,19 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const seen = useRef(b.eventSeq ?? 0)
   const charges = useRef(b.weapons.map((w) => w.charge))
   const hullAlarm = useRef(b.hull <= b.hullMax * 0.3)
+  const legacyShots = useRef(b.shots)
   useLayoutEffect(() => {
     const fresh = (b.events ?? []).filter((e) => e.id > seen.current)
     if (b.eventSeq !== undefined) seen.current = Math.max(seen.current, b.eventSeq)
     b.weapons.forEach((w, i) => { if (w.mode !== 'off' && w.charge >= w.period && (charges.current[i] ?? 0) < w.period) playCombatSound('ready', { pan: -0.5 }) })
     charges.current = b.weapons.map((w) => w.charge)
     if (!hullAlarm.current && b.hull <= b.hullMax * 0.3) { hullAlarm.current = true; playCombatSound('alarm') }
+    // Rules-1 battles (saved before projectiles) report only their latest shot.
+    if (!b.rules && b.volley && b.shots > legacyShots.current) {
+      const v = b.volley, to = v.side === 'player' ? 0.55 : -0.55
+      playCombatSound(v.kind, { pan: -to }); playCombatSound(v.hit ? v.damage ? 'impact' : 'shield' : 'miss', { pan: to, delay: 0.3 })
+    }
+    legacyShots.current = b.shots
     if (!fresh.length) return
     const added: Fx[] = []
     for (const e of fresh) added.push(...effectsFor(e))
@@ -242,7 +250,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
           { key: `${key}-t`, type: 'float', x: p.x, y: p.y - 26, text: e.outcome === 'blocked' ? 'DEFLECTED' : e.kind === 'ion' ? 'SHIELD IONISED' : 'ABSORBED', colour: '#8fe6ff', delay }]
       }
       if (e.outcome === 'ion') return [{ key: `${key}-i`, type: 'ion', ...at, delay }, { key: `${key}-t`, type: 'float', x: at.x, y: at.y - 30, text: 'IONISED', colour: '#8fe6ff', delay }]
-      if (to === 'player' || e.damage >= 2) setShake({ side: to, id: e.id })
+      if (to === 'player' || e.damage >= 2) setShake({ side: to, n: ++shakes.current })
       return [{ key: `${key}-h`, type: to === 'player' ? 'hull-burst' : 'burst', ...at, delay },
         { key: `${key}-s`, type: 'smoke', ...at, delay: delay + 0.2 },
         { key: `${key}-t`, type: 'float', x: at.x, y: at.y - 34, text: `−${e.damage}`, colour: '#ff8b7a', delay }]
@@ -258,8 +266,10 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   // Keyboard: Space pauses, 1–4 pick a weapon, F fires it.
   const keys = useRef<(e: KeyboardEvent) => void>(() => {})
   keys.current = (e: KeyboardEvent) => {
-    if (!live || (e.target as HTMLElement | null)?.closest('input,textarea,select')) return
-    if (e.code === 'Space') { e.preventDefault(); toggleRunning() }
+    const target = e.target as HTMLElement | null
+    if (!live || e.repeat || e.ctrlKey || e.metaKey || e.altKey || target?.closest('input,textarea,select')) return
+    // A focused button keeps Space for itself, as keyboard users expect.
+    if (e.code === 'Space') { if (target?.closest('button')) return; e.preventDefault(); toggleRunning() }
     else if (/^Digit[1-4]$/.test(e.code)) { const i = Number(e.code.slice(5)) - 1; if (b.weapons[i]) { setWeapon(i); playCombatSound('click') } }
     else if (e.key === 'f' || e.key === 'F') { if (!actionLock(state, { type: 'ship-order', order: { type: 'fire', index: selectedWeapon } })) order({ type: 'fire', index: selectedWeapon }) }
   }
@@ -292,12 +302,12 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     setRepairing({ ...repairing, cursor: { x: event.clientX - a.left, y: event.clientY - a.top } })
   }
   const playerRate = playerChargeRate(b), enemyRate = enemyChargeRate(b)
-  const smooth = (charge: number, period: number, rate: number, on: boolean) => on && running && live ? Math.min(period, charge + rate * frac) : charge
+  const smooth = (charge: number, period: number, rate: number, on: boolean) => on && live ? Math.min(period, charge + rate * frac) : charge
   const critical = b.hull <= b.hullMax * 0.3
   const legacyVolley = !b.rules && b.volley ? b.volley : null
   const outroInfo = outro ? OUTRO[outro] : null
   // Two identical animations, alternated, restart the shake without remounting the ship.
-  const shakeClass = (side: 'player' | 'enemy') => shake?.side === side ? ` shake-${shake.id % 2 ? 'a' : 'b'}` : ''
+  const shakeClass = (side: 'player' | 'enemy') => shake?.side === side ? ` shake-${shake.n % 2 ? 'a' : 'b'}` : ''
 
   return <main className={`exp-deck space-battle${running && live ? '' : ' halted'}${critical ? ' critical' : ''}`} onPointerDown={unlockCombatAudio}>
     <header className="space-header">
@@ -420,6 +430,9 @@ function Shot({ p, start, now, from, to }: { p: Projectile; start: number; now: 
   return <g transform={`translate(${pos.x} ${pos.y}) rotate(${angle})`} filter="url(#space-glow)"><rect x="-22" y="-2" width="30" height="4" rx="2" fill="url(#space-trail)" /><rect x="-12" y="-2.5" width="20" height="5" rx="2.5" fill={colour} /><rect x="-6" y="-1" width="13" height="2" rx="1" fill="#fff" /></g>
 }
 function FxNode({ f, done }: { f: Fx; done: () => void }) {
+  // A safety net: with animations disabled (reduced motion) animationend never fires.
+  const finish = useRef(done); finish.current = done
+  useEffect(() => { const t = window.setTimeout(() => finish.current(), reducedMotion() ? 700 : 4000); return () => window.clearTimeout(t) }, [])
   const style: Record<string, string | number> = { left: f.x, top: f.y, animationDelay: `${f.delay ?? 0}s` }
   if (f.colour) style['--fx'] = f.colour
   if (f.type === 'beam' || f.type === 'flyby') {
@@ -427,7 +440,7 @@ function FxNode({ f, done }: { f: Fx; done: () => void }) {
     style.width = Math.hypot(dx, dy); style.transform = `rotate(${Math.atan2(dy, dx)}rad)`
   }
   if (f.type === 'float') return <span className="fx-float" style={style} onAnimationEnd={done}>{f.text}</span>
-  return <span className={`fx-${f.type}`} style={style} onAnimationEnd={(e) => { if (e.target === e.currentTarget) done() }} />
+  return <span className={`fx-${f.type}`} style={style} onAnimationEnd={(e) => { if (e.target === e.currentTarget && !e.pseudoElement) done() }} />
 }
 /** Rules 1 battles (saved before projectiles existed) still mark where damage landed. */
 function Impact({ volley, box }: { volley: NonNullable<ShipBattle['volley']>; box: { x: number; y: number; w: number; h: number } }) {

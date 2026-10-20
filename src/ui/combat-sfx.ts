@@ -30,7 +30,10 @@ function audio(): AudioContext | null {
     context = new Ctor()
     const limiter = context.createDynamicsCompressor()
     limiter.threshold.value = -14; limiter.ratio.value = 6
-    master = context.createGain(); master.gain.value = 0.9
+    master = context.createGain(); master.gain.value = useSound.getState().muted ? 0 : 0.9
+    // Muting also silences anything already scheduled, such as a delayed sting.
+    const out = master
+    useSound.subscribe(({ muted }) => out.gain.setTargetAtTime(muted ? 0 : 0.9, out.context.currentTime, 0.02))
     master.connect(limiter); limiter.connect(context.destination)
     // A short synthetic tail: vacuum has no reverb, but a hull does.
     wet = context.createConvolver()
@@ -54,8 +57,9 @@ export function unlockCombatAudio() {
 interface Options { delay?: number; pan?: number; volume?: number }
 
 export function playCombatSound(type: CombatSound, { delay = 0, pan = 0, volume = 1 }: Options = {}) {
-  if (useSound.getState().muted) return
-  const c = audio()
+  // No context is created for a sound alone: the first gesture does that (unlockCombatAudio).
+  if (useSound.getState().muted || !context) return
+  const c = context
   if (!c || c.state !== 'running' || !master || !wet || !noiseBuffer) return
   const t = c.currentTime + Math.max(0, delay)
   const out = c.createGain(); out.gain.value = volume
