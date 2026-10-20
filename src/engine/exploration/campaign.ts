@@ -6,7 +6,7 @@ import type { RelayArc, RelayAction } from './arcs.js'
 import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
-import { SIGNAL_BY_ID, signalAt, signalLuck } from './signals.js'
+import { ECHO_CHANCE, QUIET_ARRIVALS, SIGNAL_BY_ID, signalAt, signalLuck } from './signals.js'
 import type { PendingSignal } from './signals.js'
 import type { StoryRecord } from './stories.js'
 import { ARMOURY, ARMOURY_SLOTS, BASE_REACTOR, BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
@@ -42,6 +42,8 @@ export interface Campaign {
   signalAfterBattle?: PendingSignal
   /** Every arrival signal met this voyage, so none repeats until the rest have been seen. */
   signalsSeen: string[]
+  /** Echoes waiting to find the ship at a later quiet arrival. */
+  echoes?: string[]
   /** Set once a rules-2 battle has actually been fought; the first one gets Cross's briefing. */
   fought?: true
   /** Weapons bought from station armouries, mounted in rules-2 battles. */
@@ -814,7 +816,11 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       } else if (signal) {
         next.signal = { id: signal.id, systemId: system.id }
         message = `Arrived at ${system.name}. Signal: ${signal.title.toLowerCase()}.`
-      }
+      } else if (action.hazards && state.echoes?.length && createRng(`${state.seed}:echo:${system.id}:${state.day}`).int(100) < ECHO_CHANCE) {
+        const echo = state.echoes[0]!
+        next.echoes = state.echoes.slice(1); next.signal = { id: echo, systemId: system.id }
+        message = `Arrived at ${system.name}. Signal: ${SIGNAL_BY_ID[echo]!.title.toLowerCase()}.`
+      } else if (action.hazards) message = `Arrived at ${system.name}. ${createRng(`${state.seed}:quiet:${system.id}:${state.day}`).pick(QUIET_ARRIVALS)}`
       break
     }
     case 'sell-weapon': {
@@ -847,6 +853,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         if (state.roster.filter((o) => !o.dead).length < 6) { next.roster = [...state.roster, recruitOperative(state.recruits)]; next.recruits++ }
         else { next.exploration.credits += 10; message = 'Every bunk is taken, so the pilot rides as a passenger and pays their way to the next station: 10 credits.' }
       }
+      if (outcome.echo) next.echoes = [...(state.echoes ?? []), outcome.echo]
       if (outcome.charts) {
         const index = new GalaxyIndex(state.galaxy)
         for (const s of state.galaxy.systems) if (s.id !== state.at && index.jumps(state.at, s.id) <= 1)

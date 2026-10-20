@@ -17,6 +17,8 @@ export interface SignalOutcome {
   charts?: boolean
   /** The signal was bait: a hostile drops out of hiding. */
   ambush?: boolean
+  /** Someone will remember this: an echo that can find the Lodestar at a later arrival. */
+  echo?: string
 }
 export interface SignalChoice {
   id: string; label: string
@@ -38,7 +40,7 @@ export const SIGNALS: ArrivalSignal[] = [
     text: 'A freighter hangs dark off the jump point, its distress beacon cycling the same twelve words. No reply to our hail.',
     choices: [
       { id: 'answer', label: 'Dock and help', odds: 65,
-        good: { text: 'Six frightened crew and a dead reactor. Kerr gets it restarting; they insist we take spares and what credit they have.', materials: 6, credits: 18 },
+        good: { text: 'Six frightened crew and a dead reactor. Kerr gets it restarting; they insist we take spares and what credit they have.', materials: 6, credits: 18, echo: 'freighter-returns' },
         bad: { text: 'The freighter is a hollow shell. Weapons lock from the shadow behind it: the beacon was bait.', ambush: true } },
       { id: 'ignore', label: 'Log it and keep our distance', good: { text: 'We relay the position to the nearest station and move on. Cross watches the freighter until it is out of range.' } },
     ] },
@@ -67,7 +69,7 @@ export const SIGNALS: ArrivalSignal[] = [
   { id: 'refugees', title: 'A shuttle running on fumes', speaker: 'morozova', line: 'Eleven people, and their tanks are nearly dry. They have charts of everything around here.',
     text: 'A battered shuttle full of settlers is trying to reach the next system with almost no fuel. They offer their navigation charts in exchange for help.',
     choices: [
-      { id: 'give', label: 'Give them 2 fuel', cost: { fuel: 2 }, good: { text: 'The settlers transmit their charts and their thanks. Every system one lane out is now surveyed.', charts: true } },
+      { id: 'give', label: 'Give them 2 fuel', cost: { fuel: 2 }, good: { text: 'The settlers transmit their charts and their thanks. Every system one lane out is now surveyed.', charts: true, echo: 'settlers-return' } },
       { id: 'decline', label: 'We cannot spare it', good: { text: 'We wish them luck. Morozova does not say anything for a while.' } },
     ] },
   { id: 'cache', title: 'An unclaimed weapons cache', speaker: 'cross', line: 'Military stencils, no owner on the registry. Somebody buried this for a reason.',
@@ -90,7 +92,7 @@ export const SIGNALS: ArrivalSignal[] = [
   { id: 'pilot', title: 'A lifepod with a heartbeat', speaker: 'cross', line: 'One survivor, conscious and asking for a ship. We could use another pair of hands.',
     text: 'A lone pilot drifts in a scuffed lifepod, the last of a crew lost to raiders. They ask to come aboard and earn their keep.',
     choices: [
-      { id: 'rescue', label: 'Bring them aboard', good: { text: 'The pilot signs on as an operative and asks where the armoury is.', recruit: true } },
+      { id: 'rescue', label: 'Bring them aboard', good: { text: 'The pilot signs on as an operative and asks where the armoury is.', recruit: true, echo: 'pilot-kin' } },
       { id: 'beacon', label: 'Leave a rescue beacon', good: { text: 'We boost their beacon and log the position with the nearest station.' } },
     ] },
   { id: 'storm', title: 'An ion storm across the lane', speaker: 'mori', line: 'I can ride the leading edge and save us fuel, or we wait for it to pass.',
@@ -140,7 +142,7 @@ export const SIGNALS: ArrivalSignal[] = [
   { id: 'patrol', title: 'A patrol cutter limping home', speaker: 'cross', line: 'Their drive coupling is cracked. We have the parts. They have a quartermaster with a budget.',
     text: 'A local patrol cutter is crawling toward its base on half a drive. Its captain asks, stiffly, whether we could spare a coupling.',
     choices: [
-      { id: 'repair', label: 'Lend them a coupling', cost: { materials: 5 }, good: { text: 'Kerr\'s coupling holds. The captain signs a voucher we can cash at any station.', credits: 28 } },
+      { id: 'repair', label: 'Lend them a coupling', cost: { materials: 5 }, good: { text: 'Kerr\'s coupling holds. The captain signs a voucher we can cash at any station.', credits: 28, echo: 'patrol-returns' } },
       { id: 'leave', label: 'Wish them luck', good: { text: 'The cutter limps on. Its captain salutes as we pass.' } },
     ] },
   { id: 'flare', title: 'The primary is about to flare', speaker: 'mori', line: 'Big one coming. We can ride the shock front out of here, or shelter behind the inner planet until it passes.',
@@ -166,7 +168,54 @@ export const SIGNALS: ArrivalSignal[] = [
       { id: 'leave', label: 'Share news and move on', good: { text: 'We talk for an hour. She asks us to come back if we ever find our way home.' } },
     ] },
 ]
-export const SIGNAL_BY_ID: Record<string, ArrivalSignal> = Object.fromEntries(SIGNALS.map((s) => [s.id, s]))
+/**
+ * Echoes: kindness that comes back. A signal answered well can leave an echo
+ * that finds the Lodestar at a later, otherwise quiet arrival.
+ */
+export const ECHOES: ArrivalSignal[] = [
+  { id: 'freighter-returns', title: 'A freighter that remembers us', speaker: 'kerr', line: 'That is the reactor I fixed. It is still running, and they have brought presents.',
+    text: 'The freighter we found dead on its beacon drops out of the jump beside us, under its own power this time. Its captain has been looking for us.',
+    choices: [
+      { id: 'accept', label: 'Accept their thanks', good: { text: 'They pass across a pallet of spares and topped-up fuel cells. Kerr pretends not to be moved.', materials: 8, fuel: 3 } },
+      { id: 'decline', label: 'Tell them to keep it', good: { text: 'They insist on a toast over the comms instead. The crew needed it.' } },
+    ] },
+  { id: 'settlers-return', title: 'The settlers made it', speaker: 'morozova', line: 'The shuttle we refuelled. They found a home, and they have sent word ahead to every station on this lane.',
+    text: 'A message waits in the relay buffer: the settlers reached a habitable moon. They have named a crater after the Lodestar and attached everything they have learned since.',
+    choices: [
+      { id: 'read', label: 'Read their survey', good: { text: 'Their surveys are thorough. Every system one lane out is charted, and a grateful station has wired a reward.', charts: true, credits: 15 } },
+      { id: 'reply', label: 'Send our congratulations', good: { text: 'Morozova writes the reply herself.' } },
+    ] },
+  { id: 'patrol-returns', title: 'A patrol cutter, repaired', speaker: 'cross', line: 'Our coupling is still in their drive. The captain wants to return a favour.',
+    text: 'The cutter we helped hails us on a friendly band. Its captain has requisitioned ordnance "for a training exercise" and would like it to go to a good home.',
+    choices: [
+      { id: 'accept', label: 'Take the ordnance', good: { text: 'Three Hellions transfer across, with a reminder that none of this ever happened.', missiles: 3 } },
+      { id: 'decline', label: 'Wish them a quiet patrol', good: { text: 'The captain salutes. Cross salutes back, and means it.' } },
+    ] },
+  { id: 'pilot-kin', title: 'Someone asking for our pilot', speaker: 'cross', line: 'The pilot we pulled from that lifepod has family out here. They want to say thank you.',
+    text: 'A trader hails us by name: the brother of the pilot we rescued. He has crossed three systems to find the Lodestar.',
+    choices: [
+      { id: 'accept', label: 'Welcome him aboard for an hour', good: { text: 'He leaves a crate of fuel and a promise that any station his family runs will know our name.', fuel: 4, credits: 12 } },
+      { id: 'decline', label: 'Pass along the pilot\'s greetings', good: { text: 'The pilot speaks to him for an hour. Nobody interrupts.' } },
+    ] },
+]
+export const SIGNAL_BY_ID: Record<string, ArrivalSignal> = Object.fromEntries([...SIGNALS, ...ECHOES].map((s) => [s.id, s]))
+/** Percent of otherwise quiet arrivals on which a waiting echo finds the ship. */
+export const ECHO_CHANCE = 35
+/** One line for an arrival where nothing else happens, so a quiet jump still has a voice. */
+export const QUIET_ARRIVALS: string[] = [
+  'Mori logs the jump: clean exit, no contacts. "Quiet systems are the ones that let you sleep."',
+  'Kerr reports the drive coils cooling evenly. Nobody else is out here.',
+  'Morozova spends an hour photographing a ringed giant. "For the archive," she says.',
+  'Cross runs a weapons drill anyway. Nobody complains.',
+  'The long-range array finds only old radio, decades out of date, still crossing the system.',
+  'A comet passes close enough to see its tail from the observation deck.',
+  'Mori finds an old nav buoy with a faded hazard warning. The hazard has long since moved on.',
+  'Somebody has written a name on a moon in letters a kilometre tall. Morozova does not recognise the language.',
+  'Kerr swears the hull sings in this system. Everyone listens for a while.',
+  'The crew eat together for the first time in days. Vale tells the story about the cargo of ducks.',
+  'Dust from an old collision glitters in the floodlights as we pass.',
+  'Cross finds a scorched hull plate drifting near the jump point. Someone fought here, long ago.',
+]
 
 /** Which signal, if any, waits at a system on first arrival. Signals already met wait until the rest have been seen. */
 export function signalAt(seed: string, systemId: SystemId, seen: readonly string[] = []): ArrivalSignal | null {
@@ -192,6 +241,7 @@ export function outcomeChips(outcome: SignalOutcome, cost: SignalChoice['cost'] 
   if (outcome.recruit) chips.push('+1 operative')
   if (outcome.charts) chips.push('neighbours charted')
   if (outcome.ambush) chips.push('ambush')
+  if (outcome.echo) chips.push('they will remember')
   return chips
 }
 /** Plain-language terms for a choice button. */

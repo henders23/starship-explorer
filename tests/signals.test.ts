@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { actionLock, createCampaign, MAGAZINE_CAPACITY, reduceCampaign, travelOrder, WRECK_HULL } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { followCourse } from '../src/engine/exploration/navigation.js'
-import { outcomeChips, quietChoice, SIGNAL_BY_ID, SIGNALS, signalAt, signalLuck } from '../src/engine/exploration/signals.js'
+import { ECHOES, outcomeChips, quietChoice, SIGNAL_BY_ID, SIGNALS, signalAt, signalLuck } from '../src/engine/exploration/signals.js'
 import { loadExploration, saveExploration } from '../src/ui/exploration-save.js'
 
 function mem() { let raw: string | null = null; return { getItem: () => raw, setItem: (_: string, s: string) => { raw = s }, removeItem: () => { raw = null } } }
@@ -115,5 +115,30 @@ describe('signal edge cases', () => {
   it("will not sell a trader's goods into full tanks or a full magazine", () => {
     const s = signalled('trader-full', 'trader')
     expect(actionLock({ ...s, missiles: MAGAZINE_CAPACITY }, { type: 'signal', choiceId: 'missiles' })).toBe('Magazine full')
+  })
+})
+
+describe('echoes', () => {
+  it('plants an echo from a kindness and delivers it at a later quiet arrival', () => {
+    for (let i = 0; i < 120; i++) {
+      const s = signalled(`echo-${i}`, 'refugees')
+      if (s.fuel < 4) continue
+      let t = reduceCampaign(s, { type: 'signal', choiceId: 'give' })
+      expect(t.echoes).toEqual(['settlers-return'])
+      for (let j = 0; j < 30 && t.echoes?.length; j++) {
+        const next = t.galaxy.adjacency[t.at]!.find((id) => !actionLock(t, travelOrder(id)))
+        if (!next) break
+        t = reduceCampaign(t, travelOrder(next))
+        if (t.shipBattle) t = { ...t, shipBattle: null, signalAfterBattle: undefined }
+        if (t.signal && t.signal.id !== 'settlers-return') t = reduceCampaign(t, { type: 'signal', choiceId: quietChoice(SIGNAL_BY_ID[t.signal.id]!).id })
+      }
+      if (t.echoes?.length) continue
+      expect(t.signal?.id).toBe('settlers-return')
+      return
+    }
+    throw new Error('No echo delivered')
+  })
+  it('authors every echo with a walk-away choice', () => {
+    for (const echo of ECHOES) expect(quietChoice(echo)).toBeDefined()
   })
 })
