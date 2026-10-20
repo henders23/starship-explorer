@@ -59,7 +59,7 @@ longer a player-selectable game. Its separate browser save is not erased.
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
 | Ship encounters | FTL-style real-time combat with pause: projectiles in flight, telegraphed enemy targeting, crew at battle stations, fires, reactor power, compartment targeting, volleys and synthesised battle sound. Station escorts, and hostile interceptions on jumps into hostile space, with negotiation, evasion, salvage and tow-home failure |
 | Presentation | Interactive galaxy atlas; four illustrated ship rooms with original crew portraits and contextual dialogue; cinematic site art; directional boarding animation; laptop controls |
-| Persistence | Version-11 expedition journals; versions 1–10 supported (their battles and jumps replay under the rules they were played with); explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
+| Persistence | Version-12 expedition journals; versions 1–10 supported (their battles and jumps replay under the rules they were played with); explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
 This is a playable game under active development. Long faction arcs, a developed

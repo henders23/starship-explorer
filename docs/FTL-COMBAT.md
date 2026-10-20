@@ -14,7 +14,9 @@ existing journal. The battle rules ride on the orders that start a fight:
 - `travel` with `hazards: 1` can end in an interception. Without it, a jump
   replays as before.
 
-Save version 11 rejects either field in an older envelope. `KNOWN_BATTLE_RULES`
+Save version 12 rejects either field in an older envelope. Version 11 only ever
+existed in pre-release builds whose rules were still moving; such saves are kept
+unchanged and reported as unreplayable. `KNOWN_BATTLE_RULES`
 lists every accepted version, so a future rules 3 cannot strand rules-2 journals.
 Rules-1 equivalence was fuzzed over 4000 battles against the previous reducer.
 
@@ -30,7 +32,7 @@ Rules-1 equivalence was fuzzed over 4000 battles against the previous reducer.
 | Damage | Hostile damage is stated on the old 100-hull scale and lands scaled by kind (`INCOMING_DAMAGE`: laser 1, missile ½, beam ⅔). |
 | Fires | Hull hits may start a fire (laser 10%, beam 25%, missile 35%). A fire costs its compartment a point, and wounds the crew in it, every 5 s for 10 s. The enemy fights its own fires. |
 | Crew | Four officers man rooms. The helm needs one for evasion. Crewed engines add 5 evasion, weapons charge 10% faster, and shields recharge faster. Officers fight fires (4 s), then repair a point per 10 officer-seconds (Kerr ×1.5). Moves take 2 s. Hits and fires wound; a downed officer is in the medical bay for 20 s. |
-| Reactor | Seven power (rules 1 kept eight): shields, engines and weapons cannot all be maxed. |
+| Reactor | Seven power (rules 1 kept eight): shields, engines and weapons cannot all be maxed. Yards add a point each, up to ten; the tenth needs Layered Shields, since nine already fills every other system. |
 | Enemy crew | Three hands (four on tier-2 hulls), six hit points each, posted at their helm, weapons and shields (and engines). They fight fires and repair at our crew's rates, running to unattended damage: weapons first, then shields, helm and engines. An unmanned helm cannot evade. Hits and fires in a room kill or wound the crew in it, and killing every one ends the battle with the holds intact (spoils half again). |
 | Interceptions | 14/24/34% on arrival in threat 1/2/3 regions, never in the Shallows or at the start, 8 points lower with countermeasures, and never against a hull of 10 or less. Faction patrols in claimed space, raiders elsewhere; tier 2 at the rift margin and in late-voyage threat-2 space. Breaking the lock burns 2 fuel per attempt. Victory salvages 10 materials, 22 credits and 1 fuel (half again from tier-2 hulls) plus one seeded find from the wreck. |
 | Rift front | Starts at the voyage's first hazard-aware jump. After 15 days it swallows one jump-ring from the arrival system every 6 days. Rift-touched arrivals: 55% interception, heavy tier only. Stations there evacuate (no services, armoury, recruits or escorts). |
