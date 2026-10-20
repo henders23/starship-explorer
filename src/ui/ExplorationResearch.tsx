@@ -1,11 +1,11 @@
 import { survivorSummary } from '../engine/exploration/survivor-arc.js'
 import { useMemo, useRef, useState } from 'react'
 import { courseFinder } from '../engine/exploration/navigation.js'
-import type { Course } from '../engine/exploration/navigation.js'
 import type { ReactNode } from 'react'
 import { useDialogDismiss } from './dialog.js'
 import { CrewLine } from './crew-presence.js'
 import { plural } from './plural.js'
+import { leadLabel, scienceLeads } from './science-leads.js'
 import { actionLock, buildLock, fitted, hasTech, researchProgress, researchRate, researchRequirements } from '../engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { BRANCHES, DRIVE_SEQUENCE, PROJECT_IDS, PROJECTS, SLOT_LIMITS, blueprintFor, buildName } from '../engine/exploration/research.js'
@@ -30,13 +30,8 @@ export function ExplorationResearch({ state, dispatch, onShowSystem, status }: {
   const active = state.research.active
   const act = (action: CampaignAction, children: ReactNode, primary = false, showReason = true) =>
     <ResearchAction state={state} action={action} dispatch={dispatch} primary={primary} showReason={showReason}>{children}</ResearchAction>
-  const needed = !state.findings.some((f) => f.kind === 'exotic-energy') ? 'exotic-energy' : 'spatial'
   const courses = useMemo(() => courseFinder(state), [state])
-  const distance = (course: Course | null) => course ? course.path.length * 10_000 + course.fuel : Infinity
-  const leads = state.world.locations.filter((site) => site.discovery &&
-    (needed === 'exotic-energy' ? site.discovery === needed : ['spatial-observation', 'alien-propulsion'].includes(site.discovery)) &&
-    !state.exploration.claimed.includes(site.id)).map((site) => ({ site, course: courses(site.systemId) }))
-    .sort((a, b) => distance(a.course) - distance(b.course) || a.site.id.localeCompare(b.site.id)).slice(0, 3)
+  const leads = scienceLeads(state, courses)
   const choose = (id: BuildId | null) => {
     setSelected(id)
     if (id && window.matchMedia('(max-width: 760px)').matches) requestAnimationFrame(() => detailRef.current?.scrollIntoView({ block: 'start' }))
@@ -134,7 +129,7 @@ export function ExplorationResearch({ state, dispatch, onShowSystem, status }: {
         {p.discovery && !complete && hasTech(state, 'drive-diagnostics') && <section className="exp-science-leads" aria-label="Scientific leads"><span className="exp-eyebrow">Drive telemetry / scientific leads</span>
           <p>Compatible signatures, nearest first. Station archives offer another route after Contextual Translation.</p>
           {leads.map(({ site, course }) => <button className="exp-button exp-lead" key={site.id} onClick={() => onShowSystem(site.systemId)}>
-            <span>{state.galaxy.systems.find((s) => s.id === site.systemId)!.name} · {needed === 'exotic-energy' ? 'energy signature' : 'spatial research lead'}</span>
+            <span>{state.galaxy.systems.find((s) => s.id === site.systemId)!.name} · {leadLabel(state)}</span>
             <small>{!course ? 'No course with the current drive' : course.path.length === 1 ? 'In this system' : `${course.path.length - 1} ${plural(course.path.length - 1, 'jump')} · ${course.fuel} fuel`}</small></button>)}
         </section>}
       </article>

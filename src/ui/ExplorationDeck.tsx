@@ -35,6 +35,7 @@ import { CrewLine } from './crew-presence.js'
 import { ReportImage } from './ReportImage.js'
 import { ShipRooms, bridgeMessage } from './ShipRooms.js'
 import type { RoomId } from './ShipRooms.js'
+import { leadLabel, scienceLeads } from './science-leads.js'
 
 const LABELS: Record<LocationKind, string> = {
   station: 'Orbital station', world: 'Planetary survey', ruins: 'Buried installation', derelict: 'Derelict vessel',
@@ -161,6 +162,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const riftHere = rifted(state, state.at), riftDays = state.rift ? riftReaches(state, state.at)! - state.day : null
   const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 || rifted(state, id)).length
   /** The chart's floating card: where a system is and how to get there. */
+  const leadSystems = new Set(scienceLeads(state, courses).map((l) => l.site.systemId))
   const systemCard = (id: SystemId) => {
     const target = state.galaxy.systems.find((system) => system.id === id)!
     const plan = courses(id), jumps = plan ? plan.path.length - 1 : 0, current = id === state.at
@@ -171,6 +173,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       <p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}<br />
         {target.faction ? `Claimed by ${state.galaxy.factions.find((f) => f.id === target.faction)?.name}.` : 'No registered faction claim.'}</p>
       <p className={`exp-card-risk risk-${REGIONAL_THREAT[target.region]}`} data-testid="interception-risk">{interceptionRisk(state, target.id)}</p>
+      {leadSystems.has(id) && <p className="exp-card-lead">◎ Research lead: {leadLabel(state)}.{plan && jumps > 0 && riftReaches(state, id) !== null && state.day + jumps >= riftReaches(state, id)! ? ' The rift gets there first.' : ''}</p>}
       <p>{current ? `${known.length} known ${plural(known.length, 'location')}. The Lodestar is here.`
         : state.visited.includes(id) ? `${locationsAt(state.world, id).filter((s) => state.exploration.statuses[s.id]).length} known locations. Your progress here is preserved.`
         : 'Unvisited. Local opportunities will appear on arrival and after scanning.'}</p>

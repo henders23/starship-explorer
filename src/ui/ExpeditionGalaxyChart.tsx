@@ -1,7 +1,8 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import type { PointerEvent, ReactNode } from 'react'
 import type { Campaign } from '../engine/exploration/campaign.js'
-import { plotCourse } from '../engine/exploration/navigation.js'
+import { courseFinder, plotCourse } from '../engine/exploration/navigation.js'
+import { scienceLeads } from './science-leads.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { riftDepth, riftDistance, rifted } from '../engine/exploration/campaign.js'
 import type { StarType } from '../engine/worldgen/types.js'
@@ -58,6 +59,8 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
   const screen = (id: string) => { const p = spot(id); return { x: cx + pan.x + (p.x - cx) * zoom, y: cy + pan.y + (p.y - cy) * zoom } }
   const connected = new Set(state.galaxy.adjacency[state.at] ?? [])
   // Known stations: a small dock marker beside the star, greyed once the rift has evacuated it.
+  // Drive telemetry's leads: a slow gold beacon around each star worth the journey.
+  const leads = useMemo(() => new Set(scienceLeads(state, courseFinder(state)).map((l) => l.site.systemId)), [state])
   const docks = new Set(state.world.locations.filter((l) => l.kind === 'station' && state.exploration.statuses[l.id]).map((l) => l.systemId))
   const visited = new Set(state.visited)
   const active = hovered ?? selected
@@ -141,6 +144,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
             {chosen && !current && <circle cx={p.x} cy={p.y} r={19} className="exp-atlas-target" fill="none" pointerEvents="none"/>}
             {near && !current && <circle cx={p.x} cy={p.y} r={11} fill="none" stroke="#67c9e3" strokeOpacity=".55" strokeWidth=".8" pointerEvents="none"/>}
             <circle cx={p.x} cy={p.y} r={current ? 6.5 : seen ? 5.3 : near ? 4.5 : 3.8} fill={STAR_COLORS[s.star]} stroke={seen ? '#d6fcf3' : '#051a24'} strokeWidth={seen ? 1.3 : 1.6} opacity={seen || near ? 1 : .86} pointerEvents="none"/>
+            {leads.has(s.id) && <circle className="exp-atlas-lead" cx={p.x} cy={p.y} r={14} pointerEvents="none" />}
             {docks.has(s.id) && <rect className={`exp-atlas-dock${rifted(state, s.id) ? ' evacuated' : ''}`} x={p.x + 6} y={p.y - 12} width={6} height={6} transform={`rotate(45 ${p.x + 9} ${p.y - 9})`} pointerEvents="none" />}
             {current && <image href="/assets/ships/expedition-ithaca.webp" x={p.x - 10} y={p.y - 22} width={20} height={30} className="exp-atlas-ithaca" pointerEvents="none"/>}
             {(current || chosen) && <text x={p.x} y={p.y - (current ? 30 : 26)} textAnchor="middle" className={`exp-atlas-label${chosen && !current ? ' chosen' : ''}`} pointerEvents="none">{current ? 'LODESTAR / ' : ''}{s.name}</text>}
@@ -166,7 +170,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     </section>}
     <div className="exp-atlas-key">
       <span><strong>GALACTIC ATLAS</strong> · {systems.length} systems · {state.visited.length} visited</span>
-      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span><span className="dock">◆ Station</span><span className="danger">◍ Hostile space</span>{state.rift && <span className="rift">◍ Rift</span>}</span>
+      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span><span className="lead">◎ Research lead</span><span className="dock">◆ Station</span><span className="danger">◍ Hostile space</span>{state.rift && <span className="rift">◍ Rift</span>}</span>
       {status}
     </div>
   </section>

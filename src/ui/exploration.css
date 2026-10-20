@@ -393,3 +393,8 @@
 @media (prefers-reduced-motion: reduce) { .exp-system.in-rift::before { animation:none; } }
 .exp-rift-banner { margin:4px 0 8px!important; padding:6px 10px; border-left:3px solid #b48cff; background:rgba(60,24,110,.55); color:#e6d6ff!important; font-size:12px; }
 .exp-rift-banner.near { border-color:#f2b34b; background:rgba(80,50,10,.5); color:#ffe3b0!important; }
+.exp-atlas-lead { fill:rgba(242,201,107,.08); stroke:#f2c96b; stroke-width:2; filter:drop-shadow(0 0 5px #f2c96b); animation:exp-lead-pulse 2.4s ease-in-out infinite alternate; }
+@keyframes exp-lead-pulse { from { opacity:.45; } to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .exp-atlas-lead { animation:none; } }
+.exp-atlas-legend .lead { color:#f2c96b; }
+.exp-card-lead { color:#f2c96b; }
