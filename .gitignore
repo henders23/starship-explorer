@@ -7,3 +7,6 @@ coverage/
 .idea/
 test-results/
 playwright-report/
+
+# Screenshot output from throwaway specs run without SHOT_DIR
+undefined/
