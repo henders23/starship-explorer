@@ -75,7 +75,8 @@ test('real-time battle pauses, targets rooms, saves and completes a combat escor
   await expect(page.getByRole('button', { name: 'Resume battle', exact: true })).toBeVisible()
   await page.getByRole('article', { name: 'Pulse laser', exact: true }).getByRole('button', { name: 'auto', exact: true }).click()
   await page.getByRole('article', { name: 'Hellion missile', exact: true }).getByRole('button', { name: 'auto', exact: true }).click()
-  for (let i = 0; i < 120 && await page.getByRole('button', { name: 'Advance 1 second', exact: true }).isVisible(); i++) await page.getByRole('button', { name: 'Advance 1 second', exact: true }).click()
+  // The opening's live second or two shifts the seeded rolls, so allow a long fight.
+  for (let i = 0; i < 400 && await page.getByRole('button', { name: 'Advance 1 second', exact: true }).isVisible(); i++) await page.getByRole('button', { name: 'Advance 1 second', exact: true }).click()
   // The hostile breaks apart on screen before the report.
   await expect(page.getByRole('status').filter({ hasText: 'Target destroyed' })).toBeVisible()
   await expect(page.getByRole('heading', { name: 'The lane is clear.' })).toBeVisible()

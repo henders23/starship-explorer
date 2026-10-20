@@ -56,7 +56,8 @@ export function App() {
     const start = { theme: theme.volume, hum: engines.volume }, began = performance.now()
     let frame = 0
     const fade = (now: number) => {
-      const t = Math.min(1, (now - began) / 1200)
+      // A frame timestamp can precede the fade starting; clamp so volumes stay in range.
+      const t = Math.max(0, Math.min(1, (now - began) / 1200))
       theme.volume = start.theme + (target.theme - start.theme) * t
       engines.volume = start.hum + (target.hum - start.hum) * t
       if (t < 1) frame = requestAnimationFrame(fade)
