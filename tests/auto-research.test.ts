@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../src/engine/exploration/campaign.js'
-import { EXPLORATION_SAVE_KEY, loadExploration, saveExploration } from '../src/ui/exploration-save.js'
+import { EXPLORATION_SAVE_KEY, EXPLORATION_SAVE_VERSION, loadExploration, saveExploration } from '../src/ui/exploration-save.js'
 
 function mem() { let raw: string | null = null; return { getItem: () => raw, setItem: (_: string, s: string) => { raw = s }, removeItem: () => { raw = null } } }
 function act(s: Campaign, a: CampaignAction) { expect(actionLock(s, a)).toBeNull(); return reduceCampaign(s, a) }
@@ -71,10 +71,10 @@ describe('automatic route-home research', () => {
     expect(s.autoResearch).toBeUndefined()
     expect(actionLock(s, { type: 'auto-research', enabled: false })).toMatch(/already off/)
   })
-  it('saves in version 10 and refuses the order inside older envelopes', () => {
+  it('saves in the current version and refuses the order inside older envelopes', () => {
     const s = workUntilIdle(act(createCampaign('auto-save'), on)), storage = mem()
     saveExploration(s, storage)
-    expect(JSON.parse(storage.getItem()!).version).toBe(10)
+    expect(JSON.parse(storage.getItem()!).version).toBe(EXPLORATION_SAVE_VERSION)
     expect(loadExploration(storage)).toEqual({ campaign: s, error: null })
     const old = JSON.parse(storage.getItem()!); old.version = 9
     storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(old))
