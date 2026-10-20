@@ -83,9 +83,9 @@ describe('station recovery', () => {
 })
 
 describe('pre-release saves', () => {
-  it('keeps a version-11 save unchanged and says it cannot be replayed', () => {
+  it.each([11, 12])('keeps a version-%i save unchanged and says it cannot be replayed', (version) => {
     const s = createCampaign('pre-release')
-    const raw = JSON.stringify({ version: 11, ruleset: s.ruleset, seed: s.seed, legacyActions: null, actions: [] })
+    const raw = JSON.stringify({ version, ruleset: s.ruleset, seed: s.seed, legacyActions: null, actions: [] })
     const storage = mem(); storage.setItem(EXPLORATION_SAVE_KEY, raw)
     expect(loadExploration(storage)).toEqual({ campaign: null, error: expect.stringMatching(/pre-release/) })
     expect(storage.getItem()).toBe(raw)

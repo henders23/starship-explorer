@@ -113,7 +113,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 12): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 13): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
