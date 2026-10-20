@@ -13,6 +13,7 @@ import {
   type TechNode,
 } from '../engine/research/tech.js'
 import { useDispatch, useGalaxyIndex, useGame, useNavPlot } from './store.js'
+import { plural } from './plural.js'
 
 /**
  * The research bench: the artefact queue on the left, the sample under
@@ -71,7 +72,7 @@ export function LabScreen() {
       <aside className="lab-samples panel-glass">
         <div className="panel-heading">
           <span>Held for analysis</span>
-          <span>{artefacts.length === 0 ? 'none' : `${artefacts.length} items`}</span>
+          <span>{artefacts.length === 0 ? 'none' : `${artefacts.length} ${plural(artefacts.length, 'item')}`}</span>
         </div>
         {artefacts.length === 0 && (
           <div className="lab-empty">
@@ -214,7 +215,7 @@ function ResearchCard({
           <p className="research-effect">{node.effect}</p>
           {available && !active && (
             <button className="primary-action" onClick={onStart}>
-              Put the bench on it — {node.days} days <span>›</span>
+              Put the bench on it — {node.days} {plural(node.days, 'day')} <span>›</span>
             </button>
           )}
           {!available && !researched && !active && (

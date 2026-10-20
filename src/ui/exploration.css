@@ -46,10 +46,17 @@
 .exp-save { font-size:10px; color:#a9c3cc; }
 
 /* The newest log entry surfaces briefly under the bar; the full log lives in Discoveries. */
-.exp-deck>.exp-log { position:absolute; z-index:6; top:76px; left:50%; transform:translate(-50%,-6px); max-width:min(640px,calc(100% - 32px)); margin:0; padding:10px 16px; border:1px solid rgba(114,198,197,.45); background:rgba(8,22,31,.94); backdrop-filter:blur(8px); box-shadow:0 12px 36px rgba(0,0,0,.5); color:#d7e7eb; font-size:11px; line-height:1.6; opacity:0; pointer-events:none; transition:opacity .25s,transform .25s; }
-.exp-deck>.exp-log.fresh { opacity:1; transform:translate(-50%,0); }
-.exp-deck>.exp-log p { margin:0; color:#d7e7eb; line-height:1.6; }
-.exp-deck>.exp-log p+p { margin-top:4px; }
+.exp-stage>.exp-log { position:absolute; z-index:6; top:12px; left:50%; transform:translate(-50%,-6px); max-width:min(640px,calc(100% - 32px)); margin:0; padding:10px 16px; border:1px solid rgba(114,198,197,.45); background:rgba(8,22,31,.94); backdrop-filter:blur(8px); box-shadow:0 12px 36px rgba(0,0,0,.5); color:#d7e7eb; font-size:11px; line-height:1.6; opacity:0; pointer-events:none; transition:opacity .25s,transform .25s; }
+.exp-stage>.exp-log.fresh { opacity:1; transform:translate(-50%,0); }
+.exp-stage>.exp-log p { margin:0; color:#d7e7eb; line-height:1.6; }
+.exp-stage>.exp-log p+p { margin-top:4px; }
+/* The toast keeps clear of the panels on the right: the course card, the science officer's briefing and the lab's project card. */
+@media(min-width:761px) {
+  .exp-stage>.exp-log { max-width:min(640px,max(360px,calc(100% - 700px))); }
+  .exp-deck[data-scene=site] .exp-stage>.exp-log { top:44px; left:32px; max-width:min(560px,calc(100% - 536px)); transform:translateY(-6px); }
+  .exp-deck[data-scene=lab] .exp-stage>.exp-log { top:auto; bottom:22px; left:32px; max-width:min(560px,calc(100% - 440px)); transform:translateY(6px); }
+  .exp-deck[data-scene=site] .exp-stage>.exp-log.fresh,.exp-deck[data-scene=lab] .exp-stage>.exp-log.fresh { transform:none; }
+}
 
 /* Current system: the art fills the screen; places line the bottom edge. */
 .exp-system { flex:1; min-height:0; display:flex; flex-direction:column; padding:32px 32px 26px; overflow-y:auto; }
@@ -283,7 +290,22 @@
 
 @media(prefers-reduced-motion:reduce) {
   .exp-deck *,.exp-deck *::before,.exp-deck *::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; }
-  .exp-deck>.exp-log { transition:none; }
+  .exp-stage>.exp-log { transition:none; }
+}
+/* Laptop widths keep the header on one line, rift stat and all. */
+@media(max-width:1600px) {
+  .exp-header { gap:8px 10px; padding:8px 14px; }
+  .exp-nav { gap:0 4px; }
+  .exp-nav>button { padding:0 4px; font-size:12px; }
+  .exp-resources { gap:10px; }
+  .exp-resources b { font-size:16px; }
+  .exp-header>.exp-button { padding:8px 10px; }
+}
+@media(max-width:1400px) {
+  .exp-header { gap:8px; }
+  .exp-nav { gap:0 2px; }
+  .exp-resources { gap:8px; }
+  .exp-header>.exp-button { padding:8px 9px; }
 }
 @media(max-width:1100px) {
   .exp-header { padding:8px 16px; }
@@ -300,8 +322,8 @@
   .exp-resources { margin-left:0; width:100%; justify-content:space-between; gap:8px; }
   .exp-resources b { font-size:15px; }
   .exp-header>.exp-button { padding:7px 10px; }
-  .exp-deck>.exp-log { position:fixed; top:auto; bottom:12px; left:16px; right:16px; max-width:none; transform:translateY(6px); }
-  .exp-deck>.exp-log.fresh { transform:none; }
+  .exp-stage>.exp-log { position:fixed; top:auto; bottom:12px; left:16px; right:16px; max-width:none; transform:translateY(6px); }
+  .exp-stage>.exp-log.fresh { transform:none; }
   .exp-places { margin-top:24px; }
   .exp-system { min-height:640px; padding:24px 16px; overflow:visible; }
   .exp-system-hero>h2 { max-width:100%; }
@@ -338,12 +360,6 @@
 .exp-scene-main-action .exp-button { min-height:40px; }
 .exp-scene .exp-brief .crew-voice p { margin:4px 0 0; }
 .exp-deck[data-scene=ship] { background:#07111b; }
-@media(max-width:1400px) {
-  .exp-header { gap:8px 12px; padding:8px 16px; }
-  .exp-nav { gap:0 6px; }
-  .exp-nav>button { font-size:12px; }
-  .exp-resources { gap:12px; }
-}
 
 /* An illustrated report is a small, contained scene, NOT the location background. */
 .report-dossier-art{float:right;width:min(43%,302px);margin:0 0 16px 18px;border:1px solid rgba(111,173,190,.48);background:#06111b;box-shadow:0 12px 35px rgba(0,0,0,.4)}

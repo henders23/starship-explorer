@@ -1,5 +1,6 @@
 import { expect, test } from '@playwright/test'
-import { createCampaign } from '../src/engine/exploration/campaign.js'
+import { createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
+import { EXPLORATION_SAVE_KEY, saveExploration } from '../src/ui/exploration-save.js'
 import { briefing, chartTo, openProject, travelTo } from './helpers.js'
 
 const SEED = 'exploration-playable'
@@ -98,4 +99,19 @@ test('Classic Voyage is retired even when the old URL is requested', async ({ pa
   await page.goto('/?classic')
   await expect(page.getByRole('button', { name: 'Take command' })).toHaveCount(0)
   await expect(page.getByRole('button', { name: 'Begin expedition' })).toBeVisible()
+})
+
+test('a full captain’s log still surfaces new orders, and the Return Drive button starts the project', async ({ page }) => {
+  let s = createCampaign(SEED)
+  for (let i = 0; i < 30; i++) { s = reduceCampaign(s, { type: 'research', project: 'drive-diagnostics' }); s = reduceCampaign(s, { type: 'pause-research' }) }
+  expect(s.log).toHaveLength(50)
+  let raw = ''; saveExploration(s, { getItem: () => null, removeItem: () => {}, setItem: (_, v) => { raw = v } })
+  await page.addInitScript(({ key, raw }) => { if (!localStorage.getItem(key)) localStorage.setItem(key, raw) }, { key: EXPLORATION_SAVE_KEY, raw })
+  await page.goto('/')
+  await page.getByRole('button', { name: 'Resume expedition', exact: true }).click()
+  await page.getByRole('button', { name: 'Survey system · 1 day' }).click()
+  await expect(page.locator('.exp-log.fresh')).toContainText('System survey complete')
+  await page.getByRole('button', { name: 'Start Return Drive research' }).click()
+  await expect(page.getByRole('article', { name: 'Drive Diagnostics', exact: true })).toContainText('In progress')
+  await expect(page.locator('.exp-log.fresh')).toContainText('Laboratory assigned to Drive Diagnostics')
 })

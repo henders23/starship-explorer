@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { describeConstraint } from '../engine/mystery/constraints.js'
 import { useGalaxyIndex, useGame } from './store.js'
+import { plural } from './plural.js'
 
 /**
  * The post-mortem. Once a run has ended — however it ended — the answer key
@@ -33,7 +34,7 @@ export function TruthReveal() {
       <div className="text-ink-dim mb-2 flex flex-wrap gap-x-4 gap-y-1 text-[11px]">
         <span>day {state.day}</span>
         <span>{state.jumps.filter((j) => !j.correct).length} failed {state.jumps.filter((j) => !j.correct).length === 1 ? 'attempt' : 'attempts'}</span>
-        <span>{held.length} accounts held</span>
+        <span>{held.length} {plural(held.length, 'account')} held</span>
         <span className="text-ink-faint">seed {state.seed}</span>
       </div>
 

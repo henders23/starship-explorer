@@ -1,6 +1,7 @@
 import { useMemo } from 'react'
 import { FOCUS_LABELS, type Officer } from '../engine/crew/types.js'
 import { useDispatch, useGame } from './store.js'
+import { plural } from './plural.js'
 
 /**
  * The roster: four named people and two numbers.
@@ -118,7 +119,7 @@ function OfficerRow({ officer, day }: { officer: Officer; day: number }) {
         }`}
         title={
           officer.status === 'injured'
-            ? `In the medbay, out of action. Fit for duty in ${Math.max(0, (officer.healedAfter ?? day) - day)} days.`
+            ? `In the medbay, out of action. Fit for duty in ${Math.max(0, (officer.healedAfter ?? day) - day)} ${plural(Math.max(0, (officer.healedAfter ?? day) - day), 'day')}.`
             : undefined
         }
       >
