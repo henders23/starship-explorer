@@ -373,3 +373,7 @@
 .exp-rift-stat.near b { color:#ff9a8e!important; }
 .exp-rift-stat.here b { color:#ff6b5e!important; animation:exp-rift-blink 1s steps(2) infinite; }
 @media(prefers-reduced-motion:reduce) { .exp-atlas-rift circle.next,.exp-rift-stat.here b { animation:none; } }
+.exp-signal-chips { display:flex; flex-wrap:wrap; gap:6px; margin:-8px 0 18px; }
+.exp-signal-chips span { padding:3px 8px; border:1px solid; font-size:11px; letter-spacing:.04em; }
+.exp-signal-chips .gain { border-color:#4f9e7c; color:#9ff0c6; background:rgba(40,90,70,.25); }
+.exp-signal-chips .loss { border-color:#a8574d; color:#ffb3a8; background:rgba(110,40,35,.25); }

@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import { actionLock, createCampaign, reduceCampaign, travelOrder } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { followCourse } from '../src/engine/exploration/navigation.js'
-import { quietChoice, SIGNAL_BY_ID, SIGNALS, signalAt, signalLuck } from '../src/engine/exploration/signals.js'
+import { outcomeChips, quietChoice, SIGNAL_BY_ID, SIGNALS, signalAt, signalLuck } from '../src/engine/exploration/signals.js'
 import { loadExploration, saveExploration } from '../src/ui/exploration-save.js'
 
 function mem() { let raw: string | null = null; return { getItem: () => raw, setItem: (_: string, s: string) => { raw = s }, removeItem: () => { raw = null } } }
@@ -66,5 +66,27 @@ describe('arrival signals', () => {
       expect(quietChoice(signal)).toBeDefined()
       for (const c of signal.choices) if (c.odds !== undefined) expect(c.bad).toBeDefined()
     }
+  })
+})
+
+describe('signals and interceptions together', () => {
+  it('offers an intercepted arrival\'s signal once the battle is debriefed', () => {
+    for (let i = 0; i < 300; i++) {
+      const s = createCampaign(`signal-after-${i}`)
+      const target = [...s.galaxy.systems].sort((a, b) => b.r - a.r || a.id.localeCompare(b.id))[0]!
+      const r = followCourse(s, target.id)
+      if (r.stop !== 'contact' || !r.state.signalAfterBattle) continue
+      let t = reduceCampaign(r.state, { type: 'ship-order', order: { type: 'pay' } })
+      if (t.shipBattle!.phase !== 'report') { t = reduceCampaign(r.state, { type: 'ship-order', order: { type: 'hail' } }); t = reduceCampaign(t, { type: 'ship-order', order: { type: 'pay' } }) }
+      t = reduceCampaign(t, { type: 'ship-debrief' })
+      expect(t.signal).toEqual(r.state.signalAfterBattle); expect(t.signalAfterBattle).toBeUndefined()
+      return
+    }
+    throw new Error('No intercepted signal found')
+  })
+  it('summarises outcomes as chips, net of costs', () => {
+    expect(outcomeChips({ text: '', fuel: 3, hull: -6 })).toEqual(['+3 fuel', '−6 hull'])
+    expect(outcomeChips({ text: '', missiles: 2 }, { credits: 12 })).toEqual(['−12 credits', '+2 missiles'])
+    expect(outcomeChips({ text: '', ambush: true })).toEqual(['ambush'])
   })
 })

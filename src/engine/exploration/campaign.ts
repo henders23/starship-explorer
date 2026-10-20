@@ -38,6 +38,8 @@ export interface Campaign {
   missiles: number
   /** An arrival signal awaiting the captain's answer. */
   signal?: PendingSignal
+  /** A signal found on an arrival that was intercepted, offered once the battle is debriefed. */
+  signalAfterBattle?: PendingSignal
   /** Weapons bought from station armouries, mounted in rules-2 battles. */
   armoury: ArmouryWeaponId[]
   /** The rift front's clock, started by the voyage's first hazard-aware jump. Absent: no front. */
@@ -507,10 +509,11 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
   const threat = REGIONAL_THREAT[system.region]
   const archetype = state.galaxy.factions.find((f) => f.id === system.faction)?.archetype ?? 'raider'
-  const torn = rifted(state, system.id), tier = threat >= 3 || (threat >= 2 && state.day >= 45) || torn ? 2 : 1
+  const torn = rifted(state, system.id), tier = threat >= 3 || (threat >= 2 && state.day >= HEAVY_THREAT2_DAY) || torn ? 2 : 1
   const pool = classPool(archetype, tier).filter((c) => c.tier <= tier), heavy = pool.filter((c) => c.tier === 2)
-  // Only heavy hulls survive in rift-touched space.
-  return rng.pick(torn && heavy.length ? heavy : pool)
+  // Only heavy hulls survive in rift-touched space, and the last hull we fought looks for easier prey.
+  const choices = torn && heavy.length ? heavy : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
+  return rng.pick(fresh.length ? fresh : choices)
 }
 /**
  * The rift front: the anomaly that brought the Lodestar here keeps widening
@@ -519,6 +522,8 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
  * its stations evacuate. The clock starts at the voyage's first hazard-aware
  * jump, so journals from before the front existed never meet it.
  */
+/** From this day, threat-2 space fields the heavy tier too. */
+export const HEAVY_THREAT2_DAY = 25
 export const RIFT_GRACE = 15
 export const RIFT_PACE = 6
 export const RIFT_INTERCEPTION_CHANCE = 55
@@ -680,7 +685,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           next.exploration.materials -= materials; next.exploration.credits -= credits
           message = `Emergency tow completed. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
         } else message = 'Interception over. We continue the voyage; hull damage persists.'
-        next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null; break
+        next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null
+        if (state.signalAfterBattle) { next.signal = state.signalAfterBattle; next.signalAfterBattle = undefined }
+        break
       }
       const success = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)
       days = battle.result === 'cancelled' ? 0 : battle.result === 'disabled' ? 3 : 1
@@ -757,9 +764,11 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       // The first hazard-aware jump starts the rift front's clock.
       if (action.hazards && !state.rift) next.rift = { from: state.day }
       const hostile = action.hazards ? interceptor(next) : null
-      const signal = action.hazards && !hostile && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id) : null
+      const signal = action.hazards && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id) : null
       if (hostile) {
         next.shipBattle = intercept(next, hostile, `${state.seed}:${system.id}:intercept:${state.day}`)
+        // The signal waits until the shooting stops.
+        if (signal) next.signalAfterBattle = { id: signal.id, systemId: system.id }
         message = `Arrived at ${system.name}. Hostile contact: ${hostile.name} has a weapons lock on us.`
       } else if (signal) {
         next.signal = { id: signal.id, systemId: system.id }
@@ -783,7 +792,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = outcome.text
       if (outcome.recruit) {
         if (state.roster.filter((o) => !o.dead).length < 6) { next.roster = [...state.roster, recruitOperative(state.recruits)]; next.recruits++ }
-        else { next.exploration.credits += 10; message += ' With every bunk taken, they pay their way to the next station instead: 10 credits.' }
+        else { next.exploration.credits += 10; message = 'Every bunk is taken, so the pilot rides as a passenger and pays their way to the next station: 10 credits.' }
       }
       if (outcome.charts) {
         const index = new GalaxyIndex(state.galaxy)

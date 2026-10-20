@@ -123,6 +123,18 @@ export function signalLuck(seed: string, pending: PendingSignal, choice: SignalC
 /** A choice that changes nothing: walking away. Every signal offers one. */
 export const quietChoice = (signal: ArrivalSignal) => signal.choices.find((c) => !c.cost && !c.days && c.odds === undefined &&
   Object.keys(c.good).every((k) => k === 'text'))!
+/** The net resource changes of an answer, as short chips: "+3 fuel", "−6 hull". */
+export function outcomeChips(outcome: SignalOutcome, cost: SignalChoice['cost'] = {}): string[] {
+  const chips: string[] = []
+  const add = (n: number, label: string) => { if (n) chips.push(`${n > 0 ? '+' : '−'}${Math.abs(n)} ${label}`) }
+  add((outcome.fuel ?? 0) - (cost.fuel ?? 0), 'fuel')
+  add((outcome.materials ?? 0) - (cost.materials ?? 0), 'materials'); add((outcome.credits ?? 0) - (cost.credits ?? 0), 'credits')
+  add(outcome.missiles ?? 0, 'missiles'); add(outcome.hull ?? 0, 'hull')
+  if (outcome.recruit) chips.push('+1 operative')
+  if (outcome.charts) chips.push('neighbours charted')
+  if (outcome.ambush) chips.push('ambush')
+  return chips
+}
 /** Plain-language terms for a choice button. */
 export function signalTerms(choice: SignalChoice): string {
   const terms: string[] = []

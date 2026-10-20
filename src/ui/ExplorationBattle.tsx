@@ -315,7 +315,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   /** Every charged, powered weapon at once: a held laser and missile together break a shield. */
   const ready = b.weapons.map((_, i) => i).filter((i) => !fireLock(b, i))
   const volley = () => { for (const index of ready) dispatch({ type: 'ship-order', order: { type: 'fire', index } }) }
-  const toggleRunning = () => { unlockCombatAudio(); playCombatSound(running ? 'pause' : 'resume'); setRunning(!running) }
+  // Resuming the clock closes the briefing: the captain has taken over.
+  const toggleRunning = () => { unlockCombatAudio(); playCombatSound(running ? 'pause' : 'resume'); if (!running) setCoach(null); setRunning(!running) }
 
   const button = (a: ShipOrder, label: string, primary = false) => {
     const lock = actionLock(state, { type: 'ship-order', order: a })
