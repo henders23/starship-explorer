@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react'
 import type { Screen } from './App.js'
 import { CrewPanel } from './CrewPanel.js'
 import { useDispatch, useGame, useNavPlot } from './store.js'
+import { plural } from './plural.js'
 
 type RoomId =
   | 'bridge'
@@ -177,7 +178,7 @@ export function ShipHub({ onNavigate }: { onNavigate: (screen: Screen) => void }
         <HubTask
           tone={wounded > 0 ? 'red' : 'muted'}
           label="Prepare away team"
-          detail={`${state.pools.security} security · ${clues.length} accounts held`}
+          detail={`${state.pools.security} security · ${clues.length} ${plural(clues.length, 'account')} held`}
           onClick={() => onNavigate('loadout')}
         />
       </aside>

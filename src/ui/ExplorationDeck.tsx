@@ -21,6 +21,7 @@ import { saveExploration } from './exploration-save.js'
 import { browserStorage } from './save.js'
 import { MuteButton } from './sound.js'
 import { plural } from './plural.js'
+import { freshLines } from './fresh-log.js'
 import { DRIVE_SEQUENCE } from '../engine/exploration/research.js'
 import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
@@ -96,11 +97,12 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   }, [state])
   // What the last order wrote to the log surfaces briefly; the whole log stays readable in Discoveries.
   const [freshLog, setFreshLog] = useState<string[] | null>(null)
-  const logLength = useRef(state.log.length)
+  const shownLog = useRef(state.log)
   useEffect(() => {
-    if (state.log.length === logLength.current) return
-    setFreshLog(state.log.slice(Math.max(logLength.current, state.log.length - 4)))
-    logLength.current = state.log.length
+    const fresh = freshLines(shownLog.current, state.log)
+    shownLog.current = state.log
+    if (!fresh.length) return
+    setFreshLog(fresh)
     const fade = window.setTimeout(() => setFreshLog(null), 7000)
     return () => window.clearTimeout(fade)
   }, [state.log])
@@ -165,14 +167,15 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     const target = state.galaxy.systems.find((system) => system.id === id)!
     const plan = courses(id), jumps = plan ? plan.path.length - 1 : 0, current = id === state.at
     const neighbour = !current && travelCost(state, id) !== null
+    const places = current ? known.length : locationsAt(state.world, id).filter((s) => state.exploration.statuses[s.id]).length
     return <>
       <span className="exp-eyebrow">{current ? 'Current position' : 'Selected destination'}</span>
       <h2>{target.name}</h2>
       <p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}<br />
         {target.faction ? `Claimed by ${state.galaxy.factions.find((f) => f.id === target.faction)?.name}.` : 'No registered faction claim.'}</p>
       <p className={`exp-card-risk risk-${REGIONAL_THREAT[target.region]}`} data-testid="interception-risk">{interceptionRisk(state, target.id)}</p>
-      <p>{current ? `${known.length} known ${plural(known.length, 'location')}. The Lodestar is here.`
-        : state.visited.includes(id) ? `${locationsAt(state.world, id).filter((s) => state.exploration.statuses[s.id]).length} known locations. Your progress here is preserved.`
+      <p>{current ? `${places} known ${plural(places, 'location')}. The Lodestar is here.`
+        : state.visited.includes(id) ? `${places} known ${plural(places, 'location')}. Your progress here is preserved.`
         : 'Unvisited. Local opportunities will appear on arrival and after scanning.'}</p>
       {!current && (plan && jumps > 0
         ? <p className="exp-card-route"><strong>{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'} · {plan.fuel} FUEL</strong> · arrives day {state.day + jumps}{hostileStops(plan.path) ? ` · ${hostileStops(plan.path)} ${plural(hostileStops(plan.path), 'stop')} in hostile space` : ''}</p>
@@ -229,7 +232,10 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
             <button className="exp-button" onClick={() => { setShipRoom('bridge'); setTab('ship') }}>Visit the bridge</button>
           </div>
           <div className="exp-actions">
-            {!state.research.active && !state.research.completed.includes('drive-diagnostics') && <button className="exp-button primary" onClick={() => setTab('lab')}>Start Return Drive research</button>}
+            {!state.research.active && !state.research.completed.includes('drive-diagnostics') && <button className="exp-button primary" onClick={() => {
+              if (!actionLock(state, { type: 'research', project: 'drive-diagnostics' })) dispatch({ type: 'research', project: 'drive-diagnostics' })
+              setTab('lab')
+            }}>Start Return Drive research</button>}
             {command({ type: 'scan', tier: 'survey' }, 'Survey system · 1 day', true)}
             {command({ type: 'scan', tier: 'deep' }, 'Deep scan · 1 day')}
             {fitted(state, 'fuel-recycling') && command({ type: 'recycle-fuel' }, 'Recycle fuel · 3 materials · 1 day')}
@@ -262,9 +268,9 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       {tab === 'galaxy' && <ExpeditionGalaxyChart state={state} selected={selectedSystem} onSelect={setSelectedSystem} card={systemCard} status={saveStatus} />}
       {tab === 'lab' && <ExplorationResearch state={state} dispatch={dispatch} onShowSystem={locate} status={saveStatus} />}
       {tab === 'archive' && <Discoveries state={state} command={command} onLocate={locate} status={saveStatus} />}
+      <div className={`exp-log${freshLog ? ' fresh' : ''}`} role="status" aria-live="polite">{(freshLog ?? state.log.slice(-1)).map((line, i) => <p key={i}>{line}</p>)}
+        {freshLog && labIdle && <p className="exp-log-nag">The research lab is idle: no project is advancing.</p>}</div>
     </div>
-    <div className={`exp-log${freshLog ? ' fresh' : ''}`} role="status" aria-live="polite" inert={modalOpen}>{(freshLog ?? state.log.slice(-1)).map((line, i) => <p key={i}>{line}</p>)}
-      {freshLog && labIdle && <p className="exp-log-nag">The research lab is idle: no project is advancing.</p>}</div>
     {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
     {signalOpen && <SignalScene state={state} shown={signalShown} dispatch={dispatch}

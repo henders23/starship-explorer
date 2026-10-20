@@ -12,6 +12,7 @@ import { CREW, CrewLine } from './crew-presence.js'
 import { MuteButton, useSoundscape } from './sound.js'
 import { playCombatSound, unlockCombatAudio } from './combat-sfx.js'
 import type { CombatSound } from './combat-sfx.js'
+import { plural } from './plural.js'
 
 export function EscortOffer({ state, locationId, dispatch }: { state: Campaign; locationId: string; dispatch: (a: CampaignAction) => void }) {
   const station = state.world.locations.find((s) => s.id === locationId)!
@@ -19,7 +20,7 @@ export function EscortOffer({ state, locationId, dispatch }: { state: Campaign; 
   const action: CampaignAction = { type: 'escort', locationId, rules: BATTLE_RULES }
   const lock = actionLock(state, action)
   return <div className="escort-offer"><span className="exp-eyebrow">Optional / survey escort</span><h3>A tender needs a clear lane.</h3>
-    <p>Reported contact: {cls.name} · {cls.hull} hull · {cls.shields} shields. Negotiate, slip past or fight. Your ship’s damage persists.</p>
+    <p>Reported contact: {cls.name} · {cls.hull} hull · {cls.shields} {plural(cls.shields, 'shield')}. Negotiate, slip past or fight. Your ship’s damage persists.</p>
     <p>One-time payment: 12 materials + 35 credits for victory, or 6 + 18 for a peaceful passage. You can review the contact and decline.</p>
     <button className="exp-button" disabled={!!lock} onClick={() => { unlockCombatAudio(); dispatch(action) }}>Review escort contact</button>{lock && <small>{lock}</small>}
   </div>
@@ -238,9 +239,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     }
     legacyShots.current = b.shots
     if (!fresh.length) return
-    const added: Fx[] = []
-    for (const e of fresh) added.push(...stack(effectsFor(e)))
-    if (added.length) setFx((list) => [...list, ...added].slice(-60))
+    const added: Fx[] = [], merged = new Set<string>()
+    for (const e of fresh) added.push(...stack(effectsFor(e), merged))
+    if (added.length) setFx((list) => [...list, ...added].filter((f) => !merged.has(f.key)).slice(-60))
   }, [b])
   function effectsFor(e: BattleEvent): Fx[] {
     const key = `${e.id}`, pan = (side: 'player' | 'enemy') => side === 'player' ? -0.55 : 0.55
@@ -294,14 +295,21 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     return at ? [{ key: `${key}-t`, type: 'float', x: at.x, y: at.y - 34, text: '+1', colour: '#8ef0b5' }] : []
   }
   const dropFx = (key: string) => setFx((list) => list.filter((f) => f.key !== key))
-  // Labels landing on the same spot in quick succession stack upward instead of overlapping.
-  const stacks = useRef<Record<string, { at: number; n: number }>>({})
-  const stack = (list: Fx[]) => list.map((f) => {
-    if (f.type !== 'float') return f
-    const spot = `${Math.round(f.x / 40)}:${Math.round(f.y / 40)}`, at = performance.now(), last = stacks.current[spot]
-    const n = last && at - last.at < 1300 ? last.n + 1 : 0
-    stacks.current[spot] = { at, n }
-    return { ...f, y: f.y - n * 17 }
+  // A label repeating on screen becomes one counted label (CREW HIT ×3); others landing on a visible label stack above it.
+  const labels = useRef<{ key: string; text: string; x: number; y: number; from: number; at: number; n: number }[]>([])
+  const stack = (list: Fx[], merged: Set<string>) => list.map((f) => {
+    if (f.type !== 'float' || !f.text) return f
+    const at = performance.now() + (f.delay ?? 0) * 1000
+    labels.current = labels.current.filter((l) => at - l.at < 1400)
+    const same = /^[A-Z]/.test(f.text) ? labels.current.find((l) => l.text === f.text && Math.abs(l.x - f.x) < 40 && Math.abs(l.from - f.y) < 40) : undefined
+    if (same) {
+      merged.add(same.key); Object.assign(same, { key: f.key, at, n: same.n + 1 })
+      return { ...f, x: same.x, y: same.y, text: `${f.text} ×${same.n}` }
+    }
+    let y = f.y
+    for (let i = 0; i < 8 && labels.current.some((l) => Math.abs(l.x - f.x) < 70 && Math.abs(l.y - y) < 16); i++) y -= 17
+    labels.current.push({ key: f.key, text: f.text, x: f.x, y, from: f.y, at, n: 1 })
+    return { ...f, y }
   })
 
   // Keyboard: Space pauses, 1–4 pick a weapon, F fires it.
