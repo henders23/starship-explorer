@@ -48,10 +48,22 @@ function audio(): AudioContext | null {
   return context
 }
 
-/** Browsers start audio suspended; the first click or key in a battle wakes it. */
+const readyListeners = new Set<() => void>()
+/** Calls `listener` once audio is running (now, if it already is). Returns an unsubscribe. */
+export function onAudioReady(listener: () => void) {
+  readyListeners.add(listener)
+  if (context?.state === 'running') listener()
+  return () => { readyListeners.delete(listener) }
+}
+/** The shared output, for the score: everything goes through the same mute and limiter. */
+export const audioOut = () => context?.state === 'running' && master && noiseBuffer ? { context, master, noise: noiseBuffer } : null
+
+/** Browsers start audio suspended; the first click or key wakes it. */
 export function unlockCombatAudio() {
   const c = audio()
-  if (c?.state === 'suspended') void c.resume().catch(() => {})
+  const ready = () => { for (const l of readyListeners) l() }
+  if (c?.state === 'suspended') void c.resume().then(ready, () => {})
+  else if (c?.state === 'running') ready()
 }
 
 interface Options { delay?: number; pan?: number; volume?: number }

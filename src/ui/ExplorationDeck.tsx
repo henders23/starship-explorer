@@ -37,6 +37,8 @@ import { ReportImage } from './ReportImage.js'
 import { ShipRooms, bridgeMessage } from './ShipRooms.js'
 import type { RoomId } from './ShipRooms.js'
 import { leadLabel, scienceLeads } from './science-leads.js'
+import { setAmbience } from './battle-score.js'
+import { unlockCombatAudio } from './combat-sfx.js'
 
 const LABELS: Record<LocationKind, string> = {
   station: 'Orbital station', world: 'Planetary survey', ruins: 'Buried installation', derelict: 'Derelict vessel',
@@ -161,6 +163,10 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   }
   const saveStatus = <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
 
+  // Inside the rift, the wind is always there under the hum.
+  const riftAmbience = rifted(state, state.at) && !state.shipBattle && state.outcome === 'exploring'
+  useEffect(() => { setAmbience(riftAmbience ? 'rift' : 'off') }, [riftAmbience])
+  useEffect(() => () => setAmbience('off'), [])
   const riftHere = rifted(state, state.at), riftEta = riftReaches(state, state.at), riftDays = riftEta === null ? null : riftEta - state.day
   const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 || rifted(state, id)).length
   /** The chart's floating card: where a system is and how to get there. */
@@ -193,7 +199,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   if (state.shipBattle) return <ExplorationBattle state={state} dispatch={dispatch} onExit={exit} saved={saved} />
   if (state.mission) return <TacticalMission state={state} dispatch={dispatch} onExit={exit} saved={saved} />
   const scene = tab === 'system' ? site ? 'site' : 'system' : tab
-  return <main className="exp-deck" data-tab={tab} data-scene={scene} ref={deckRef}>
+  return <main className="exp-deck" data-tab={tab} data-scene={scene} ref={deckRef} onPointerDown={unlockCombatAudio}>
     <header className="exp-header" inert={modalOpen}>
       <span className="exp-ship-mark">ISS LODESTAR{state.hardcore && <small className="exp-hardcore-mark" title="Losing the ship in battle ends the voyage">HARDCORE</small>}</span>
       <nav className="exp-nav" aria-label="Exploration stations">

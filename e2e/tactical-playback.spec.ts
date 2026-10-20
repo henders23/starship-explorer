@@ -25,12 +25,14 @@ for(const [width,height] of [[1366,768],[1440,900],[1920,1080]])test(`laptop arc
 })
 test('plays actual enemy shots in order, locks commands, then resumes with saved outcome',async({page},info)=>{
  await page.setViewportSize({width:1366,height:768});const s=midMission(),end=reduceMission(s.mission!,{type:'end-turn'});await resume(page,s)
+ // Record every playback frame: a shot frame can pass quickly at 2× under load.
+ await page.evaluate(()=>{const w=window as unknown as {frames_:string[]};w.frames_=[];new MutationObserver(()=>{const t=document.querySelector('.tac-playback strong')?.textContent;if(t)w.frames_.push(t)}).observe(document.body,{subtree:true,childList:true,characterData:true})})
  await page.keyboard.press('Shift+Enter')
  const playback=page.getByRole('status',{name:'Enemy turn playback'})
  await expect(playback).toBeVisible();await expect(page.getByRole('button',{name:'End turn · hostiles act',exact:true})).toBeDisabled()
  expect(await page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).actions.length,EXPLORATION_SAVE_KEY)).toBe(s.actions.length+1)
  await page.getByRole('button',{name:'1× speed'}).click();await expect(page.getByRole('button',{name:'2× speed'})).toBeVisible()
- await expect(playback).toContainText('→')
+ await expect.poll(()=>page.evaluate(()=>(window as unknown as {frames_:string[]}).frames_.some((t)=>t.includes('→')))).toBe(true)
  await page.screenshot({path:info.outputPath('laptop-enemy-playback.png')})
  
  await expect(playback).toHaveCount(0,{timeout:20000});await expect(page.locator('.tac-turn b')).toHaveText(String(end.turn).padStart(2,'0'))

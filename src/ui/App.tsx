@@ -51,7 +51,7 @@ export function App() {
     const theme = music.current, engines = hum.current
     if (!theme || !engines) return
     const battle = aboard && scene === 'battle'
-    const target = { theme: battle ? 0.12 : 0.34, hum: !aboard ? 0 : battle ? 0.3 : 0.1 }
+    const target = { theme: battle ? 0.05 : 0.34, hum: !aboard ? 0 : battle ? 0.3 : 0.1 }
     if (aboard) void engines.play().catch(() => {})
     const start = { theme: theme.volume, hum: engines.volume }, began = performance.now()
     let frame = 0

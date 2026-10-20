@@ -10,6 +10,7 @@ import type { EnemyRoomKey } from '../engine/combat/ships.js'
 import './ship-battle.css'
 import { CREW, CrewLine } from './crew-presence.js'
 import { MuteButton, useSoundscape } from './sound.js'
+import { setScore } from './battle-score.js'
 import { playCombatSound, unlockCombatAudio } from './combat-sfx.js'
 import type { CombatSound } from './combat-sfx.js'
 import { plural } from './plural.js'
@@ -181,6 +182,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   }, [])
   const live = b.phase === 'battle' && !outro
   const [running, setRunning] = useState(false)
+  // The score follows the clock: a drone while paused, the full cue while shots fly, the run home its own.
+  useEffect(() => { setScore(!live ? 'off' : b.kind === 'finale' ? 'finale' : running ? 'fight' : 'tension') }, [live, running, b.kind])
+  useEffect(() => () => setScore('off'), [])
   const [selectedWeapon, setWeapon] = useState(0)
   /** The order being given: a line runs from its origin (Repair button, or an officer) to the cursor. */
   const [repairing, setRepairing] = useState<{ origin: Point; cursor: Point; crew?: CrewId } | null>(null)
