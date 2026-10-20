@@ -57,9 +57,9 @@ longer a player-selectable game. Its separate browser save is not erased.
 | Boarding | Four-person squads; core recovery, rescue, sabotage, salvage and fragile-recorder extraction; nine standard operation configurations plus the recorder vault |
 | Tactical decisions | Cover, line of sight, fog, AP, aim, overwatch, equipment, extraction and persistent injuries/casualties |
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
-| Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power, compartment targeting, on-hull damage markers and a guided repair order |
+| Ship encounters | FTL-style real-time combat with pause: projectiles in flight, telegraphed enemy targeting, crew at battle stations, fires, reactor power, compartment targeting, volleys and synthesised battle sound. Station escorts, and hostile interceptions on jumps into hostile space, with negotiation, evasion, salvage and tow-home failure |
 | Presentation | Interactive galaxy atlas; four illustrated ship rooms with original crew portraits and contextual dialogue; cinematic site art; directional boarding animation; laptop controls |
-| Persistence | Version-10 expedition journals; versions 1–9 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
+| Persistence | Version-11 expedition journals; versions 1–10 supported (their battles and jumps replay under the rules they were played with); explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
 This is a playable game under active development. Long faction arcs, a developed
@@ -67,6 +67,30 @@ crew relationship system, rank abilities, photorealistic character fidelity and
 full-run human balance validation remain ahead. Character frames come from consistent
 articulated rigs; they are still stylised. Layout variations include reflected plans.
 No runtime AI API or 3D renderer is required by the game.
+
+## Ship combat
+
+Jumps into hostile space (red on the Galaxy chart; each system's card gives the
+interception risk) can end in a weapons lock. Stations also offer optional survey
+escorts. On contact, hail, pay, try to break the lock, or engage. Battles start
+paused.
+
+- **Space** pauses and resumes; everything in flight freezes mid-air.
+- **Choose a target:** select a weapon (**1–4**), then click an enemy compartment.
+  Weapons open aimed at the enemy's shields. **Auto** fires when charged and
+  **hold** keeps a full charge. **F** fires the selected weapon; **V** fires every
+  charged weapon together, for example a held laser and missile to break a shield.
+- **Read their guns:** a hostile gun locks one of our compartments at 60% charge.
+  The room shows a red reticle and a countdown.
+- **Command the crew:** Mori, Cross, Morozova and Kerr man the helm, weapons,
+  shields and engines. Choose an officer, then a compartment. Officers repair and
+  fight fires where they stand. The helm needs one for evasion. Hits and fires
+  wound them; a downed officer returns from the medical bay after 20 seconds.
+- **Reactor:** power shields (two per layer), engines (evasion and retreat) and
+  weapons. Charge a retreat with working engines to jump away.
+
+Victory over an interceptor salvages materials, credits and fuel. A disabled ship
+is towed home at a cost. See [docs/FTL-COMBAT.md](docs/FTL-COMBAT.md).
 
 ## Laptop controls
 
