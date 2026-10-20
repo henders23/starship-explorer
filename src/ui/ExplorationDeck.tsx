@@ -7,8 +7,9 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder,
+  travelOrder, interceptionRisk,
 } from '../engine/exploration/campaign.js'
+import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
 import type { Course } from '../engine/exploration/navigation.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
@@ -147,6 +148,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   }
   const saveStatus = <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
 
+  const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0).length
   /** The chart's floating card: where a system is and how to get there. */
   const systemCard = (id: SystemId) => {
     const target = state.galaxy.systems.find((system) => system.id === id)!
@@ -157,11 +159,12 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       <h2>{target.name}</h2>
       <p>{REGION_NAMES[target.region]} · {STAR_NAMES[target.star]}<br />
         {target.faction ? `Claimed by ${state.galaxy.factions.find((f) => f.id === target.faction)?.name}.` : 'No registered faction claim.'}</p>
+      <p className={`exp-card-risk risk-${REGIONAL_THREAT[target.region]}`} data-testid="interception-risk">{interceptionRisk(state, target.id)}</p>
       <p>{current ? `${known.length} known ${plural(known.length, 'location')}. The Lodestar is here.`
         : state.visited.includes(id) ? `${locationsAt(state.world, id).filter((s) => state.exploration.statuses[s.id]).length} known locations. Your progress here is preserved.`
         : 'Unvisited. Local opportunities will appear on arrival and after scanning.'}</p>
       {!current && (plan && jumps > 0
-        ? <p className="exp-card-route"><strong>{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'} · {plan.fuel} FUEL</strong> · arrives day {state.day + jumps}</p>
+        ? <p className="exp-card-route"><strong>{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'} · {plan.fuel} FUEL</strong> · arrives day {state.day + jumps}{hostileStops(plan.path) ? ` · ${hostileStops(plan.path)} ${plural(hostileStops(plan.path), 'stop')} in hostile space` : ''}</p>
         : <p className="exp-card-route">No course reaches {target.name} with the current drive.</p>)}
       {neighbour ? <div className="exp-course-actions">
         {command(travelOrder(id), `Travel · ${travelCost(state, id)} fuel · 1 day`, true)}

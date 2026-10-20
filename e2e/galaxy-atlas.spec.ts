@@ -24,7 +24,8 @@ for(const width of [1440,390])test(`new galaxy atlas draws real generated world 
   await chart.getByRole('button',{name:'Recenter chart'}).click()
   expect(await camera.getAttribute('transform')).toEqual(oldTransform)
   const firstOther=chart.locator('.exp-atlas-star:not(.is-current)').first()
-  await firstOther.click()
+  // Neighbouring stars' hit areas can overlap at 390px; select from the keyboard instead.
+  await firstOther.focus(); await page.keyboard.press('Enter')
   await expect(chart.getByTestId('galaxy-route')).toBeVisible()
   await expect(chart.getByText(/^\d+ JUMPS? · \d+ FUEL$/)).toBeVisible()
   const box=await chart.locator('svg.exp-atlas-svg').boundingBox()

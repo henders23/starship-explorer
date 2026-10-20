@@ -186,6 +186,10 @@
 .exp-atlas-legend { display:flex; flex-wrap:wrap; gap:16px; color:#80c5c8; }
 .exp-atlas-legend .ithaca { color:#c9f8ff; }
 .exp-atlas-legend .selected { color:#f4ca87; }
+.exp-atlas-legend .danger { color:#ff8a7a; }
+.exp-atlas-danger circle { mix-blend-mode:screen; }
+.exp-card-risk { margin:-6px 0 14px!important; font-size:11px; letter-spacing:.04em; }
+.exp-card-risk.risk-0 { color:#7fd4c1!important; } .exp-card-risk.risk-1 { color:#f2c94c!important; } .exp-card-risk.risk-2,.exp-card-risk.risk-3 { color:#ff8a7a!important; }
 @keyframes exp-route-flow { to { stroke-dashoffset:-260; } }
 @keyframes exp-target-pulse { 0%,100% { opacity:.48; } 50% { opacity:1; } }
 

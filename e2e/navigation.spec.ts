@@ -1,15 +1,28 @@
 import { expect, test } from '@playwright/test'
 import type { Page } from '@playwright/test'
-import { createCampaign } from '../src/engine/exploration/campaign.js'
-import { courseFinder } from '../src/engine/exploration/navigation.js'
+import { createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
+import type { Campaign } from '../src/engine/exploration/campaign.js'
+import { courseFinder, followCourse } from '../src/engine/exploration/navigation.js'
 import { chartTo, openProject } from './helpers.js'
 
 const SEED = 'navigation-e2e'
-/** A distant system the starting tank can reach in one go. */
+/** Whether the route can be flown to the end, through research pauses, without an interception. */
+function quiet(s: Campaign, id: string) {
+  for (let leg = 0; leg < 10; leg++) {
+    const r = followCourse(s, id)
+    if (r.stop === 'arrived') return true
+    if (r.stop !== 'research') return false
+    s = r.state
+  }
+  return false
+}
+/** A distant system the starting tank can reach in one go, along a route with no hostile waiting. */
 function destination(minJumps: number) {
   const s = createCampaign(SEED), find = courseFinder(s)
+  const researching = reduceCampaign(s, { type: 'research', project: 'drive-diagnostics' })
   const options = s.galaxy.systems.map((system) => ({ system, course: find(system.id)! }))
     .filter(({ course }) => course.path.length - 1 >= minJumps && course.fuel <= s.fuel)
+    .filter(({ system }) => quiet(s, system.id) && quiet(researching, system.id))
     .sort((a, b) => a.course.path.length - b.course.path.length || a.system.id.localeCompare(b.system.id))
   const { system, course } = options[0]!
   return { name: system.name, jumps: course.path.length - 1, fuel: course.fuel, firstHop: s.galaxy.systems.find((x) => x.id === course.path[1])!.name }

@@ -443,6 +443,14 @@ export function interceptor(state: Campaign): ShipClass | null {
   const tier = threat >= 3 || (threat >= 2 && state.day >= 45) ? 2 : 1
   return rng.pick(classPool(archetype, tier).filter((c) => c.tier <= tier))
 }
+/** The chart's plain-language warning for arriving at a system. */
+export function interceptionRisk(state: Campaign, systemId: SystemId): string {
+  const system = state.galaxy.systems.find((s) => s.id === systemId)!
+  const chance = Math.max(0, INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]] - (fitted(state, 'countermeasures') ? 8 : 0))
+  if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.'
+  const who = state.galaxy.factions.find((f) => f.id === system.faction)
+  return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}${state.hull < 25 ? ' (they ignore a hull this damaged)' : ''}.`
+}
 function fitUpgrade(state: Campaign, id: BuildId): Campaign {
   if (equipLock(state, id)) return state
   return { ...state, equipped: [...state.equipped, id], hull: state.hull + (id === 'composite-hull' ? 20 : 0) }
