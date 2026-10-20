@@ -108,13 +108,72 @@ export const SIGNALS: ArrivalSignal[] = [
       { id: 'salvage', label: 'Salvage its core', good: { text: 'The core is worth something to the right buyer.', credits: 14 } },
       { id: 'leave', label: 'Let it keep listening', good: { text: 'We leave the relay to its long watch.' } },
     ] },
+  { id: 'smugglers', title: 'Smugglers with a spare crate', speaker: 'cross', line: 'No transponder, two crates of untaxed alloy, and a very friendly captain. There is a bounty on boats like that.',
+    text: 'A low-profile runner hails us on a private band and offers a crate of refined alloy, cash only, no questions.',
+    choices: [
+      { id: 'buy', label: 'Buy the crate', cost: { credits: 20 }, good: { text: 'The crate is exactly what they said. Kerr is delighted and asks no questions.', materials: 10 } },
+      { id: 'report', label: 'Report them to the nearest station', odds: 60,
+        good: { text: 'A patrol picks them up an hour later and wires us the bounty.', credits: 18 },
+        bad: { text: 'They intercept our report and come about with guns run out.', ambush: true } },
+      { id: 'ignore', label: 'Not our business', good: { text: 'The runner vanishes into the glare of the primary.' } },
+    ] },
+  { id: 'buoy', title: 'A science buoy still recording', speaker: 'morozova', line: 'It has been charting this neighbourhood for years. If we can read its memory, we will not be flying blind.',
+    text: 'An academic survey buoy, abandoned when its grant ran out, is still logging every ship and star within a lane of here.',
+    choices: [
+      { id: 'download', label: 'Download its survey', good: { text: 'The buoy gives up years of observations. Every system one lane out is now surveyed.', charts: true } },
+      { id: 'leave', label: 'Leave it to its work', good: { text: 'Morozova adds a note to its log: still listening.' } },
+    ] },
+  { id: 'pods', title: 'Escape pods in a slow spiral', speaker: 'cross', line: 'Three pods, one heartbeat strong enough to wake. It will take a day to bring them all in.',
+    text: 'A spray of escape pods circles a dead moon. Most are cold. One is warm, and someone inside is knocking.',
+    choices: [
+      { id: 'recover', label: 'Recover all three pods', days: 1, good: { text: 'The survivor joins the crew, and the cold pods yield their emergency stores.', recruit: true, credits: 8 } },
+      { id: 'leave', label: 'Log the position for a rescue ship', good: { text: 'We relay the coordinates and move on. Cross does not look back at the screen.' } },
+    ] },
+  { id: 'container', title: 'A cargo container tumbling free', speaker: 'kerr', line: 'Somebody will want that back. Somebody might already be on their way.',
+    text: 'A sealed freight container has broken loose from a convoy and tumbles across the lane, its locator still pinging.',
+    choices: [
+      { id: 'tow', label: 'Grapple it aboard', odds: 75,
+        good: { text: 'Machine parts and a strongbox, unclaimed by anyone who can reach us.', materials: 6, credits: 10 },
+        bad: { text: 'The owners were closer than the locator suggested, and they are not grateful.', ambush: true } },
+      { id: 'leave', label: 'Leave it for its owners', good: { text: 'We note the position and leave it tumbling.' } },
+    ] },
+  { id: 'patrol', title: 'A patrol cutter limping home', speaker: 'cross', line: 'Their drive coupling is cracked. We have the parts. They have a quartermaster with a budget.',
+    text: 'A local patrol cutter is crawling toward its base on half a drive. Its captain asks, stiffly, whether we could spare a coupling.',
+    choices: [
+      { id: 'repair', label: 'Lend them a coupling', cost: { materials: 5 }, good: { text: 'Kerr\'s coupling holds. The captain signs a voucher we can cash at any station.', credits: 28 } },
+      { id: 'leave', label: 'Wish them luck', good: { text: 'The cutter limps on. Its captain salutes as we pass.' } },
+    ] },
+  { id: 'flare', title: 'The primary is about to flare', speaker: 'mori', line: 'Big one coming. We can ride the shock front out of here, or shelter behind the inner planet until it passes.',
+    text: 'The star\'s surface is brightening along a long filament. Mori gives it minutes.',
+    choices: [
+      { id: 'ride', label: 'Ride the shock front', odds: 65,
+        good: { text: 'Mori puts us on the leading edge and the flare throws us down the lane on almost no fuel.', fuel: 2 },
+        bad: { text: 'The front catches us broadside. Radiation scorches the plating before we clear it.', hull: -8 } },
+      { id: 'shelter', label: 'Shelter behind the inner planet', good: { text: 'The flare washes past the far side of the planet. We come out to a quiet, glittering sky.' } },
+    ] },
+  { id: 'drone', title: 'A dormant combat drone', speaker: 'kerr', line: 'Its missile rack is full and its targeting is asleep. If I can wake it gently, it is ours.',
+    text: 'An armed drone from some forgotten skirmish hangs in standby, its missile pods still sealed.',
+    choices: [
+      { id: 'reprogram', label: 'Wake it and reprogram it', odds: 55,
+        good: { text: 'Kerr talks it down and strips its rack: two Hellions and a sack of fine electronics.', missiles: 2, materials: 4 },
+        bad: { text: 'It wakes angry. Its last missile hits before Cross can shoot it down.', hull: -7 } },
+      { id: 'leave', label: 'Let it sleep', good: { text: 'We give it a wide berth and let it dream of its war.' } },
+    ] },
+  { id: 'hermit', title: 'A hermit on a lonely rock', speaker: 'morozova', line: 'She has been out here for nineteen years, and she wants to trade stories for medicine.',
+    text: 'A prospector living alone on an asteroid hails us, delighted to hear a new voice, and offers her charts for medical supplies.',
+    choices: [
+      { id: 'trade', label: 'Trade medical supplies for charts', cost: { materials: 3 }, good: { text: 'Her charts are meticulous. Every system one lane out is now surveyed.', charts: true } },
+      { id: 'leave', label: 'Share news and move on', good: { text: 'We talk for an hour. She asks us to come back if we ever find our way home.' } },
+    ] },
 ]
 export const SIGNAL_BY_ID: Record<string, ArrivalSignal> = Object.fromEntries(SIGNALS.map((s) => [s.id, s]))
 
-/** Which signal, if any, waits at a system on first arrival. */
-export function signalAt(seed: string, systemId: SystemId): ArrivalSignal | null {
+/** Which signal, if any, waits at a system on first arrival. Signals already met wait until the rest have been seen. */
+export function signalAt(seed: string, systemId: SystemId, seen: readonly string[] = []): ArrivalSignal | null {
   const rng = createRng(`${seed}:signal:${systemId}`)
-  return rng.int(100) < SIGNAL_CHANCE ? rng.pick(SIGNALS) : null
+  if (rng.int(100) >= SIGNAL_CHANCE) return null
+  const fresh = SIGNALS.filter((s) => !seen.includes(s.id))
+  return rng.pick(fresh.length ? fresh : SIGNALS)
 }
 /** Whether a risky choice comes good: seeded by voyage, system and choice. */
 export function signalLuck(seed: string, pending: PendingSignal, choice: SignalChoice): boolean {

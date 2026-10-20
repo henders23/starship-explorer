@@ -40,6 +40,8 @@ export interface Campaign {
   signal?: PendingSignal
   /** A signal found on an arrival that was intercepted, offered once the battle is debriefed. */
   signalAfterBattle?: PendingSignal
+  /** Every arrival signal met this voyage, so none repeats until the rest have been seen. */
+  signalsSeen: string[]
   /** Weapons bought from station armouries, mounted in rules-2 battles. */
   armoury: ArmouryWeaponId[]
   /** The rift front's clock, started by the voyage's first hazard-aware jump. Absent: no front. */
@@ -116,7 +118,7 @@ export function createCampaign(seed: string): Campaign {
     research: { active: null, progress: {}, completed: [], queue: [] },
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
-    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES, armoury: [],
+    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES, armoury: [], signalsSeen: [],
     completedOperations: [], loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
@@ -764,7 +766,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       // The first hazard-aware jump starts the rift front's clock.
       if (action.hazards && !state.rift) next.rift = { from: state.day }
       const hostile = action.hazards ? interceptor(next) : null
-      const signal = action.hazards && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id) : null
+      const signal = action.hazards && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id, state.signalsSeen) : null
+      if (signal) next.signalsSeen = [...state.signalsSeen, signal.id]
       if (hostile) {
         next.shipBattle = intercept(next, hostile, `${state.seed}:${system.id}:intercept:${state.day}`)
         // The signal waits until the shooting stops.

@@ -22,7 +22,8 @@ describe('arrival signals', () => {
     const s = signalled('signal-a')
     expect(s.visited.filter((id) => id === s.at)).toHaveLength(1)
     expect(SIGNAL_BY_ID[s.signal!.id]).toBeDefined()
-    expect(signalAt(s.seed, s.at)!.id).toBe(s.signal!.id)
+    expect(signalAt(s.seed, s.at, s.signalsSeen.slice(0, -1))!.id).toBe(s.signal!.id)
+    expect(s.signalsSeen.at(-1)).toBe(s.signal!.id)
     expect(actionLock(s, travelOrder(s.galaxy.adjacency[s.at]![0]!))).toBe('Answer the signal first')
     const storage = mem(); saveExploration(s, storage)
     expect(loadExploration(storage)).toEqual({ campaign: s, error: null })
@@ -31,6 +32,15 @@ describe('arrival signals', () => {
     expect(answered.signal).toBeUndefined()
     saveExploration(answered, storage)
     expect(loadExploration(storage).campaign).toEqual(answered)
+  })
+  it('does not repeat a signal until every one has been met', () => {
+    const seen: string[] = []
+    for (let i = 0; i < SIGNALS.length; i++) {
+      let pick = null
+      for (let k = 0; !pick; k++) pick = signalAt('no-repeat', `sys-${i}-${k}`, seen)
+      expect(seen).not.toContain(pick.id); seen.push(pick.id)
+    }
+    expect(new Set(seen).size).toBe(SIGNALS.length)
   })
   it('never fires on journeys flown with plain travel orders', () => {
     const s = createCampaign('signal-plain')
