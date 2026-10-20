@@ -87,8 +87,10 @@ paused.
   fight fires where they stand. The helm needs one for evasion. Hits and fires
   wound them; a downed officer returns from the medical bay after 20 seconds.
 - **Their crew:** hostile hands repair, fight fires and man the helm. Pips
-  under each enemy compartment show who is there; hit it to kill them, and kill
+  beside each enemy compartment show who is there; hit it to kill them, and kill
   them all to take the ship intact.
+- **They run:** a badly hurt interceptor spins up its FTL drive. Hit its
+  engines or helm before the violet meter fills, or the prize gets away.
 - **Reactor:** power shields (two per layer), engines (evasion and retreat) and
   weapons. Charge a retreat with working engines to jump away.
 
@@ -99,8 +101,10 @@ way to walk away. Kindness can come back: some of those you help find the
 Lodestar again later.
 
 The **rift** that brought the Lodestar here keeps widening from the arrival
-system: after a 15-day grace it swallows one jump-ring every six days. Rift-touched
-space swarms with heavy interceptors and its stations evacuate. The resource bar
+system from the day the voyage begins: after a 15-day grace it swallows one
+jump-ring every five days. Rift-touched space swarms with heavy interceptors, its
+stations evacuate, and every day spent inside it tears at the hull. Station
+contracts pay less each time once the rift is running, so lingering costs. The resource bar
 counts the days until it reaches you, and the chart shows it in violet. Known
 stations are marked on the chart, greyed once evacuated.
 

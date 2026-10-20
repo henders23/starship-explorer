@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock, ESCORT_MISSILES, EVADE_FUEL, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
-import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, enemyGunEta, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
+import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { BattleCrew, BattleEvent, EnemyCrew, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
@@ -35,6 +35,7 @@ const ENEMY_COLOUR: Record<ShipWeaponKind, string> = { laser: '#ff8a3a', missile
 const OUTRO: Record<ShipBattleResult, { title: string; tone: 'win' | 'loss' | 'calm'; sound: CombatSound | null }> = {
   victory: { title: 'Target destroyed', tone: 'win', sound: 'explosion' }, yielded: { title: 'They stand down', tone: 'win', sound: 'victory' },
   fled: { title: 'Jump complete', tone: 'calm', sound: 'jump' }, disabled: { title: 'Main power lost', tone: 'loss', sound: 'defeat' },
+  escaped: { title: 'They jumped away', tone: 'calm', sound: 'jump' },
   negotiated: { title: 'Lane open', tone: 'calm', sound: null }, evaded: { title: 'Clear of them', tone: 'calm', sound: null }, cancelled: { title: '', tone: 'calm', sound: null },
 }
 /** The first-fight briefing: each step lights up the part of the screen it describes. */
@@ -105,8 +106,8 @@ function ReportScreen({ b, dispatch, saved, hardcore }: { b: ShipBattle; dispatc
   </section></main>
   const intercept = b.kind === 'interception'
   const title = intercept
-    ? { victory: b.enemy.crewKilled ? 'A silent ship, ours to strip.' : 'Wreckage and salvage.', negotiated: 'Paid and on our way.', evaded: 'Lock broken.', yielded: 'Their hold, our lives.', fled: 'Lost them in the wake.', disabled: 'A tow back to port.', cancelled: '' }[b.result!]
-    : { victory: 'The lane is clear.', negotiated: 'No shots fired.', evaded: 'A quiet passage.', yielded: 'Weapons standing down.', fled: 'The tender turns back.', disabled: 'A tow back to port.', cancelled: 'Another captain, another day.' }[b.result!]
+    ? { victory: b.enemy.crewKilled ? 'A silent ship, ours to strip.' : 'Wreckage and salvage.', negotiated: 'Paid and on our way.', evaded: 'Lock broken.', yielded: 'Their hold, our lives.', fled: 'Lost them in the wake.', escaped: 'The prize got away.', disabled: 'A tow back to port.', cancelled: '' }[b.result!]
+    : { victory: 'The lane is clear.', negotiated: 'No shots fired.', evaded: 'A quiet passage.', yielded: 'Weapons standing down.', fled: 'The tender turns back.', escaped: 'The lane is clear.', disabled: 'A tow back to port.', cancelled: 'Another captain, another day.' }[b.result!]
   const success = ['victory', 'negotiated', 'evaded', 'yielded'].includes(b.result!)
   const spoils = intercept ? interceptionSpoils(b) : success ? b.result === 'victory' ? { materials: 12, credits: 35, fuel: 0 } : { materials: 6, credits: 18, fuel: 0 } : null
   const note = b.result === 'disabled' ? 'Emergency recovery takes three days and costs up to 8 materials and 20 credits from your stores. Station survey contracts can fund repairs; the voyage can continue.'
@@ -244,6 +245,11 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   }, [b])
   function effectsFor(e: BattleEvent): Fx[] {
     const key = `${e.id}`, pan = (side: 'player' | 'enemy') => side === 'player' ? -0.55 : 0.55
+    if (e.type === 'enemy-ftl') {
+      playCombatSound('alarm', { pan: 0.55, volume: 0.6 })
+      const at = centre(`enemy:${e.target}`)
+      return at ? [{ key: `${key}-t`, type: 'float', x: at.x, y: at.y - 40, text: 'FTL CHARGING', colour: '#c39bff' }] : []
+    }
     if (e.type === 'launch') {
       const delay = e.shot * 0.12
       playCombatSound(e.kind, { pan: pan(e.side), delay, volume: e.side === 'player' ? 1 : 0.8 })
@@ -441,7 +447,10 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
           const value = smooth(b.enemy.charges[i]!, g.time, enemyRate, true), eta = enemyGunEta(b, i), aim = live && eta !== null ? b.enemy.aim?.[i] : null
           return <label key={i} className={aim ? 'imminent' : ''}><span className="space-gun-name">{g.label}</span><span className="space-meter enemy" role="progressbar" aria-label={`Enemy ${g.label} charge`} aria-valuemin={0} aria-valuemax={g.time} aria-valuenow={Math.floor(b.enemy.charges[i]!)}><i style={{ width: `${value * 100 / g.time}%` }} /></span>
             <small>{!live ? 'silent' : aim ? `→ ${aim} · ${eta}s` : eta === null ? 'weapons offline' : 'charging'}</small></label>
-        })}</div>
+        })}
+          {b.enemy.jump !== undefined && <label className="space-enemy-ftl"><span className="space-gun-name">FTL</span><span className="space-meter enemy" role="progressbar" aria-label="Enemy FTL charge" aria-valuemin={0} aria-valuemax={ENEMY_JUMP_WORK} aria-valuenow={Math.floor(b.enemy.jump)}><i style={{ width: `${Math.min(100, (b.enemy.jump + (live ? enemyJumpRate(b) * frac : 0)) * 100 / ENEMY_JUMP_WORK)}%` }} /></span>
+            <small>{enemyJumpRate(b) ? 'jumping · hit engines or helm' : 'drive stalled'}</small></label>}
+        </div>
       </article>
       <ProjectileLayer b={b} now={now} live={live} gun={gun} centre={centre} jitterFor={jitterFor} />
       <div className="space-fx" aria-hidden="true">{fx.map((f) => <FxNode key={f.key} f={f} done={() => dropFx(f.key)} />)}</div>

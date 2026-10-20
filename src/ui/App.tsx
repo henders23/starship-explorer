@@ -70,7 +70,8 @@ export function App() {
   const leave = () => { setOpening(null); setExpedition(null); setSaved(readExpedition()) }
   const enter = (seed?: string, resume = false, hardcore = false) => {
     const fresh = resume ? null : createCampaign((seed || `explore-${Date.now().toString(36)}`).slice(0, 200))
-    const campaign = resume ? saved.campaign : hardcore ? reduceCampaign(fresh!, { type: 'hardcore' }) : fresh
+    const begun = fresh && reduceCampaign(fresh, { type: 'begin' })
+    const campaign = resume ? saved.campaign : hardcore ? reduceCampaign(begun!, { type: 'hardcore' }) : begun
     if (!campaign) return
     void music.current?.play().catch(() => {})
     if (resume) setExpedition(campaign)

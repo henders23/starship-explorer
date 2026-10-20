@@ -386,3 +386,10 @@
 .exp-atlas-dock { fill:#7fe3c4; stroke:#04161c; stroke-width:1; }
 .exp-atlas-dock.evacuated { fill:#6c6478; }
 .exp-atlas-legend .dock { color:#7fe3c4; }
+/* The rift: violet haze over the system and a plain warning in the hero. */
+.exp-system.in-rift { position:relative; isolation:isolate; }
+.exp-system.in-rift::before { content:''; position:absolute; inset:0; pointer-events:none; z-index:-1; background:radial-gradient(ellipse at 70% 40%,rgba(150,80,255,.28),rgba(60,20,110,.35) 60%,rgba(20,6,40,.45)); mix-blend-mode:screen; animation:exp-rift-breathe 6s ease-in-out infinite alternate; }
+@keyframes exp-rift-breathe { from { opacity:.7; } to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .exp-system.in-rift::before { animation:none; } }
+.exp-rift-banner { margin:4px 0 8px!important; padding:6px 10px; border-left:3px solid #b48cff; background:rgba(60,24,110,.55); color:#e6d6ff!important; font-size:12px; }
+.exp-rift-banner.near { border-color:#f2b34b; background:rgba(80,50,10,.5); color:#ffe3b0!important; }

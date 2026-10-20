@@ -55,7 +55,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
       if (envelope.version < 8 && ['start-arc', 'arc-choice'].includes(action?.type)) throw new Error('Invalid pre-relay action')
       if(envelope.version<9 && (['accept-survivor','deploy-recorder','close-survivor'].includes(action?.type)||(action?.type==='deploy-operation'&&action.rememberSurvivors!==undefined)||(action?.type==='tactical'&&action.order?.type==='drop-recorder')))throw new Error('Invalid pre-survivor action')
       if (envelope.version < 10 && action?.type === 'auto-research') throw new Error('Invalid pre-automation action')
-      if (envelope.version < 12 && ((action?.type === 'escort' && action.rules !== undefined) || (action?.type === 'travel' && action.hazards !== undefined) || (action?.type === 'service' && action.service === 'ordnance') || action?.type === 'signal' || action?.type === 'buy-weapon' || ['hardcore', 'sell-weapon', 'upgrade-reactor'].includes(action?.type))) throw new Error('Invalid pre-projectile action')
+      if (envelope.version < 12 && ((action?.type === 'escort' && action.rules !== undefined) || (action?.type === 'travel' && action.hazards !== undefined) || (action?.type === 'service' && action.service === 'ordnance') || action?.type === 'signal' || action?.type === 'buy-weapon' || ['hardcore', 'begin', 'sell-weapon', 'upgrade-reactor'].includes(action?.type))) throw new Error('Invalid pre-projectile action')
       const step = { ...campaign, actions: journal.slice(-1) }
       const next = reduceCampaign(step, action)
       if (next === step) throw new Error('Invalid action journal')

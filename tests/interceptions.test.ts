@@ -45,15 +45,19 @@ describe('interceptions on arrival', () => {
     const before = { ...s.exploration }, day = s.day
     s = order(s, { type: 'engage' })
     s = order(s, { type: 'weapon', index: 1, mode: 'auto' })
-    for (let i = 0; i < 200 && s.shipBattle!.phase === 'battle'; i++) s = order(s, { type: 'advance', seconds: 5 })
+    for (let i = 0; i < 400 && s.shipBattle!.phase === 'battle'; i++) {
+      // When they spin up their drive, everything goes into their engines.
+      if (s.shipBattle!.enemy.jump !== undefined && s.shipBattle!.weapons[0]!.target !== 'engines') for (const index of [0, 1]) s = order(s, { type: 'target', index, room: 'engines' })
+      s = order(s, { type: 'advance', seconds: 1 })
+    }
     const result = s.shipBattle!.result
     s = reduceCampaign(s, { type: 'ship-debrief' })
     expect(s.shipBattle).toBeNull(); expect(s.escortCompleted).toEqual([])
     if (result === 'victory') {
       expect(s.exploration.materials).toBeGreaterThanOrEqual(before.materials + 10); expect(s.exploration.credits).toBeGreaterThanOrEqual(before.credits + 22); expect(s.day).toBe(day)
-    } else expect(['disabled', 'fled']).toContain(result)
+    } else expect(['disabled', 'fled', 'escaped']).toContain(result)
   })
-  it('rejects hazardous travel inside journals older than save version 11', () => {
+  it('rejects hazardous travel inside journals older than save version 12', () => {
     const s = intercepted('intercept-d'), storage = mem(); saveExploration(s, storage)
     const old = JSON.parse(storage.getItem()!); old.version = 10; storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(old))
     expect(loadExploration(storage).error).toBeTruthy()

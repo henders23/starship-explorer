@@ -31,9 +31,18 @@ for(const width of [1440,390])test(`new galaxy atlas draws real generated world 
   const box=await chart.locator('svg.exp-atlas-svg').boundingBox()
   if(!box)throw new Error('Atlas has no visible viewport')
   const beforePan=await camera.getAttribute('transform')
-  await page.mouse.move(box.x+14,box.y+14)
+  // Start the drag on empty map: stars and the chart's overlaid controls swallow a press.
+  const start=await page.evaluate(({x,y,width,height})=>{
+    for(let gy=0.2;gy<0.9;gy+=0.1)for(let gx=0.1;gx<0.7;gx+=0.1){
+      const px=x+width*gx,py=y+height*gy,el=document.elementFromPoint(px,py)
+      if(el&&el.closest('svg.exp-atlas-svg')&&!el.closest('.exp-atlas-star'))return{x:px,y:py}
+    }
+    return null
+  },box)
+  if(!start)throw new Error('No empty map to drag')
+  await page.mouse.move(start.x,start.y)
   await page.mouse.down()
-  await page.mouse.move(box.x+64,box.y+29,{steps:3})
+  await page.mouse.move(start.x+50,start.y+15,{steps:3})
   await page.mouse.up()
   // The pan lands on the next frame; wait for it rather than racing the render.
   await expect.poll(()=>camera.getAttribute('transform')).not.toEqual(beforePan)

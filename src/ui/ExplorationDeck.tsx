@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches, reactorUpgradeCost, REACTOR_UPGRADES,
+  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches, reactorUpgradeCost, REACTOR_UPGRADES, contractPay, RIFT_HULL_TOLL, RIFT_PACE,
 } from '../engine/exploration/campaign.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
@@ -203,7 +203,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>FUEL <b data-testid="exp-fuel">{state.fuel}/{fuelCapacity(state)}</b></span>
         <span>HULL <b>{state.hull}/{hullCapacity(state)}</b></span>
         <span>MISSILES <b data-testid="exp-missiles">{state.missiles}</b></span>
-        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays! <= 5 ? ' near' : ''}`} title="The rift widens from the arrival system one jump-ring every six days. Rift-touched space swarms with heavy interceptors and its stations evacuate."
+        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays! <= 5 ? ' near' : ''}`} title={`The rift widens from the arrival system one jump-ring every ${RIFT_PACE} days. Rift-touched space swarms with heavy interceptors, its stations evacuate, and each day inside it tears ${RIFT_HULL_TOLL} hull.`}
           data-testid="exp-rift">RIFT <b>{riftHere ? 'HERE' : `${riftDays}d`}</b></span>}
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
@@ -214,7 +214,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       <MuteButton icon />
     </header>
     <div className="exp-stage" inert={modalOpen}>
-      {scene === 'system' && <section className="exp-system" aria-label={here.name}>
+      {scene === 'system' && <section className={`exp-system${riftHere ? ' in-rift' : ''}`} aria-label={here.name}>
         {plotted && <section className="exp-course-card" aria-label="Plotted course">
           <span className="exp-eyebrow">Plotted course</span><h3>{systemName(plotted)}</h3>
           {plottedCourse ? <><p>{plottedCourse.path.length - 1} {plural(plottedCourse.path.length - 1, 'jump')} left · {plottedCourse.fuel} fuel · arrives day {state.day + plottedCourse.path.length - 1}</p>
@@ -223,6 +223,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         </section>}
         <div className="exp-system-hero">
           <h2>{here.name}</h2>
+          {riftHere ? <p className="exp-rift-banner" role="status">Inside the rift. Each day here tears {RIFT_HULL_TOLL} hull, the stations have fled, and only heavy hulls hunt.</p>
+            : riftDays !== null && riftDays <= RIFT_PACE && <p className="exp-rift-banner near" role="status">The rift reaches {here.name} in {riftDays} {plural(riftDays, 'day')}.</p>}
           <p>Orbiting {STAR_NAMES[here.star]}.<br />{known.length} known {plural(known.length, 'contact')} · {state.scans[state.at] ? `${state.scans[state.at]} scan complete` : 'passive sensors only'}</p>
           <div className="exp-bridge-presence">
             <CrewLine person="vale" compact>{bridgeMessage(state)}</CrewLine>
@@ -248,7 +250,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
               return <button key={location.id} data-testid={`location-${location.kind}`} className="exp-location" onClick={() => setSelectedSite(location.id)}>
                 <svg className="exp-site-icon" aria-hidden="true" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinecap="round" strokeLinejoin="round">{ICONS[location.kind]}</svg>
                 <span><small>{LABELS[location.kind]}</small><strong>{location.name}</strong>
-                  <span className={`exp-site-status${waiting ? ' waiting' : ''}`}>{status}{waiting ? ' · decision waiting' : ''}{location.services.length ? ' · station services' : ''}
+                  <span className={`exp-site-status${waiting ? ' waiting' : ''}`}>{status}{waiting ? ' · decision waiting' : ''}{location.services.length ? riftHere ? ' · evacuated' : ' · station services' : ''}
                     {state.research.completed.includes('spectrometry') && location.discovery ? ` · ${DISCOVERY_NAMES[location.discovery]}` : ''}</span></span>
                 <span className={`exp-threat threat-${location.threat}`}>{hasTech(state, 'threat-analysis') ? `${recoveryDamage(state, location)} HULL RISK` : ['LOW', 'GUARDED', 'HAZARDOUS', 'EXTREME'][location.threat]}</span>
               </button>
@@ -295,9 +297,9 @@ function VoyageLost({ state, onExit }: { state: Campaign; onExit: () => void }) 
 function ArmouryOffer({ state, stationId, command }: { state: Campaign; stationId: string; command: Command }) {
   const stock = armouryStock(state.seed, stationId), cost = reactorUpgradeCost(state)
   return <div className="exp-armoury"><h3>Armoury & yard</h3>
-    <small>{state.armoury.length}/{ARMOURY_SLOTS} hardpoints used · reactor {BASE_REACTOR + state.reactorUpgrades} power in battle</small>
+    <small>{state.armoury.length}/{ARMOURY_SLOTS} hardpoints used · reactor {BASE_REACTOR + state.reactorUpgrades} power in battle · the weapons system takes at most 4 power, so not every gun can fire at once</small>
     {stock.filter((id) => !state.armoury.includes(id)).map((id) => <div key={id}>{command({ type: 'buy-weapon', locationId: stationId, weapon: id },
-      `${ARMOURY[id].weapon.name} · ${ARMOURY[id].blurb} · ${ARMOURY[id].weapon.cost} power · ${ARMOURY[id].price} credits`)}</div>)}
+      `${ARMOURY[id].weapon.name} · ${ARMOURY[id].blurb} · ${ARMOURY[id].weapon.period}s charge · ${ARMOURY[id].weapon.cost} power${ARMOURY[id].weapon.kind === 'missile' ? ` · ${ARMOURY[id].weapon.shots} ${plural(ARMOURY[id].weapon.shots, 'missile')} a shot` : ''} · ${ARMOURY[id].price} credits`)}</div>)}
     {state.armoury.map((id) => <div key={id}>{command({ type: 'sell-weapon', locationId: stationId, weapon: id }, `Sell ${ARMOURY[id].weapon.name} · +${Math.floor(ARMOURY[id].price / 2)} credits`)}</div>)}
     {state.reactorUpgrades < REACTOR_UPGRADES && command({ type: 'upgrade-reactor', locationId: stationId }, `Upgrade reactor to ${BASE_REACTOR + state.reactorUpgrades + 1} power · ${cost.materials} materials + ${cost.credits} credits · 1 day`)}
   </div>
@@ -353,10 +355,10 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
           {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
           {command({ type: 'service', locationId: site.id, service: 'ordnance' }, `Buy 2 Hellion missiles · ${ORDNANCE_PRICE} credits · ${state.missiles}/${MAGAZINE_CAPACITY} aboard`)}
           <ArmouryOffer state={state} stationId={site.id} command={command} />
-          {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
+          {command({ type: 'service', locationId: site.id, service: 'contract' }, `Survey contract · 3 days · earn ${contractPay(state, site.id).materials} materials + ${contractPay(state, site.id).credits} credits`)}
           {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <section className="exp-relay" aria-label="The last post delivery"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</section>}
           <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />
-          <small>Services remain available after you leave. Contracts provide renewable supplies.</small>
+          <small>Services remain available after you leave. {state.rift ? 'Each contract here pays less than the last.' : 'Contracts provide renewable supplies.'}</small>
           {hasTech(state, 'contextual-translation') && <><h3>Scientific records</h3><small>A station supplies one independent spatial source. Seek a second station or an expedition for another.</small>
             {(['exotic-energy', 'spatial-observation', 'alien-propulsion'] as const).map((kind) => <div key={kind}>{command({ type: 'archive', locationId: site.id, kind }, `${DISCOVERY_NAMES[kind]} · 30 credits · 1 day`)}</div>)}
           </>}

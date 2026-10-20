@@ -46,6 +46,7 @@ export type BattleEvent =
   | { id: number; type: 'fire' | 'extinguished' | 'repaired'; side: 'player' | 'enemy'; target: EnemyRoomKey }
   | { id: number; type: 'wounded' | 'down' | 'returned'; side: 'player'; target: EnemyRoomKey; crew: CrewId }
   | { id: number; type: 'enemy-crew'; side: 'enemy'; target: EnemyRoomKey; dead: boolean }
+  | { id: number; type: 'enemy-ftl'; side: 'enemy'; target: EnemyRoomKey }
 /** The Lodestar's bridge crew at battle stations (rules 2). */
 export type CrewId = 'mori' | 'cross' | 'morozova' | 'kerr'
 /** `moving`: seconds still crossing the ship. `recovery`: seconds left in the medical bay. `rest`: seconds healing. */
@@ -62,7 +63,7 @@ export const CREW_RECOVERY_SECONDS = 20
 export const CREW_STATIONS: Record<CrewId, EnemyRoomKey> = { mori: 'helm', cross: 'weapons', morozova: 'shields', kerr: 'engines' }
 export interface ShipWeapon { kind: ShipWeaponKind; name: string; cost: number; charge: number; period: number; damage: number; shots: number; mode: 'off' | 'hold' | 'auto'; target: EnemyRoomKey }
 export interface BattleUpgrades { fireControl: boolean; ion: boolean; beam: boolean; layered: boolean; adaptive: boolean; translated: boolean; contextual: boolean; countermeasures: boolean }
-export type ShipBattleResult = 'victory' | 'negotiated' | 'evaded' | 'yielded' | 'fled' | 'disabled' | 'cancelled'
+export type ShipBattleResult = 'victory' | 'negotiated' | 'evaded' | 'yielded' | 'fled' | 'escaped' | 'disabled' | 'cancelled'
 export interface ShipBattle {
   seed: string; locationId: string; classId: string; phase: 'contact' | 'battle' | 'report'; hailed: boolean; result: ShipBattleResult | null
   hull: number; hullMax: number; upgrades: BattleUpgrades; time: number; rolls: number; toll: number
@@ -75,7 +76,9 @@ export interface ShipBattle {
     /** Rules 2: their crew, who repair, fight fires, man the helm, and die. */
     crew?: EnemyCrew[]
     /** Rules 2: set when the battle was won by killing every one of them. */
-    crewKilled?: true }
+    crewKilled?: true
+    /** Rules-2 interceptions: their FTL charge, begun once their hull is badly hurt; at ENEMY_JUMP_WORK they are gone. */
+    jump?: number }
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
   /** Present from rules 2; absent means the frozen rules 1. */
   rules?: BattleRules; inFlight?: Projectile[]
@@ -116,6 +119,7 @@ const TEXT = {
     evaded: 'The tender follows our wake past the interception point. Escort complete.',
     caught: 'They match our course. The tender falls behind our shields. Battle stations.',
     yielded: 'The hostile captain powers down. We accept the surrender and escort the tender through.',
+    escaped: 'Their drive flares and they are gone. The tender has a clear lane.',
   },
   interception: {
     open: 'We drop out of the jump into a waiting weapons lock. The contact transmits a demand for payment.',
@@ -126,6 +130,7 @@ const TEXT = {
     evaded: 'We burn hard for the shadow of the primary and slip their lock.',
     caught: 'They read our burn and match it. Shields up. Battle stations.',
     yielded: 'The hostile captain powers down and offers their hold for their lives. We take the cargo and let them go.',
+    escaped: 'Their drive flares and they are gone, and their hold with them.',
   },
 }
 const text = (b: ShipBattle) => TEXT[b.kind ?? 'escort']
@@ -157,10 +162,14 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0; b.enemy.aim = cls.guns.map(() => null)
     if (reactor !== BASE_REACTOR) b.reactor = reactor
     for (const id of armoury) b.weapons.push({ ...ARMOURY[id].weapon, charge: 0, mode: 'off', target: 'shields' })
-    // They were waiting with guns half charged, and our guns open on their shields:
-    // choosing the right compartment is the captain's first decision.
+    // Yard power goes to the guns, then the engines; bought guns that can be powered start on automatic.
+    let spare = reactor - BASE_REACTOR
+    for (const sys of ['weapons', 'engines'] as const) while (spare > 0 && b.power[sys] < (sys === 'weapons' ? 4 : 3)) { b.power[sys]++; spare-- }
+    for (const w of b.weapons.slice(2)) if (w.kind !== 'missile' && weaponPower(b) + w.cost <= b.power.weapons) w.mode = 'auto'
+    // They were waiting with guns half charged, and our guns open on their shields (on their guns, if they have
+    // no shields): choosing the right compartment is the captain's first decision.
     b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
-    for (const w of b.weapons) w.target = 'shields'
+    for (const w of b.weapons) w.target = cls.shields ? 'shields' : 'weapons'
     b.crew = (Object.keys(CREW_STATIONS) as CrewId[]).map((id) => ({ id, room: CREW_STATIONS[id], moving: 0, recovery: 0, rest: 0, hp: CREW_HP, work: 0 }))
     const posts: EnemyRoomKey[] = cls.tier >= 2 ? ['helm', 'weapons', 'shields', 'engines'] : ['helm', 'weapons', 'shields']
     b.enemy.crew = posts.map((room) => ({ room, home: room, moving: 0, hp: ENEMY_CREW_HP, work: 0 }))
@@ -196,6 +205,11 @@ export const burning = (r: BattleRoom) => (r.fire ?? 0) > 0
 export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1 : 1) * (b.crew && manned(b, 'weapons') ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
 /** Charge gained per second by each hostile gun. */
 export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
+/** Rules-2 interceptions: below this share of hull, the hostile spins up its FTL drive. */
+export const ENEMY_JUMP_AT = 0.3
+/** FTL work they need; each second adds a sixth of their working engine rooms while the helm is manned (twenty seconds at full engines). */
+export const ENEMY_JUMP_WORK = 10
+export const enemyJumpRate = (b: ShipBattle) => enemyManned(b, 'helm') && effectiveRoom(b, 'enemy', 'helm') ? effectiveRoom(b, 'enemy', 'engines') / 6 : 0
 export const surrenderAvailable = (b: ShipBattle) => b.phase === 'battle' && b.upgrades.contextual && b.enemy.hull <= b.enemy.maxHull * 0.3
 export function fireLock(b: ShipBattle, index: number): string | null {
   const w = b.weapons[index]
@@ -359,12 +373,19 @@ function woundEnemy(b: ShipBattle, room: EnemyRoomKey) {
 function enemyCrewWork(b: ShipBattle) {
   const crew = b.enemy.crew!, rooms = b.enemy.rooms
   const needs = (k: EnemyRoomKey) => burning(rooms[k]) || rooms[k].hp < rooms[k].max
+  // Running for it: someone has to fly. The first hand free heads for an empty helm and stays there.
+  const running = b.enemy.jump !== undefined
+  if (running && !crew.some((c) => c.hp > 0 && c.room === 'helm')) {
+    const pilot = crew.find((c) => c.hp > 0 && !c.moving)
+    if (pilot) { pilot.room = 'helm'; pilot.moving = CREW_MOVE_SECONDS; pilot.work = 0 }
+  }
   for (const c of crew) {
     if (c.hp <= 0) continue
     if (c.moving) { c.moving--; continue }
     const r = rooms[c.room]
     if (!needs(c.room)) {
       c.work = 0
+      if (running && c.room === 'helm') continue
       // Run to the worst unattended damage, guns first; otherwise go home.
       const target = ENEMY_REPAIR_ORDER.find((k) => needs(k) && !crew.some((o) => o !== c && o.hp > 0 && o.room === k))
       const next = target ?? c.home
@@ -375,6 +396,16 @@ function enemyCrewWork(b: ShipBattle) {
     if (burning(r) && c.work >= CREW_FIRE_WORK) { r.fire = 0; c.work = 0; emit(b, { type: 'extinguished', side: 'enemy', target: c.room }) }
     else if (!burning(r) && c.work >= CREW_REPAIR_WORK) { r.hp++; c.work = 0; emit(b, { type: 'repaired', side: 'enemy', target: c.room }) }
   }
+}
+/** Rules-2 interceptions: a badly hurt hostile runs. Breaking its engines or emptying its helm keeps it here. */
+function enemyJump(b: ShipBattle) {
+  if (b.kind !== 'interception' || b.enemy.hull > b.enemy.maxHull * ENEMY_JUMP_AT) return
+  if (b.enemy.jump === undefined) {
+    b.enemy.jump = 0; emit(b, { type: 'enemy-ftl', side: 'enemy', target: 'engines' })
+    log(b, 'They are spinning up their FTL drive. Hit their engines or helm, or lose the prize.')
+  }
+  b.enemy.jump = Math.min(ENEMY_JUMP_WORK, b.enemy.jump + enemyJumpRate(b))
+  if (b.enemy.jump >= ENEMY_JUMP_WORK) finish(b, 'escaped', text(b).escaped)
 }
 /** Rules 2: officers fight fires, then patch their compartment. The engineer works half again as fast. */
 function crewWork(b: ShipBattle) {
@@ -405,7 +436,8 @@ function tick(b: ShipBattle) {
   if (b.rules === 2) {
     burn(b, 'player'); burn(b, 'enemy')
     if (b.phase !== 'battle') { b.inFlight = []; return }
-    crewWork(b); enemyCrewWork(b)
+    crewWork(b); enemyCrewWork(b); enemyJump(b)
+    if (b.phase !== 'battle') { b.inFlight = []; return }
     const arriving = b.inFlight!.filter((p) => p.lands <= b.time)
     b.inFlight = b.inFlight!.filter((p) => p.lands > b.time)
     for (const p of arriving) if (b.phase === 'battle') attack(b, p.side, p.kind, p.target, p.damage, p.shot)
@@ -443,7 +475,7 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
   if (shipOrderLock(state, a)) return state
   const b = structuredClone(state)
   switch (a.type) {
-    case 'hail': b.hailed = true; b.toll = b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to ${b.kind === 'interception' ? 'let us leave the jump point' : 'clear the tender\'s route'}.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
+    case 'hail': b.hailed = true; b.toll = b.kind === 'interception' ? Math.round((10 + 2 * b.enemy.maxHull) * (b.upgrades.translated ? 0.6 : 1)) : b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to ${b.kind === 'interception' ? 'let us leave the jump point' : 'clear the tender\'s route'}.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
     case 'pay': finish(b, 'negotiated', text(b).paid); break
     case 'negotiate': finish(b, 'negotiated', b.kind === 'interception' ? 'We share our survey charts of the lanes behind us. Their captain calls it a fair trade and powers down weapons.' : 'We offer a public navigation advisory. Their captain calls it sufficient courtesy and opens the lane.'); break
     case 'evade':

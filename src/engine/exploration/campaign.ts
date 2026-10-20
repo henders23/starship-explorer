@@ -65,6 +65,8 @@ export interface Campaign {
   outcome: 'exploring' | 'home' | 'lost'
   /** Hardcore voyages end when the ship is lost in battle: no tow home, and no mercy for a wreck. */
   hardcore?: true
+  /** Survey contracts taken at each station while the rift runs; each pays less than the last. */
+  contracts?: Record<string, number>
   roster: Operative[]; mission: Mission | null; missionAttempts: number; recruits: number
   lastMission: Mission | null
   shipBattle: ShipBattle | null; escortCompleted: string[]; lastShipBattle: ShipBattle | null
@@ -92,6 +94,8 @@ export type CampaignAction =
   | { type: 'signal'; choiceId: string }
   /** The voyage's first order, if any: losing the ship ends it. */
   | { type: 'hardcore' }
+  /** A new voyage's first order: the rift's clock starts with the voyage, not with the first jump. */
+  | { type: 'begin' }
   | { type: 'buy-weapon'; locationId: string; weapon: ArmouryWeaponId }
   | { type: 'sell-weapon'; locationId: string; weapon: ArmouryWeaponId }
   | { type: 'upgrade-reactor'; locationId: string }
@@ -355,7 +359,8 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (state.exploration.materials < cost.materials) return `Requires ${cost.materials} materials`
       return state.exploration.credits < cost.credits ? `Requires ${cost.credits} credits` : null
     }
-    case 'hardcore': return state.actions.length === 0 && !state.hardcore ? null : 'Hardcore is chosen before the voyage begins'
+    case 'hardcore': return state.actions.every((a) => a.type === 'begin') && !state.hardcore ? null : 'Hardcore is chosen before the voyage begins'
+    case 'begin': return state.actions.length === 0 && !state.rift ? null : 'The voyage has already begun'
     case 'signal': {
       const choice = state.signal && SIGNAL_BY_ID[state.signal.id]?.choices.find((c) => c.id === action.choiceId)
       if (!choice) return state.signal ? 'Unknown response' : 'No signal to answer'
@@ -556,7 +561,9 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
 /** From this day, threat-2 space fields the heavy tier too. */
 export const HEAVY_THREAT2_DAY = 25
 export const RIFT_GRACE = 15
-export const RIFT_PACE = 6
+export const RIFT_PACE = 5
+/** Hull the rift tears away for each day the Lodestar spends inside it. */
+export const RIFT_HULL_TOLL = 3
 export const RIFT_INTERCEPTION_CHANCE = 55
 const EVACUATED = 'The station has evacuated ahead of the rift'
 /** How many jump-rings from the arrival system the rift has swallowed; -1 before it opens. */
@@ -591,6 +598,11 @@ export function armouryStock(seed: string, stationId: string): ArmouryWeaponId[]
 }
 /** Yard upgrades: each adds a point of rules-2 reactor power, up to ten in all. */
 export const REACTOR_UPGRADES = 3
+/** What a station survey contract pays: full rates before the rift runs, then less for each one taken at that station. */
+export function contractPay(state: Campaign, stationId: string) {
+  const n = state.rift ? state.contracts?.[stationId] ?? 0 : 0
+  return { materials: Math.max(2, 8 - 2 * n), credits: Math.max(4, 18 - 6 * n) }
+}
 /** The most power the battle systems can take at once: shields (four with layered shields), engines three, weapons four. */
 export const usablePower = (state: Campaign) => (hasTech(state, 'layered-shields') ? 4 : 2) + 3 + 4
 export const reactorUpgradeCost = (state: Campaign) => ({ materials: 25 + state.reactorUpgrades * 10, credits: 40 + state.reactorUpgrades * 20 })
@@ -729,7 +741,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           const materials = Math.min(8, next.exploration.materials), credits = Math.min(20, next.exploration.credits)
           next.exploration.materials -= materials; next.exploration.credits -= credits
           message = `Emergency tow completed. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
-        } else message = 'Interception over. We continue the voyage; hull damage persists.'
+        } else message = battle.result === 'escaped' ? 'They jumped away with their hold. We continue the voyage; hull damage persists.' : 'Interception over. We continue the voyage; hull damage persists.'
         next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null
         if (state.signalAfterBattle) { next.signal = state.signalAfterBattle; next.signalAfterBattle = undefined }
         break
@@ -837,6 +849,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.exploration.materials -= cost.materials; next.exploration.credits -= cost.credits; next.reactorUpgrades = state.reactorUpgrades + 1; days = 1
       message = `Yard crews rebuild the reactor's containment: ${BASE_REACTOR + next.reactorUpgrades} power in battle.`; break
     }
+    case 'begin':
+      next.rift = { from: state.day }
+      message = `The rift that brought us here is widening behind us. It reaches this system on day ${riftReaches(next, state.at)}.`; break
     case 'hardcore':
       next.hardcore = true; message = 'Hardcore voyage: if the Lodestar is lost in battle, there is no tow home.'; break
     case 'buy-weapon':
@@ -903,8 +918,10 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'service': {
       days = action.service === 'contract' ? 3 : action.service === 'ordnance' ? 0 : 1
       if (action.service === 'contract') {
-        next.exploration.materials += 8; next.exploration.credits += 18
-        message = 'Station survey contract completed: 8 materials and 18 credits. The exchange has further work available.'
+        const pay = contractPay(state, action.locationId)
+        next.exploration.materials += pay.materials; next.exploration.credits += pay.credits
+        if (state.rift) next.contracts = { ...state.contracts, [action.locationId]: (state.contracts?.[action.locationId] ?? 0) + 1 }
+        message = `Station survey contract completed: ${pay.materials} materials and ${pay.credits} credits. ${state.rift ? 'The exchange has less work left each time.' : 'The exchange has further work available.'}`
       } else if (action.service === 'sell') {
         next.exploration.materials -= 4; next.exploration.credits += salePrice(state)
         message = `Sold 4 materials for ${salePrice(state)} credits.`
@@ -991,6 +1008,13 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'; break
   }
   next.day += days
+  // Every day spent inside the rift tears at the hull. It weakens; it never finishes the ship by itself.
+  if (days && next.outcome === 'exploring' && rifted(next, next.at) && next.hull > 1) {
+    let inside = 0
+    for (let d = state.day + 1; d <= next.day; d++) if (riftDistance(next, next.at) <= riftDepth(next, d)) inside++
+    const torn = Math.min(next.hull - 1, RIFT_HULL_TOLL * inside); next.hull -= torn
+    message += ` The rift tears at the hull: −${torn}.`
+  }
   if (days) {
     const advanced = advanceResearch(next, days * researchRate(state), state); next = advanced.state
     if (advanced.messages.length) message += ` ${advanced.messages.join(' ')}`

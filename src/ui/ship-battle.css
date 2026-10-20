@@ -349,3 +349,8 @@
 .space-foes i.moving { outline:1px dashed #ffcf8a; background:transparent; }
 /* Short laptop screens: the briefing already explains crew; keep the console clear of the roster. */
 @media (max-height: 820px) and (min-width: 700px) { .space-crew-hint.idle { display:none; } }
+.space-enemy-guns label.space-enemy-ftl { color:#d8c2ff; }
+.space-enemy-ftl .space-meter i { background:#b48cff; box-shadow:0 0 8px #b48cff; animation:space-ftl-pulse .8s ease-in-out infinite alternate; }
+.space-enemy-ftl small { color:#c3a8ff!important; }
+@keyframes space-ftl-pulse { from { opacity:.65; } to { opacity:1; } }
+@media (prefers-reduced-motion: reduce) { .space-enemy-ftl .space-meter i { animation:none; } }
