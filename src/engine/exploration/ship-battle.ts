@@ -29,7 +29,7 @@ export const FIRE_SECONDS = 10
 export const ENEMY_REPAIR_ORDER: EnemyRoomKey[] = ['weapons', 'shields', 'helm', 'engines']
 /** Rules 2: a hostile crew member. They have no medical bay: at zero they are dead. */
 export interface EnemyCrew { room: EnemyRoomKey; home: EnemyRoomKey; moving: number; hp: number; work: number }
-export const ENEMY_CREW_HP = 6
+export const ENEMY_CREW_HP = 4
 /** Fraction of charge at which a hostile gun locks its target, giving the crew warning (rules 2). */
 export const AIM_AT = 0.6
 /** Each hull plan's gunnery doctrine: the compartment its gunners favour three to one (rules 2). */
