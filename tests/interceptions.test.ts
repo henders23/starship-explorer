@@ -94,6 +94,11 @@ describe('the Hellion magazine', () => {
     let declined = reduceCampaign(contact, { type: 'ship-order', order: { type: 'cancel' } })
     declined = reduceCampaign(declined, { type: 'ship-debrief' })
     expect(declined.missiles).toBe(contact.missiles)
+    // Retreating from an escort cannot farm the station's missiles either.
+    let fled = reduceCampaign(contact, { type: 'ship-order', order: { type: 'engage' } })
+    fled = reduceCampaign(fled, { type: 'ship-order', order: { type: 'retreat', active: true } })
+    for (let i = 0; i < 40 && fled.shipBattle!.phase === 'battle'; i++) fled = reduceCampaign(fled, { type: 'ship-order', order: { type: 'advance', seconds: 5 } })
+    if (fled.shipBattle!.result === 'fled') expect(reduceCampaign(fled, { type: 'ship-debrief' }).missiles).toBeLessThanOrEqual(contact.missiles)
     const legacy = escortContact('magazine-d', 1)
     expect(legacy.shipBattle!.missiles).toBe(4)
   })

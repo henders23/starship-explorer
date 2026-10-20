@@ -42,6 +42,8 @@ export interface Campaign {
   signalAfterBattle?: PendingSignal
   /** Every arrival signal met this voyage, so none repeats until the rest have been seen. */
   signalsSeen: string[]
+  /** Set once a rules-2 battle has actually been fought; the first one gets Cross's briefing. */
+  fought?: true
   /** Weapons bought from station armouries, mounted in rules-2 battles. */
   armoury: ArmouryWeaponId[]
   /** The rift front's clock, started by the voyage's first hazard-aware jump. Absent: no front. */
@@ -337,6 +339,8 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if ((choice.cost?.credits ?? 0) > state.exploration.credits) return `Requires ${choice.cost!.credits} credits`
       if ((choice.cost?.fuel ?? 0) > state.fuel) return `Requires ${choice.cost!.fuel} fuel`
       if ((choice.cost?.materials ?? 0) > state.exploration.materials) return `Requires ${choice.cost!.materials} materials`
+      if (choice.cost && choice.good.missiles && state.missiles >= MAGAZINE_CAPACITY) return 'Magazine full'
+      if (choice.cost && choice.good.fuel && state.fuel >= fuelCapacity(state)) return 'Fuel tanks full'
       return null
     }
     case 'travel': {
@@ -673,7 +677,11 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'ship-debrief': {
       const battle = state.shipBattle!
       // Rules 2 battles fire from the ship's own magazine; what was spent stays spent.
-      if (battle.rules === 2 && battle.result !== 'cancelled') next.missiles = battle.missiles
+      // Missiles spent stay spent; a station's escort Hellions are kept only for an escort carried through.
+      const carried = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)
+      if (battle.rules === 2) next.missiles = battle.kind === 'interception' || carried ? battle.missiles : Math.min(state.missiles, battle.missiles)
+      // The voyage's first real exchange of fire has happened once a rules-2 battle ran its clock.
+      if (battle.rules === 2 && battle.time > 0) next.fought = true
       if (battle.kind === 'interception') {
         const spoils = interceptionSpoils(battle)
         days = battle.result === 'disabled' ? 3 : 0
@@ -802,7 +810,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         for (const s of state.galaxy.systems) if (s.id !== state.at && index.jumps(state.at, s.id) <= 1)
           next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', tier: 'survey', systemId: s.id }, s.id)
       }
-      if (outcome.ambush) {
+      // Bait springs on anyone worth robbing; a near-wreck is left alone, as on arrival.
+      if (outcome.ambush && state.hull <= WRECK_HULL) message += ' They take one look at our hull and burn away for richer prey.'
+      else if (outcome.ambush) {
         const rng = createRng(`${state.seed}:signal:${pending.systemId}:ambush`)
         next.shipBattle = { ...intercept(next, hostileFor(state, rng), `${state.seed}:${pending.systemId}:ambush:${state.day}`), log: [outcome.text] }
       }

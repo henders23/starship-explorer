@@ -57,6 +57,10 @@ test('real-time battle pauses, targets rooms, saves and completes a combat escor
   await page.getByRole('button', { name: 'Order crew to shields', exact: true }).click()
   await expect(page.locator('.space-repair-line')).toHaveCount(0)
   await expect(page.getByRole('button', { name: /^Gabriel Cross, Moving to shields/ })).toBeVisible()
+  // Send him back: a broken weapons room with nobody in it is never repaired.
+  await page.getByRole('button', { name: /^Gabriel Cross,/ }).click()
+  await page.getByRole('button', { name: 'Order crew to weapons', exact: true }).click()
+  await expect(page.getByRole('button', { name: /^Gabriel Cross, Moving to weapons/ })).toBeVisible()
   const arena = (await page.locator('.space-arena').boundingBox())!
   expect(arena.height).toBeGreaterThan(400)
   expect((await page.locator('.space-console').boundingBox())!.y).toBeGreaterThanOrEqual(arena.y + arena.height - 1)

@@ -340,3 +340,5 @@
 .space-battery>article>.space-modes { grid-area:modes; width:auto; }
 .space-battery>article>.exp-button { grid-area:fire; padding:4px 12px; }
 .space-modes button { padding:4px 0; }
+.space-unattended { position:relative; padding:0 4px; background:#f2b34b; color:#1a1205; font-size:8px; font-style:normal; font-weight:700; letter-spacing:.08em; animation:space-blink 1.2s steps(2) infinite; }
+@media(prefers-reduced-motion:reduce) { .space-unattended { animation:none; } }

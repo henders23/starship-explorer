@@ -40,7 +40,7 @@ const OUTRO: Record<ShipBattleResult, { title: string; tone: 'win' | 'loss' | 'c
 /** The first-fight briefing: each step lights up the part of the screen it describes. */
 const COACH: { title: string; text: string; focus: string }[] = [
   { title: 'We start paused.', text: 'Nothing moves until you say so. Space pauses and resumes at any moment; give orders while the clock is stopped.', focus: 'clock' },
-  { title: 'Pick their compartment.', text: 'Our guns open on their shields. Select a weapon (1–4), then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns go quiet until they repair it.', focus: 'enemy' },
+  { title: 'Pick their compartment.', text: 'Our guns open on their shields. Select a weapon with its number key, then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns go quiet until they repair it.', focus: 'enemy' },
   { title: 'Watch for the red reticle.', text: 'When one of their guns is about to fire, the room it has locked shows a reticle and a countdown. That is where the next hit lands.', focus: 'threat' },
   { title: 'Move the crew.', text: 'Click an officer, then one of our rooms. They repair and fight fires where they stand, and Mori must be at the helm for us to dodge anything. Power shields, engines and weapons with the reactor below.', focus: 'crew' },
 ]
@@ -90,7 +90,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
       <div className="ship-contact-options">{button({ type: 'hail' }, 'Hail the contact')}
         {b.hailed && <>{button({ type: 'pay' }, `Pay passage · ${b.toll} credits`)}{b.upgrades.contextual ? button({ type: 'negotiate' }, 'Negotiate passage · no payment', true) : <small>Contextual Translation opens a negotiated passage without a toll.</small>}</>}
         {button({ type: 'evade' }, `${intercept ? `Break their lock · ${EVADE_FUEL} fuel` : 'Evade with the tender'} · ${evadeChance(b)}% chance`)}
-        <small>{intercept ? `A failed evasion begins battle. Victory recovers ${INTERCEPTION_SPOILS.victory!.materials} materials, ${INTERCEPTION_SPOILS.victory!.credits} credits and fuel from the wreck.` : 'A failed evasion begins battle. A successful passage earns 6 materials and 18 credits.'}</small>
+        <small>{intercept ? `A failed evasion begins battle. Victory recovers ${Math.round(INTERCEPTION_SPOILS.victory!.materials * (cls.tier >= 2 ? 1.5 : 1))} materials, ${Math.round(INTERCEPTION_SPOILS.victory!.credits * (cls.tier >= 2 ? 1.5 : 1))} credits and fuel from the wreck, and perhaps more.` : 'A failed evasion begins battle. A successful passage earns 6 materials and 18 credits.'}</small>
         {button({ type: 'engage' }, 'Engage · enter battle paused', true)}
         {!intercept && button({ type: 'cancel' }, 'Decline escort · no cost')}
       </div><small>{saved ? 'Contact saved' : 'Autosave unavailable — keep this tab open'}</small>
@@ -358,7 +358,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const legacyVolley = !b.rules && b.volley ? b.volley : null
   const outroInfo = outro ? OUTRO[outro] : null
   // Cross briefs the captain through the voyage's first rules-2 fight; the header reopens it.
-  const [coach, setCoach] = useState<number | null>(() => b.rules === 2 && b.phase === 'battle' && b.time === 0 && !state.lastShipBattle?.rules ? 0 : null)
+  const [coach, setCoach] = useState<number | null>(() => b.rules === 2 && b.phase === 'battle' && b.time === 0 && !state.fought ? 0 : null)
   const step = coach === null ? null : COACH[coach]
   // Two identical animations, alternated, restart the shake without remounting the ship.
   const shakeClass = (side: 'player' | 'enemy') => shake?.side === side ? ` shake-${shake.n % 2 ? 'a' : 'b'}` : ''
@@ -462,9 +462,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         <div className="space-console-label"><span className="exp-eyebrow">Weapons</span><strong>{b.missiles} {b.missiles === 1 ? 'missile' : 'missiles'}</strong>
           <button className="exp-button space-volley" disabled={!live || ready.length < 2} title="V · fire every charged weapon together" onClick={volley}>Volley · {ready.length} ready</button></div>
         {b.weapons.map((w, i) => {
-          const disabled = effectiveRoom(b, 'player', 'weapons') === 0, value = smooth(w.charge, w.period, playerRate, w.mode !== 'off' && !(w.kind === 'missile' && !b.missiles)), ready = w.charge >= w.period
+          const disabled = effectiveRoom(b, 'player', 'weapons') === 0, value = smooth(w.charge, w.period, playerRate, w.mode !== 'off' && !(w.kind === 'missile' && b.missiles < w.shots)), ready = w.charge >= w.period
           return <article key={i} className={`${selectedWeapon === i ? 'selected' : ''}${ready && w.mode !== 'off' ? ' ready' : ''}${w.mode === 'off' ? ' unpowered' : ''}`} aria-label={w.name} title={`${w.name === 'Pulse laser' || w.name === 'Hellion missile' || !b.rules ? WEAPON_NOTES[w.kind] : `${w.shots} × ${w.damage} damage${w.kind === 'missile' ? ' / bypasses shields / uses ammo' : ''}`} · Auto fires at the selected room when charged; hold keeps a full charge`} style={{ ['--gun' as string]: WEAPON_COLOUR[w.kind] }}>
-            <button className="space-weapon-title" aria-pressed={selectedWeapon === i} onClick={() => { setWeapon(i); playCombatSound('click') }}><kbd>{i + 1}</kbd>{w.name}<small><b>{disabled ? 'ROOM DISABLED' : ready ? 'READY' : `${Math.floor(value * 100 / w.period)}%`}</b> · → {w.target} · {w.cost} power</small></button>
+            <button className="space-weapon-title" aria-pressed={selectedWeapon === i} onClick={() => { setWeapon(i); playCombatSound('click') }}><kbd>{i + 1}</kbd>{w.name}<small><b>{disabled ? 'ROOM DISABLED' : w.kind === 'missile' && b.missiles < w.shots ? `NEEDS ${w.shots} MISSILES` : ready ? 'READY' : `${Math.floor(value * 100 / w.period)}%`}</b> · → {w.target} · {w.cost} power</small></button>
             <div className="space-charge"><span className="space-meter" role="progressbar" aria-label={`${w.name} charge`} aria-valuemin={0} aria-valuemax={w.period} aria-valuenow={Math.floor(w.charge)}><i style={{ width: `${value * 100 / w.period}%` }} /></span></div>
             <div className="space-modes" role="group" aria-label={`${w.name} mode`}>{(['off', 'hold', 'auto'] as const).map((mode) => <button key={mode} aria-pressed={w.mode === mode} disabled={!!actionLock(state, { type: 'ship-order', order: { type: 'weapon', index: i, mode } })} onClick={() => { playCombatSound('click'); order({ type: 'weapon', index: i, mode }) }}>{mode}</button>)}</div>
             {button({ type: 'fire', index: i }, 'Fire', true)}
@@ -540,12 +540,15 @@ function Room({ b, side, room, selected, onClick, register, markers = [], threat
   const box = side === 'player' ? OWN_ROOMS[room] : ENEMY_LAYOUTS[SHIP_BY_ID[b.classId]!.layout][room]
   const r = side === 'player' ? b.rooms[room] : b.enemy.rooms[room]
   const ion = r.ionUntil > b.time, fire = burning(r)
+  // Rules 2: damage nobody is standing in will not be repaired. Say so on the room.
+  const unattended = side === 'player' && !!b.crew && (fire || r.hp < r.max) && !b.crew.some((c) => c.room === room && c.hp > 0)
   return <button ref={register} className={`space-room ${selected && !b.crew ? 'selected' : ''} ${threats.length ? 'targeted' : ''} ${r.hp === 0 ? 'disabled-room' : r.hp < r.max ? 'damaged' : ''} ${ion ? 'ionised' : ''} ${fire ? 'burning' : ''}`} style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
     aria-label={`${side === 'enemy' ? 'Target' : b.crew ? 'Order crew to' : 'Repair'} ${room}`} aria-pressed={side === 'enemy' || !b.crew ? selected : undefined} title={ROOM_EFFECT[room]} onClick={onClick}>
     {fire && <span className="space-flames" aria-hidden="true"><i /><i /><i /></span>}
     <SystemIcon room={room} />
     <strong>{room}</strong><span className="space-room-pips" aria-hidden="true">{Array.from({ length: r.max }, (_, i) => <i key={i} className={i < r.hp ? 'ok' : ''} />)}</span>
     <span>{ion ? `ION ${r.ionUntil - b.time}s` : fire ? `FIRE ${r.hp}/${r.max}` : `${r.hp}/${r.max}`}</span>
+    {unattended && <em className="space-unattended">NO CREW</em>}
     {threats.length > 0 && <span className="space-threat" aria-label={`Hostile ${threats.map((t) => t.label.toLowerCase()).join(' and ')} locked on`}><i aria-hidden="true" />{threats.map((t, i) => <b key={i}>{t.label} {t.eta ?? '—'}s</b>)}</span>}
     {crew.length > 0 && <span className="space-room-crew" aria-hidden="true">{crew.map((c) => <img key={c.id} src={CREW[c.id].portrait} alt="" className={`${c.moving ? 'moving' : ''}${c.chosen ? ' chosen' : ''}${c.hp < CREW_HP ? ' hurt' : ''}`} />)}</span>}
     {markers.length > 0 && <span className="space-markers" aria-hidden="true">{markers.map(({ w, i }) => <i key={i} style={{ background: WEAPON_COLOUR[w.kind] }}>{i + 1}</i>)}</span>}

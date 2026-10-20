@@ -81,9 +81,12 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   // The signal being answered stays on screen for its outcome until acknowledged.
   const [signalShown, setSignalShown] = useState<(PendingSignal & { choiceId?: string }) | null>(null)
   const signalOpen = !!state.signal || (!!signalShown && !state.shipBattle)
+  // An ambush replaces the signal's outcome with the fight; there is nothing to come back to.
+  useEffect(() => { if (state.shipBattle) setSignalShown(null) }, [state.shipBattle])
   const modalOpen = signalOpen || teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
   useEffect(() => {
-    if (modalOpen) (document.querySelector('[role=dialog] button:not(:disabled)') as HTMLButtonElement | null)?.focus()
+    // A signal focuses its walk-away choice, so a reflexive Enter never takes the bait.
+    if (modalOpen) (document.querySelector<HTMLButtonElement>('[role=dialog] [data-testid=signal-walk-away]') ?? document.querySelector<HTMLButtonElement>('[role=dialog] button:not(:disabled)'))?.focus()
   }, [modalOpen, state.driveTest, state.outcome])
   const deckRef = useRef<HTMLElement>(null)
   useEffect(() => {

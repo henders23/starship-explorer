@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, createCampaign, reduceCampaign, travelOrder } from '../src/engine/exploration/campaign.js'
+import { actionLock, createCampaign, MAGAZINE_CAPACITY, reduceCampaign, travelOrder, WRECK_HULL } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { followCourse } from '../src/engine/exploration/navigation.js'
 import { outcomeChips, quietChoice, SIGNAL_BY_ID, SIGNALS, signalAt, signalLuck } from '../src/engine/exploration/signals.js'
@@ -98,5 +98,22 @@ describe('signals and interceptions together', () => {
     expect(outcomeChips({ text: '', fuel: 3, hull: -6 })).toEqual(['+3 fuel', '−6 hull'])
     expect(outcomeChips({ text: '', missiles: 2 }, { credits: 12 })).toEqual(['−12 credits', '+2 missiles'])
     expect(outcomeChips({ text: '', ambush: true })).toEqual(['ambush'])
+  })
+})
+
+describe('signal edge cases', () => {
+  it('leaves a near-wreck alone when bait is taken', () => {
+    for (let i = 0; i < 60; i++) {
+      const s = signalled(`wreck-bait-${i}`, 'distress')
+      if (signalLuck(s.seed, s.signal!, SIGNAL_BY_ID.distress!.choices[0]!)) continue
+      const next = reduceCampaign({ ...s, hull: WRECK_HULL }, { type: 'signal', choiceId: 'answer' })
+      expect(next.shipBattle).toBeNull(); expect(next.log.at(-1)).toMatch(/richer prey/)
+      return
+    }
+    throw new Error('No bait found')
+  })
+  it("will not sell a trader's goods into full tanks or a full magazine", () => {
+    const s = signalled('trader-full', 'trader')
+    expect(actionLock({ ...s, missiles: MAGAZINE_CAPACITY }, { type: 'signal', choiceId: 'missiles' })).toBe('Magazine full')
   })
 })
