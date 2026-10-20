@@ -5,7 +5,14 @@ import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { courseFinder, followCourse } from '../src/engine/exploration/navigation.js'
 import { chartTo, openProject } from './helpers.js'
 
-const SEED = 'navigation-e2e'
+/** A voyage whose test routes meet no interception and no signal, found by searching seeds. */
+const SEED = (() => {
+  for (let i = 0; i < 400; i++) {
+    const seed = `navigation-e2e-${i}`
+    try { destinationFor(seed, 5); destinationFor(seed, 6); return seed } catch { /* try the next voyage */ }
+  }
+  throw new Error('No quiet voyage found')
+})()
 /** Whether the route can be flown to the end, through research pauses, without an interception. */
 function quiet(s: Campaign, id: string) {
   for (let leg = 0; leg < 10; leg++) {
@@ -17,8 +24,9 @@ function quiet(s: Campaign, id: string) {
   return false
 }
 /** A distant system the starting tank can reach in one go, along a route with no hostile waiting. */
-function destination(minJumps: number) {
-  const s = createCampaign(SEED), find = courseFinder(s)
+function destination(minJumps: number) { return destinationFor(SEED, minJumps) }
+function destinationFor(seed: string, minJumps: number) {
+  const s = createCampaign(seed), find = courseFinder(s)
   const researching = reduceCampaign(s, { type: 'research', project: 'drive-diagnostics' })
   const options = s.galaxy.systems.map((system) => ({ system, course: find(system.id)! }))
     .filter(({ course }) => course.path.length - 1 >= minJumps && course.fuel <= s.fuel)

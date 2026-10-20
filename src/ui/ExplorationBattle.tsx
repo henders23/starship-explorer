@@ -83,6 +83,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
     <div className="ship-contact-copy"><span className="exp-eyebrow">{intercept ? `Hostile interception / ${place}` : 'Survey escort / interception'}</span><h1>{intercept ? 'Weapons lock on arrival.' : 'A ship across our bow.'}</h1><h2>{cls.name}</h2>
       <CrewLine person="cross" compact>{intercept ? 'They were waiting at the jump point. We can pay them, run for it, or fight.' : 'We can talk, slip past, or fight. Their systems tell us what a fight would cost.'}</CrewLine>
       <div className="ship-contact-stats"><span><b>{cls.hull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{cls.evade}%</b>evasion</span></div>
+      {intercept && !b.hailed && <p className="ship-contact-response">{b.log[0]}</p>}
       {!intercept && <p>The tender’s captain keeps her voice level. “We can wait at the station. But if you’re taking us out, I need to know you can get us through.”</p>}
       <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull. {!b.rules ? 'The station supplies four missiles for this escort; unused ordnance is returned afterward.' : `${intercept ? 'The magazine holds' : `The station adds ${ESCORT_MISSILES} Hellions to our magazine:`} ${b.missiles} ${b.missiles === 1 ? 'missile' : 'missiles'}. Missiles fired are gone for good.`}</p>
       {b.hailed && <p className="ship-contact-response">{b.log.at(-1)}</p>}

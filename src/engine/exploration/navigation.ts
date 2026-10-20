@@ -48,13 +48,13 @@ export function courseFinder(state: Campaign): (target: SystemId) => Course | nu
 
 export const plotCourse = (state: Campaign, target: SystemId) => courseFinder(state)(target)
 
-export type CourseStop = 'arrived' | 'research' | 'contact' | 'blocked'
+export type CourseStop = 'arrived' | 'research' | 'contact' | 'signal' | 'blocked'
 
 /**
  * Follows the plotted course one legal travel order at a time, exactly as if
  * each jump had been ordered by hand. It stops early when research completes,
  * so the captain sees the result and can choose what the laboratory does next,
- * when a hostile intercepts the ship, or when a jump is refused (for example,
+ * when a hostile intercepts the ship or a signal needs an answer, or when a jump is refused (for example,
  * not enough fuel).
  */
 export function followCourse(state: Campaign, target: SystemId, hazards = true): { state: Campaign; stop: CourseStop; reason: string | null } {
@@ -68,6 +68,7 @@ export function followCourse(state: Campaign, target: SystemId, hazards = true):
     const completed = s.research.completed.length
     s = reduceCampaign(s, order)
     if (s.shipBattle) return { state: s, stop: 'contact', reason: null }
+    if (s.signal) return { state: s, stop: 'signal', reason: null }
     if (s.at !== target && s.research.completed.length > completed) return { state: s, stop: 'research', reason: null }
   }
   return { state: s, stop: 'arrived', reason: null }

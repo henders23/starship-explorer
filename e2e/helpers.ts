@@ -15,10 +15,18 @@ export async function chartTo(page: Page, name: string) {
   await page.locator('.exp-chart-list button').filter({ has: page.locator('strong', { hasText: new RegExp(`^${literal(name)}$`) }) }).click()
 }
 
-/** Flies one jump to a neighbouring system through the chart. */
+/** Flies one jump to a neighbouring system through the chart, walking away from any arrival signal. */
 export async function travelTo(page: Page, name: string) {
   await chartTo(page, name)
   await page.getByRole('button', { name: /^Travel ·/ }).click()
+  await walkAway(page)
+}
+/** Answers an arrival signal, if one is up, with its no-effect choice. */
+export async function walkAway(page: Page) {
+  const leave = page.getByTestId('signal-walk-away')
+  if (!(await leave.waitFor({ timeout: 700 }).then(() => true, () => false))) return
+  await leave.click()
+  await page.getByRole('dialog').getByRole('button', { name: 'Continue', exact: true }).click()
 }
 
 /** Opens the science officer's briefing at the current place, if it is not already open. */

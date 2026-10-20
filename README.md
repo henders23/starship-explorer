@@ -89,6 +89,11 @@ paused.
 - **Reactor:** power shields (two per layer), engines (evasion and retreat) and
   weapons. Charge a retreat with working engines to jump away.
 
+First arrivals in a new system often pick up a **signal**: a distress call that
+may be bait, a hulk to strip, a trader, refugees short of fuel, a trapped weapons
+cache and more. Each offers choices with their costs and risks shown, and always a
+way to walk away.
+
 Victory over an interceptor salvages materials, credits and fuel. A disabled ship
 is towed home at a cost. See [docs/FTL-COMBAT.md](docs/FTL-COMBAT.md).
 

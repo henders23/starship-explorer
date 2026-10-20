@@ -355,3 +355,10 @@
 .exp-story::after,.exp-finding::after,.relay-conversation::after,.operation-briefing::after{content:"";display:block;clear:both}
 .exp-story .report-dossier-art{margin-top:3px}
 @media(max-width:760px){.report-dossier-art,.report-dossier-art.compact{float:none;width:100%;max-width:520px;margin:8px 0 15px}.report-dossier-art img{max-height:240px;object-fit:cover}}
+
+/* Arrival signals. */
+.exp-signal { max-width:620px; }
+.exp-signal .crew-voice { margin:4px 0 16px; }
+.exp-signal-outcome { color:#e5d8bd!important; border-left:2px solid #d4b382; padding:6px 0 6px 14px; }
+.exp-story-choice .exp-button.risky { border-color:#c99a52; }
+.exp-story-choice .exp-button.risky small { color:#e7b866; }

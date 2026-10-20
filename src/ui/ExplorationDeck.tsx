@@ -24,6 +24,7 @@ import { plural } from './plural.js'
 import { DRIVE_SEQUENCE } from '../engine/exploration/research.js'
 import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
+import { SignalScene } from './SignalScene.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
 import './crew-presence.css'
@@ -75,7 +76,10 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   // A destination the captain is travelling towards in stages; cleared on arrival.
   const [course, setCourse] = useState<SystemId | null>(null)
   useEffect(() => { if (course === state.at) setCourse(null) }, [course, state.at])
-  const modalOpen = teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
+  // The signal being answered stays on screen for its outcome until acknowledged.
+  const [signalShown, setSignalShown] = useState<string | null>(null)
+  const signalOpen = !!state.signal || (!!signalShown && !state.shipBattle)
+  const modalOpen = signalOpen || teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
   useEffect(() => {
     if (modalOpen) (document.querySelector('[role=dialog] button:not(:disabled)') as HTMLButtonElement | null)?.focus()
   }, [modalOpen, state.driveTest, state.outcome])
@@ -253,6 +257,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     <div className={`exp-log${freshLog ? ' fresh' : ''}`} role="status" aria-live="polite" inert={modalOpen}>{(freshLog ?? state.log.slice(-1)).map((line, i) => <p key={i}>{line}</p>)}</div>
     {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
+    {signalOpen && <SignalScene state={state} shown={state.signal?.id ?? signalShown!} dispatch={dispatch}
+      onAnswer={() => setSignalShown(state.signal!.id)} onClose={() => setSignalShown(null)} />}
     {returnConfirm && state.outcome !== 'home' && <ReturnHomeScene state={state} dispatch={dispatch} onClose={() => setReturnConfirm(false)} />}
     {state.outcome === 'home' && <ExplorationEnding state={state} onExit={exit} />}
   </main>

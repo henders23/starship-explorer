@@ -6,6 +6,8 @@ import type { RelayArc, RelayAction } from './arcs.js'
 import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
+import { SIGNAL_BY_ID, signalAt, signalLuck } from './signals.js'
+import type { PendingSignal } from './signals.js'
 import type { StoryRecord } from './stories.js'
 import { BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
@@ -34,6 +36,8 @@ export interface Campaign {
   autoResearch?: true
   /** The Hellion magazine that rules-2 battles draw on and spend. */
   missiles: number
+  /** An arrival signal awaiting the captain's answer. */
+  signal?: PendingSignal
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -69,6 +73,7 @@ export type CampaignAction =
   | { type: 'recruit'; locationId: string }
   /** `hazards` turns on interceptions after the jump; journals before save version 11 carry none. */
   | { type: 'travel'; systemId: SystemId; hazards?: 1 }
+  | { type: 'signal'; choiceId: string }
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
   | { type: 'recover'; locationId: string; approach: 'careful' | 'rapid' }
@@ -194,6 +199,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
   if (!action || typeof action !== 'object') return 'Invalid action'
   if (state.outcome === 'home') return 'This voyage has returned home'
   if (state.shipBattle && !['ship-order', 'ship-debrief'].includes(action.type)) return 'Resolve the ship encounter first'
+  if (state.signal && action.type !== 'signal') return 'Answer the signal first'
   if (state.mission && !['tactical', 'debrief'].includes(action.type)) return 'Extract or finish the away mission first'
   if (state.driveTest === 'calibrating' && !['complete-drive-test', 'abort-drive-test'].includes(action.type)) return 'Finish or abort the prototype test first'
   switch (action.type) {
@@ -304,6 +310,14 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
       if (state.roster.filter((o) => !o.dead).length >= 6) return 'Six living operatives already aboard; injured crew recover with time'
       return state.exploration.credits >= 20 ? null : 'Requires 20 credits; station contracts can replenish funds'
+    }
+    case 'signal': {
+      const choice = state.signal && SIGNAL_BY_ID[state.signal.id]?.choices.find((c) => c.id === action.choiceId)
+      if (!choice) return state.signal ? 'Unknown response' : 'No signal to answer'
+      if ((choice.cost?.credits ?? 0) > state.exploration.credits) return `Requires ${choice.cost!.credits} credits`
+      if ((choice.cost?.fuel ?? 0) > state.fuel) return `Requires ${choice.cost!.fuel} fuel`
+      if ((choice.cost?.materials ?? 0) > state.exploration.materials) return `Requires ${choice.cost!.materials} materials`
+      return null
     }
     case 'travel': {
       if (action.hazards !== undefined && action.hazards !== 1) return 'Unknown travel rules'
@@ -469,9 +483,19 @@ export function interceptor(state: Campaign): ShipClass | null {
   const chance = INTERCEPTION_CHANCE[threat] - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
+  return hostileFor(state, rng)
+}
+/** The hostile that hunts the current system: the claiming faction's patrols, or raiders. */
+function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipClass {
+  const system = state.galaxy.systems.find((s) => s.id === state.at)!
+  const threat = REGIONAL_THREAT[system.region]
   const archetype = state.galaxy.factions.find((f) => f.id === system.faction)?.archetype ?? 'raider'
   const tier = threat >= 3 || (threat >= 2 && state.day >= 45) ? 2 : 1
   return rng.pick(classPool(archetype, tier).filter((c) => c.tier <= tier))
+}
+/** A rules-2 interception against `hostile`, drawing on the ship's magazine. */
+function intercept(state: Campaign, hostile: ShipClass, seed: string): ShipBattle {
+  return createShipBattle(seed, state.at, hostile, state.hull, hullCapacity(state), battleUpgrades(state), BATTLE_RULES, 'interception', state.missiles)
 }
 /** The chart's plain-language warning for arriving at a system. */
 export function interceptionRisk(state: Campaign, systemId: SystemId): string {
@@ -674,9 +698,39 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', systemId: next.at, tier: 'passive' }, next.at)
       message = `Arrived at ${system.name}. Passive sensors have catalogued the obvious contacts.`
       const hostile = action.hazards ? interceptor(next) : null
+      const signal = action.hazards && !hostile && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id) : null
       if (hostile) {
-        next.shipBattle = createShipBattle(`${state.seed}:${system.id}:intercept:${state.day}`, system.id, hostile, next.hull, hullCapacity(next), battleUpgrades(next), BATTLE_RULES, 'interception', next.missiles)
+        next.shipBattle = intercept(next, hostile, `${state.seed}:${system.id}:intercept:${state.day}`)
         message = `Arrived at ${system.name}. Hostile contact: ${hostile.name} has a weapons lock on us.`
+      } else if (signal) {
+        next.signal = { id: signal.id, systemId: system.id }
+        message = `Arrived at ${system.name}. Signal: ${signal.title.toLowerCase()}.`
+      }
+      break
+    }
+    case 'signal': {
+      const pending = state.signal!, choice = SIGNAL_BY_ID[pending.id]!.choices.find((c) => c.id === action.choiceId)!
+      next.signal = undefined
+      next.exploration.credits -= choice.cost?.credits ?? 0; next.exploration.materials -= choice.cost?.materials ?? 0
+      next.fuel = state.fuel - (choice.cost?.fuel ?? 0); days = choice.days ?? 0
+      const outcome = signalLuck(state.seed, pending, choice) ? choice.good : choice.bad!
+      next.exploration.materials += outcome.materials ?? 0; next.exploration.credits += outcome.credits ?? 0
+      next.fuel = Math.min(fuelCapacity(state), next.fuel + (outcome.fuel ?? 0))
+      next.missiles = Math.min(MAGAZINE_CAPACITY, state.missiles + (outcome.missiles ?? 0))
+      next.hull = Math.max(1, Math.min(hullCapacity(state), state.hull + (outcome.hull ?? 0)))
+      message = outcome.text
+      if (outcome.recruit) {
+        if (state.roster.filter((o) => !o.dead).length < 6) { next.roster = [...state.roster, recruitOperative(state.recruits)]; next.recruits++ }
+        else { next.exploration.credits += 10; message += ' With every bunk taken, they pay their way to the next station instead: 10 credits.' }
+      }
+      if (outcome.charts) {
+        const index = new GalaxyIndex(state.galaxy)
+        for (const s of state.galaxy.systems) if (s.id !== state.at && index.jumps(state.at, s.id) <= 1)
+          next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', tier: 'survey', systemId: s.id }, s.id)
+      }
+      if (outcome.ambush) {
+        const rng = createRng(`${state.seed}:signal:${pending.systemId}:ambush`)
+        next.shipBattle = { ...intercept(next, hostileFor(state, rng), `${state.seed}:${pending.systemId}:ambush:${state.day}`), log: [outcome.text] }
       }
       break
     }
