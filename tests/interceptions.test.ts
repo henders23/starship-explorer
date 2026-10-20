@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, createCampaign, ESCORT_MISSILES, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
+import { actionLock, createCampaign, ESCORT_MISSILES, EVADE_FUEL, WRECK_HULL, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
 import { escortContact } from '../tools/ship-walkthrough.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { followCourse } from '../src/engine/exploration/navigation.js'
@@ -27,7 +27,7 @@ describe('interceptions on arrival', () => {
     expect(s.shipBattle).toMatchObject({ kind: 'interception', phase: 'contact', rules: 2, locationId: s.at })
     expect(s.log.at(-1)).toMatch(/Hostile contact/)
     const plain = { ...s, shipBattle: null, actions: [] }
-    expect(interceptor({ ...plain, hull: 24 })).toBeNull()
+    expect(interceptor({ ...plain, hull: WRECK_HULL })).toBeNull()
     const storage = mem(); saveExploration(s, storage)
     expect(loadExploration(storage)).toEqual({ campaign: s, error: null })
   })
@@ -93,5 +93,18 @@ describe('the Hellion magazine', () => {
     expect(declined.missiles).toBe(contact.missiles)
     const legacy = escortContact('magazine-d', 1)
     expect(legacy.shipBattle!.missiles).toBe(4)
+  })
+})
+
+describe('interception pressure', () => {
+  it('burns fuel to break a lock, whether or not it works', () => {
+    const s = intercepted('evade-fuel')
+    const next = reduceCampaign(s, { type: 'ship-order', order: { type: 'evade' } })
+    expect(next.fuel).toBe(s.fuel - EVADE_FUEL)
+    expect(actionLock({ ...s, fuel: EVADE_FUEL - 1 }, { type: 'ship-order', order: { type: 'evade' } })).toMatch(/fuel/)
+  })
+  it('leaves only near-wrecks alone', () => {
+    const s = { ...intercepted('wreck'), shipBattle: null }
+    expect(interceptor({ ...s, hull: WRECK_HULL })).toBeNull()
   })
 })

@@ -38,7 +38,7 @@
 .exp-nav>button:hover { color:#d3e6ea; }
 .exp-nav>button[aria-current] { color:var(--exp-accent); border-color:var(--exp-accent); }
 .exp-tab-flag { padding:0 5px; border:1px solid #9b7a43; color:#e2c98f; font-size:8px; letter-spacing:.1em; line-height:14px; text-transform:uppercase; }
-.exp-resources { display:flex; flex-wrap:wrap; gap:22px; margin-left:auto; }
+.exp-resources { display:flex; flex-wrap:wrap; gap:clamp(10px,1.2vw,22px); margin-left:auto; }
 .exp-resources>span { font-size:9px; color:#90a5b0; letter-spacing:.09em; }
 .exp-resources b { display:block; font-size:17px; color:#e5eef0; font-weight:400; letter-spacing:0; }
 .exp-header>.exp-button { white-space:nowrap; }

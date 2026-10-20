@@ -25,6 +25,9 @@ export const FLIGHT_SECONDS: Record<ShipWeaponKind, number> = { laser: 1, ion: 1
 export const FIRE_CHANCE: Record<ShipWeaponKind, number> = { laser: 10, ion: 0, missile: 35, beam: 25 }
 /** A fire burns this long unless damage control puts it out, costing a compartment point every five seconds. */
 export const FIRE_SECONDS = 10
+/** Rules 2: hostile damage control patches a point this often, in this order of priority. */
+export const ENEMY_REPAIR_SECONDS = 8
+export const ENEMY_REPAIR_ORDER: EnemyRoomKey[] = ['weapons', 'shields', 'helm', 'engines']
 /** Fraction of charge at which a hostile gun locks its target, giving the crew warning (rules 2). */
 export const AIM_AT = 0.6
 /** Each hull plan's gunnery doctrine: the compartment its gunners favour three to one (rules 2). */
@@ -146,6 +149,8 @@ export const effectiveRoom = (b: ShipBattle, side: 'player' | 'enemy', key: Enem
   const r = side === 'player' ? b.rooms[key] : b.enemy.rooms[key]
   return r.ionUntil > b.time ? 0 : r.hp
 }
+/** Rules 2 run a smaller reactor, so shields, engines and weapons genuinely compete. */
+export const reactorPower = (b: ShipBattle) => b.rules === 2 ? 7 : REACTOR_POWER
 export const assignedPower = (b: ShipBattle) => b.power.shields + b.power.engines + b.power.weapons
 export const weaponPower = (b: ShipBattle) => b.weapons.reduce((n, w) => n + (w.mode === 'off' ? 0 : w.cost), 0)
 export const shieldCapacity = (b: ShipBattle) => Math.min(b.upgrades.layered ? 2 : 1, Math.floor(Math.min(b.power.shields, effectiveRoom(b, 'player', 'shields')) / 2))
@@ -189,7 +194,7 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
       if (!['shields', 'engines', 'weapons'].includes(a.system) || !Number.isInteger(a.amount)) return 'Unknown power setting'
       const max = a.system === 'shields' ? b.upgrades.layered ? 4 : 2 : a.system === 'engines' ? 3 : 4
       if (a.amount < 0 || a.amount > max) return `System accepts 0–${max} power`
-      if (assignedPower(b) - b.power[a.system] + a.amount > REACTOR_POWER) return 'Reactor fully allocated; reduce another system first'
+      if (assignedPower(b) - b.power[a.system] + a.amount > reactorPower(b)) return 'Reactor fully allocated; reduce another system first'
       return a.system === 'weapons' && a.amount < weaponPower(b) ? 'Switch off a weapon before reducing its power supply' : null
     }
     case 'weapon': {
@@ -339,8 +344,9 @@ function tick(b: ShipBattle) {
     crewWork(b)
     const fire = SHIP_ROOMS.find((k) => burning(b.enemy.rooms[k]))
     if (++b.enemy.repairWork >= 5 && fire) { b.enemy.rooms[fire].fire = 0; b.enemy.repairWork = 0; emit(b, { type: 'extinguished', side: 'enemy', target: fire }) }
-    else if (b.enemy.repairWork >= 12) {
-      const key = SHIP_ROOMS.find((k) => b.enemy.rooms[k].hp < b.enemy.rooms[k].max)
+    else if (b.enemy.repairWork >= ENEMY_REPAIR_SECONDS) {
+      // Their damage control gets the guns back first.
+      const key = ENEMY_REPAIR_ORDER.find((k) => b.enemy.rooms[k].hp < b.enemy.rooms[k].max)
       if (key) { b.enemy.rooms[key].hp++; emit(b, { type: 'repaired', side: 'enemy', target: key }) }
       b.enemy.repairWork = 0
     }

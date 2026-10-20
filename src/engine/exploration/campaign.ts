@@ -9,7 +9,7 @@ import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
 import { BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
-import { classPool } from '../combat/ships.js'
+import { classPool, SHIP_BY_ID } from '../combat/ships.js'
 import type { ShipClass } from '../combat/ships.js'
 import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
@@ -282,6 +282,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     }
     case 'ship-order':
       if (!state.shipBattle) return 'No ship encounter in progress'
+      if (action.order?.type === 'evade' && state.shipBattle.kind === 'interception' && state.fuel < EVADE_FUEL) return `Requires ${EVADE_FUEL} fuel to break their lock`
       if (action.order?.type === 'pay' && state.exploration.credits < state.shipBattle.toll) return `Requires ${state.shipBattle.toll} credits`
       return shipOrderLock(state.shipBattle, action.order)
     case 'ship-debrief': return state.shipBattle?.phase === 'report' ? null : 'Finish the encounter first'
@@ -430,6 +431,10 @@ export const INTERCEPTION_SPOILS: Partial<Record<NonNullable<ShipBattle['result'
   victory: { materials: 10, credits: 22, fuel: 1, missiles: 0 }, yielded: { materials: 7, credits: 16, fuel: 1, missiles: 0 },
 }
 export const STARTING_MISSILES = 6
+/** Fuel burnt trying to break an interceptor's lock. */
+export const EVADE_FUEL = 2
+/** Interceptors leave a hull this broken alone: there is nothing left worth taking. */
+export const WRECK_HULL = 10
 export const MAGAZINE_CAPACITY = 12
 export const ORDNANCE_PRICE = 14
 /** Hellions a station hands over with a rules-2 escort contract. */
@@ -440,8 +445,11 @@ export const ESCORT_MISSILES = 2
  * left the hostile's weapons room intact yields more ordnance.
  */
 export function interceptionSpoils(battle: ShipBattle): { materials: number; credits: number; fuel: number; missiles: number; find: string } | null {
-  const base = INTERCEPTION_SPOILS[battle.result!]
-  if (!base) return null
+  const found = INTERCEPTION_SPOILS[battle.result!]
+  if (!found) return null
+  // Heavier hulls carry richer holds.
+  const heavy = (SHIP_BY_ID[battle.classId]?.tier ?? 1) >= 2
+  const base = heavy ? { ...found, materials: Math.round(found.materials * 1.5), credits: Math.round(found.credits * 1.5) } : found
   const roll = createRng(`${battle.seed}:salvage`).int(100), armed = battle.enemy.rooms.weapons.hp > 0
   if (roll < (armed ? 50 : 30)) return { ...base, missiles: 3, find: 'An intact Hellion rack' }
   if (roll < 70) return { ...base, fuel: base.fuel + 2, find: 'Their fuel bunkers held' }
@@ -452,12 +460,12 @@ export function interceptionSpoils(battle: ShipBattle): { materials: number; cre
  * Whether a hostile waits at the system just reached, and which. The claiming
  * faction's patrols hunt their own space; raiders work everywhere else. The
  * shallows are safe, countermeasures make the Lodestar harder to find, and a
- * hull below 25 reads as a wreck not worth the trouble.
+ * hull of 10 or less reads as a wreck not worth the trouble.
  */
 export function interceptor(state: Campaign): ShipClass | null {
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
   const threat = REGIONAL_THREAT[system.region]
-  if (state.at === state.galaxy.start || state.hull < 25) return null
+  if (state.at === state.galaxy.start || state.hull <= WRECK_HULL) return null
   const chance = INTERCEPTION_CHANCE[threat] - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
@@ -470,7 +478,7 @@ export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const system = state.galaxy.systems.find((s) => s.id === systemId)!
   const chance = Math.max(0, INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]] - (fitted(state, 'countermeasures') ? 8 : 0))
   if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.'
-  if (state.hull < 25) return 'Hostile space, but our hull is too damaged to be worth attacking.'
+  if (state.hull <= WRECK_HULL) return 'Hostile space, but our hull is too damaged to be worth attacking.'
   const who = state.galaxy.factions.find((f) => f.id === system.faction)
   return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}.`
 }
@@ -569,6 +577,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'ship-order':
       next.shipBattle = reduceShipBattle(state.shipBattle!, action.order)
       if (action.order.type === 'pay') next.exploration.credits -= state.shipBattle!.toll
+      // Breaking an interceptor's lock is a hard burn, whether or not it works.
+      if (action.order.type === 'evade' && state.shipBattle!.kind === 'interception') next.fuel -= EVADE_FUEL
       // The encounter owns hull during battle; campaign travel remains locked.
       next.hull = next.shipBattle.hull
       message = next.shipBattle.log.at(-1)!; break
@@ -700,7 +710,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       break
     }
     case 'service': {
-      days = action.service === 'contract' ? 3 : 1
+      days = action.service === 'contract' ? 3 : action.service === 'ordnance' ? 0 : 1
       if (action.service === 'contract') {
         next.exploration.materials += 8; next.exploration.credits += 18
         message = 'Station survey contract completed: 8 materials and 18 credits. The exchange has further work available.'

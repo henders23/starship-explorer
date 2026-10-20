@@ -280,6 +280,15 @@ describe('rules 2: projectiles, flight time and fires', () => {
     }
     throw new Error('Every evasion succeeded')
   })
+  it('runs a seven-point reactor and gets their guns back first', () => {
+    let b = v2(); expect(shipOrderLock(b, { type: 'power', system: 'engines', amount: 3 })).toBeNull()
+    b = apply(b, { type: 'power', system: 'engines', amount: 3 })
+    expect(shipOrderLock(b, { type: 'power', system: 'shields', amount: 1 })).toBeNull()
+    expect(reduceShipBattle(b, { type: 'power', system: 'weapons', amount: 3 })).toBe(b)
+    b = quiet(v2()); b.enemy.rooms.weapons.hp = 1; b.enemy.rooms.weapons.max = 4; b.enemy.rooms.engines.hp = 1; b.weapons.forEach((w) => { w.mode = 'off' })
+    b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 3 })
+    expect(b.enemy.rooms.weapons.hp).toBe(2); expect(b.enemy.rooms.engines.hp).toBe(1)
+  })
   it('keeps rules-1 battles free of projectiles and fires', () => {
     let b = battle(); b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 5 })
     expect(b.rules).toBeUndefined(); expect(b.inFlight).toBeUndefined(); expect(b.events).toBeUndefined()

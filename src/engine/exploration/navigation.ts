@@ -59,7 +59,7 @@ export type CourseStop = 'arrived' | 'research' | 'contact' | 'blocked'
  */
 export function followCourse(state: Campaign, target: SystemId, hazards = true): { state: Campaign; stop: CourseStop; reason: string | null } {
   const course = plotCourse(state, target)
-  if (!course || course.path.length < 2) return { state, stop: 'blocked', reason: course ? 'The Ithaca is already here' : 'No course with the current drive' }
+  if (!course || course.path.length < 2) return { state, stop: 'blocked', reason: course ? 'The Lodestar is already here' : 'No course with the current drive' }
   let s = state
   for (const systemId of course.path.slice(1)) {
     const order: CampaignAction = hazards ? travelOrder(systemId) : { type: 'travel', systemId }

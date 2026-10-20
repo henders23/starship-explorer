@@ -1,8 +1,8 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
-import { actionLock, ESCORT_MISSILES, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
-import { assignedPower, BATTLE_RULES, burning, CREW_HP, enemyGunEta, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, REACTOR_POWER, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
+import { actionLock, ESCORT_MISSILES, EVADE_FUEL, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
+import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, enemyGunEta, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { BattleCrew, BattleEvent, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
@@ -81,7 +81,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
       {b.hailed && <p className="ship-contact-response">{b.log.at(-1)}</p>}
       <div className="ship-contact-options">{button({ type: 'hail' }, 'Hail the contact')}
         {b.hailed && <>{button({ type: 'pay' }, `Pay passage · ${b.toll} credits`)}{b.upgrades.contextual ? button({ type: 'negotiate' }, 'Negotiate passage · no payment', true) : <small>Contextual Translation opens a negotiated passage without a toll.</small>}</>}
-        {button({ type: 'evade' }, `${intercept ? 'Break their lock' : 'Evade with the tender'} · ${evadeChance(b)}% chance`)}
+        {button({ type: 'evade' }, `${intercept ? `Break their lock · ${EVADE_FUEL} fuel` : 'Evade with the tender'} · ${evadeChance(b)}% chance`)}
         <small>{intercept ? `A failed evasion begins battle. Victory recovers ${INTERCEPTION_SPOILS.victory!.materials} materials, ${INTERCEPTION_SPOILS.victory!.credits} credits and fuel from the wreck.` : 'A failed evasion begins battle. A successful passage earns 6 materials and 18 credits.'}</small>
         {button({ type: 'engage' }, 'Engage · enter battle paused', true)}
         {!intercept && button({ type: 'cancel' }, 'Decline escort · no cost')}
@@ -368,7 +368,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
             <div className="space-engine-glow" aria-hidden="true" />
             <div ref={(el) => { shields.current.player = el }} className={`space-shield layers-${b.shield}`} aria-hidden="true" />
             {SHIP_ROOMS.map((key) => <Room key={key} b={b} side="player" room={key} selected={b.repair === key} register={(el) => { rooms.current[`player:${key}`] = el }}
-              threats={live ? cls.guns.flatMap((g, i) => b.enemy.aim?.[i] === key ? [{ label: g.label, eta: enemyGunEta(b, i) }] : []) : []}
+              threats={live ? cls.guns.flatMap((g, i) => { const eta = enemyGunEta(b, i); return b.enemy.aim?.[i] === key && eta !== null ? [{ label: g.label, eta }] : [] }) : []}
               crew={(b.crew ?? []).filter((c) => c.room === key && c.hp > 0).map((c) => ({ ...c, chosen: repairing?.crew === c.id }))}
               onClick={() => roomClick(key)} />)}
             {legacyVolley?.side === 'enemy' && <Impact key={b.shots} volley={legacyVolley} box={OWN_ROOMS[legacyVolley.target]} />}
@@ -410,9 +410,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
           {outro === 'victory' && <div className="space-wreck" aria-hidden="true">{[0, 1, 2, 3, 4, 5].map((i) => <i key={i} style={{ animationDelay: `${i * 0.18}s` }} />)}</div>}
         </div>
         <div className="space-enemy-guns" aria-label="Hostile weapons">{cls.guns.map((g, i) => {
-          const value = smooth(b.enemy.charges[i]!, g.time, enemyRate, true), aim = b.enemy.aim?.[i], eta = enemyGunEta(b, i)
+          const value = smooth(b.enemy.charges[i]!, g.time, enemyRate, true), eta = enemyGunEta(b, i), aim = live && eta !== null ? b.enemy.aim?.[i] : null
           return <label key={i} className={aim ? 'imminent' : ''}><span className="space-gun-name">{g.label}</span><span className="space-meter enemy" role="progressbar" aria-label={`Enemy ${g.label} charge`} aria-valuemin={0} aria-valuemax={g.time} aria-valuenow={Math.floor(b.enemy.charges[i]!)}><i style={{ width: `${value * 100 / g.time}%` }} /></span>
-            <small>{aim ? `→ ${aim} · ${eta ?? '—'}s` : eta === null ? 'offline' : 'charging'}</small></label>
+            <small>{!live ? 'silent' : aim ? `→ ${aim} · ${eta}s` : eta === null ? 'weapons offline' : 'charging'}</small></label>
         })}</div>
       </article>
       <ProjectileLayer b={b} now={now} live={live} gun={gun} centre={centre} jitterFor={jitterFor} />
@@ -421,8 +421,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     </section>
     <div className="space-console">
       <section className="space-reactor" aria-label="Reactor">
-        <div className="space-reactor-bar" aria-hidden="true">{Array.from({ length: REACTOR_POWER }, (_, i) => <i key={i} className={i < REACTOR_POWER - assignedPower(b) ? 'spare' : ''} />)}</div>
-        <div className="space-console-label"><span className="exp-eyebrow">Reactor</span><strong>{assignedPower(b)}/{REACTOR_POWER} <span>· {REACTOR_POWER - assignedPower(b)} spare</span></strong></div>
+        <div className="space-reactor-bar" aria-hidden="true">{Array.from({ length: reactorPower(b) }, (_, i) => <i key={i} className={i < reactorPower(b) - assignedPower(b) ? 'spare' : ''} />)}</div>
+        <div className="space-console-label"><span className="exp-eyebrow">Reactor</span><strong>{assignedPower(b)}/{reactorPower(b)} <span>· {reactorPower(b) - assignedPower(b)} spare</span></strong></div>
         {(['shields', 'engines', 'weapons'] as const).map((system) => {
           const max = system === 'shields' ? b.upgrades.layered ? 4 : 2 : system === 'engines' ? 3 : 4
           const usable = effectiveRoom(b, 'player', system)

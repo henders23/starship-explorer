@@ -306,7 +306,7 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
           {command({ type: 'service', locationId: site.id, service: 'repair' }, `Repair +20 · 5 materials + ${stationPrice(state)} credits · 1 day`)}
           {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
           {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
-          {command({ type: 'service', locationId: site.id, service: 'ordnance' }, `Buy 2 Hellion missiles · ${ORDNANCE_PRICE} credits · 1 day · ${state.missiles}/${MAGAZINE_CAPACITY} aboard`)}
+          {command({ type: 'service', locationId: site.id, service: 'ordnance' }, `Buy 2 Hellion missiles · ${ORDNANCE_PRICE} credits · ${state.missiles}/${MAGAZINE_CAPACITY} aboard`)}
           {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
           {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <section className="exp-relay" aria-label="The last post delivery"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</section>}
           <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />

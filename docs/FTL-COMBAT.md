@@ -30,7 +30,10 @@ Rules-1 equivalence was fuzzed over 4000 battles against the previous reducer.
 | Damage | Hostile damage is stated on the old 100-hull scale and lands scaled by kind (`INCOMING_DAMAGE`: laser 1, missile ½, beam ⅔). |
 | Fires | Hull hits may start a fire (laser 10%, beam 25%, missile 35%). A fire costs its compartment a point, and wounds the crew in it, every 5 s for 10 s. The enemy fights its own fires. |
 | Crew | Four officers man rooms. The helm needs one for evasion. Crewed engines add 5 evasion, weapons charge 10% faster, and shields recharge faster. Officers fight fires (4 s), then repair a point per 10 officer-seconds (Kerr ×1.5). Moves take 2 s. Hits and fires wound; a downed officer is in the medical bay for 20 s. |
-| Interceptions | 14/24/34% on arrival in threat 1/2/3 regions, never in the Shallows or at the start, 8 points lower with countermeasures, and never against a hull below 25. Faction patrols in claimed space, raiders elsewhere; tier 2 at the rift margin and in late-voyage threat-2 space. Victory salvages 10 materials, 22 credits and 1 fuel. |
+| Reactor | Seven power (rules 1 kept eight): shields, engines and weapons cannot all be maxed. |
+| Enemy damage control | Patches a point every 8 s, weapons first, then shields, helm and engines. Disabling their guns buys time, not victory. |
+| Interceptions | 14/24/34% on arrival in threat 1/2/3 regions, never in the Shallows or at the start, 8 points lower with countermeasures, and never against a hull of 10 or less. Faction patrols in claimed space, raiders elsewhere; tier 2 at the rift margin and in late-voyage threat-2 space. Breaking the lock burns 2 fuel per attempt. Victory salvages 10 materials, 22 credits and 1 fuel (half again from tier-2 hulls) plus one seeded find from the wreck. |
+| Magazine | The Lodestar carries 6 Hellions to start, 12 at most. Rules-2 battles spend them. Stations sell two for 14 credits, with no day spent; a flown escort adds two. |
 
 ## Balance
 
