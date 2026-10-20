@@ -231,6 +231,11 @@ export function signalLuck(seed: string, pending: PendingSignal, choice: SignalC
 /** A choice that changes nothing: walking away. Every signal offers one. */
 export const quietChoice = (signal: ArrivalSignal) => signal.choices.find((c) => !c.cost && !c.days && c.odds === undefined &&
   Object.keys(c.good).every((k) => k === 'text'))!
+/** With every bunk taken, a would-be recruit rides as a paying passenger instead, and owes us no debt to repay. */
+export const PASSENGER_FARE = 10
+export function seatedOutcome(outcome: SignalOutcome, fullRoster: boolean): SignalOutcome {
+  return outcome.recruit && fullRoster ? { ...outcome, recruit: undefined, echo: undefined, credits: (outcome.credits ?? 0) + PASSENGER_FARE } : outcome
+}
 /** The net resource changes of an answer, as short chips: "+3 fuel", "−6 hull". */
 export function outcomeChips(outcome: SignalOutcome, cost: SignalChoice['cost'] = {}): string[] {
   const chips: string[] = []

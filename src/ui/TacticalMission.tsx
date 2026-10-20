@@ -58,13 +58,13 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
         </div>
       })}
     </details></section>
-    {site && <div className="away-deploy"><p>Deployment equipment: {boardingLoadoutCost(state, squad)} materials. {squad.length}/4 selected. Select a crew member to free a place.</p><button className="exp-button primary" disabled={!!lock} onClick={() => { dispatch(deploy); onClose() }}>Deploy away team</button>{lock && <small>{lock}</small>}</div>}
+    {site && <div className="away-deploy"><p>Deployment equipment: {boardingLoadoutCost(state, squad)} materials. {squad.length}/4 selected. Select a crew member to free a place.</p><button className="exp-button primary" disabled={!!lock} onClick={() => { dispatch(deploy); onClose() }}>Deploy away team</button>{lock && <small>{lock}</small>}<button className="exp-text-button" onClick={onClose}>Cancel deployment</button></div>}
     {!site && <>
       <button className="exp-button" disabled={!!actionLock(state, { type: 'rest-team' })} onClick={() => dispatch({ type: 'rest-team' })}>Medical rest · 1 day · no cost</button>
       {station ? <><button className="exp-button" disabled={!!actionLock(state, { type: 'recruit', locationId: station.id })} onClick={() => dispatch({ type: 'recruit', locationId: station.id })}>Recruit replacement · 20 credits · 1 day</button><small>{actionLock(state, { type: 'recruit', locationId: station.id }) ?? 'A named operative can join your team here.'}</small></> : <p>Contact a station to recruit replacements for lost operatives. Station contracts can fund recruitment.</p>}
       <small>Service XP records experience. Research in Weapons and Defence unlocks plasma weapons and personal shields.</small>
     </>}
-    <button className="exp-text-button" onClick={onClose}>{site ? 'Cancel deployment' : 'Back to ship'}</button>
+    {!site && <button className="exp-text-button" onClick={onClose}>Back to ship</button>}
   </section></div>
 }
 const ROLE_LABEL: Record<TacticalUnit['role'], string> = { assault: 'Assault', recon: 'Recon', engineer: 'Engineer', medic: 'Medic', heavy: 'Heavy' }

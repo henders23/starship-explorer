@@ -1,6 +1,6 @@
 import { actionLock } from '../engine/exploration/campaign.js'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
-import { outcomeChips, quietChoice, SIGNAL_BY_ID, signalLuck, signalTerms } from '../engine/exploration/signals.js'
+import { outcomeChips, quietChoice, seatedOutcome, SIGNAL_BY_ID, signalLuck, signalTerms } from '../engine/exploration/signals.js'
 import type { PendingSignal } from '../engine/exploration/signals.js'
 import { CrewLine } from './crew-presence.js'
 
@@ -9,7 +9,7 @@ import { CrewLine } from './crew-presence.js'
  * with their terms. Once answered, the outcome stays up until acknowledged.
  */
 export function SignalScene({ state, shown, dispatch, onAnswer, onClose }: {
-  state: Campaign; shown: (PendingSignal & { choiceId?: string }) | null; dispatch: (action: CampaignAction) => void
+  state: Campaign; shown: (PendingSignal & { choiceId?: string; fullRoster?: boolean }) | null; dispatch: (action: CampaignAction) => void
   onAnswer: (choiceId: string) => void; onClose: () => void
 }) {
   const signal = SIGNAL_BY_ID[state.signal?.id ?? shown?.id ?? '']
@@ -40,9 +40,9 @@ export function SignalScene({ state, shown, dispatch, onAnswer, onClose }: {
 }
 
 /** What the answer did, at a glance. */
-function Chips({ signal, shown, seed }: { signal: NonNullable<(typeof SIGNAL_BY_ID)[string]>; shown: (PendingSignal & { choiceId?: string }) | null; seed: string }) {
+function Chips({ signal, shown, seed }: { signal: NonNullable<(typeof SIGNAL_BY_ID)[string]>; shown: (PendingSignal & { choiceId?: string; fullRoster?: boolean }) | null; seed: string }) {
   const choice = signal.choices.find((c) => c.id === shown?.choiceId)
   if (!choice || !shown) return null
-  const chips = outcomeChips(signalLuck(seed, shown, choice) ? choice.good : choice.bad!, choice.cost)
+  const chips = outcomeChips(seatedOutcome(signalLuck(seed, shown, choice) ? choice.good : choice.bad!, !!shown.fullRoster), choice.cost)
   return chips.length ? <div className="exp-signal-chips">{chips.map((c) => <span key={c} className={c.startsWith('−') || c === 'ambush' ? 'loss' : 'gain'}>{c}</span>)}</div> : null
 }

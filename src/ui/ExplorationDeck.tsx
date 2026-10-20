@@ -82,7 +82,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const [course, setCourse] = useState<SystemId | null>(null)
   useEffect(() => { if (course === state.at) setCourse(null) }, [course, state.at])
   // The signal being answered stays on screen for its outcome until acknowledged.
-  const [signalShown, setSignalShown] = useState<(PendingSignal & { choiceId?: string }) | null>(null)
+  const [signalShown, setSignalShown] = useState<(PendingSignal & { choiceId?: string; fullRoster?: boolean }) | null>(null)
   const signalOpen = !!state.signal || (!!signalShown && !state.shipBattle)
   // An ambush replaces the signal's outcome with the fight; there is nothing to come back to.
   useEffect(() => { if (state.shipBattle) setSignalShown(null) }, [state.shipBattle])
@@ -209,7 +209,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>FUEL <b data-testid="exp-fuel">{state.fuel}/{fuelCapacity(state)}</b></span>
         <span>HULL <b>{state.hull}/{hullCapacity(state)}</b></span>
         <span>MISSILES <b data-testid="exp-missiles">{state.missiles}</b></span>
-        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays! <= 5 ? ' near' : ''}`} title={`The rift widens from the arrival system one jump-ring every ${RIFT_PACE} days. Rift-touched space swarms with heavy interceptors, its stations evacuate, and each day inside it tears ${RIFT_HULL_TOLL} hull.`}
+        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays! <= 5 ? ' near' : ''}`} title={`Days until the rift reaches the system the Lodestar is in. It widens from the arrival system one jump-ring every ${RIFT_PACE} days. Rift-touched space swarms with heavy interceptors, its stations evacuate, and each day inside it tears ${RIFT_HULL_TOLL} hull.`}
           data-testid="exp-rift">RIFT <b>{riftHere ? 'HERE' : `${riftDays}d`}</b></span>}
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
@@ -280,7 +280,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
     {signalOpen && <SignalScene state={state} shown={signalShown} dispatch={dispatch}
-      onAnswer={(choiceId) => setSignalShown({ ...state.signal!, choiceId })} onClose={() => setSignalShown(null)} />}
+      onAnswer={(choiceId) => setSignalShown({ ...state.signal!, choiceId, fullRoster: state.roster.filter((o) => !o.dead).length >= 6 })} onClose={() => setSignalShown(null)} />}
     {returnConfirm && state.outcome !== 'home' && <ReturnHomeScene state={state} dispatch={dispatch} onClose={() => setReturnConfirm(false)} />}
     {state.outcome === 'home' && <ExplorationEnding state={state} onExit={exit} />}
     {state.outcome === 'lost' && <VoyageLost state={state} onExit={exit} />}

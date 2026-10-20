@@ -457,7 +457,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         <ol className="space-log" aria-label="Combat log">{b.log.slice(-4).map((line, i, all) => <li key={b.log.length - all.length + i}>{line}</li>)}</ol>
         {repairing && <svg className="space-repair-line" aria-hidden="true"><line x1={repairing.origin.x} y1={repairing.origin.y} x2={repairing.cursor.x} y2={repairing.cursor.y} /><circle cx={repairing.origin.x} cy={repairing.origin.y} r={3} className="dot" /><circle cx={repairing.cursor.x} cy={repairing.cursor.y} r={7} /></svg>}
       </article>
-      <div className="space-versus" aria-hidden="true"><span>{b.kind === 'interception' ? <>JUMP<br />POINT</> : <>ESCORT<br />CORRIDOR</>}</span>
+      <div className="space-versus" aria-hidden="true"><span>{b.kind === 'interception' ? <>JUMP<br />POINT</> : b.kind === 'finale' ? <>RIFT<br />EDGE</> : <>ESCORT<br />CORRIDOR</>}</span>
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b5a880" strokeWidth="1"><path d="M12 3l9 9-9 9-9-9z" /></svg><small>{!live ? 'CEASEFIRE' : running ? 'LIVE FIRE' : 'TACTICAL PAUSE'}</small></div>
       <article className={`space-ship hostile${outro === 'victory' ? ' destroyed' : ''}${outro === 'yielded' ? ' yielded' : ''}`}>
         <ShipReadout name={cls.name} hull={b.enemy.hull} max={b.enemy.maxHull} shields={b.enemy.shield} capacity={cls.shields} evasion={enemyEvasion(b)} segments={b.enemy.maxHull} />

@@ -170,7 +170,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     </section>}
     <div className="exp-atlas-key">
       <span><strong>GALACTIC ATLAS</strong> · {systems.length} systems · {state.visited.length} visited</span>
-      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span><span className="lead">◎ Research lead</span><span className="dock">◆ Station</span><span className="danger">◍ Hostile space</span>{state.rift && <span className="rift">◍ Rift</span>}</span>
+      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span>{leads.size > 0 && <span className="lead">◎ Research lead</span>}<span className="dock">◆ Station</span><span className="danger">◍ Hostile space</span>{riftDepth(state) >= 0 && <span className="rift">◍ Rift</span>}</span>
       {status}
     </div>
   </section>

@@ -6,7 +6,7 @@ import type { RelayArc, RelayAction } from './arcs.js'
 import type { OperationKind } from '../tactical/operations.js'
 import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
-import { ECHO_CHANCE, QUIET_ARRIVALS, SIGNAL_BY_ID, signalAt, signalLuck } from './signals.js'
+import { ECHO_CHANCE, PASSENGER_FARE, QUIET_ARRIVALS, SIGNAL_BY_ID, seatedOutcome, signalAt, signalLuck } from './signals.js'
 import type { PendingSignal } from './signals.js'
 import type { StoryRecord } from './stories.js'
 import { ARMOURY, ARMOURY_SLOTS, BASE_REACTOR, BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
@@ -891,16 +891,15 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.signal = undefined
       next.exploration.credits -= choice.cost?.credits ?? 0; next.exploration.materials -= choice.cost?.materials ?? 0
       next.fuel = state.fuel - (choice.cost?.fuel ?? 0); days = choice.days ?? 0
-      const outcome = signalLuck(state.seed, pending, choice) ? choice.good : choice.bad!
+      const full = state.roster.filter((o) => !o.dead).length >= 6
+      const outcome = seatedOutcome(signalLuck(state.seed, pending, choice) ? choice.good : choice.bad!, full)
       next.exploration.materials += outcome.materials ?? 0; next.exploration.credits += outcome.credits ?? 0
       next.fuel = Math.min(fuelCapacity(state), next.fuel + (outcome.fuel ?? 0))
       next.missiles = Math.min(MAGAZINE_CAPACITY, state.missiles + (outcome.missiles ?? 0))
       next.hull = Math.max(1, Math.min(hullCapacity(state), state.hull + (outcome.hull ?? 0)))
       message = outcome.text
-      if (outcome.recruit) {
-        if (state.roster.filter((o) => !o.dead).length < 6) { next.roster = [...state.roster, recruitOperative(state.recruits)]; next.recruits++ }
-        else { next.exploration.credits += 10; message = 'Every bunk is taken, so the pilot rides as a passenger and pays their way to the next station: 10 credits.' }
-      }
+      if (outcome.recruit) { next.roster = [...state.roster, recruitOperative(state.recruits)]; next.recruits++ }
+      else if (full && choice.good.recruit) message = `Every bunk is taken, so they ride as a passenger and pay their way to the next station: ${PASSENGER_FARE} credits.`
       if (outcome.echo) next.echoes = [...(state.echoes ?? []), outcome.echo]
       if (outcome.charts) {
         const index = new GalaxyIndex(state.galaxy)

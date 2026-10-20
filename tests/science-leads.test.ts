@@ -14,3 +14,12 @@ describe('science leads', () => {
     expect(leadLabel(diagnosed)).toBe('energy signature')
   })
 })
+
+describe('science leads, finished', () => {
+  it('go dark once two spatial sources are banked', () => {
+    const s = createCampaign('leads-b')
+    const done = { ...s, research: { ...s.research, completed: [...s.research.completed, 'drive-diagnostics' as const] },
+      findings: [{ locationId: 'x', kind: 'exotic-energy' as const, day: 1 }, { locationId: 'a', kind: 'spatial-observation' as const, day: 2 }, { locationId: 'b', kind: 'alien-propulsion' as const, day: 3 }] }
+    expect(scienceLeads(done, courseFinder(done))).toEqual([])
+  })
+})

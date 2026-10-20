@@ -208,6 +208,7 @@
 .away-deploy { position:sticky; bottom:-32px; margin:18px -32px -32px; padding:14px 32px 18px; background:rgba(8,22,31,.97); border-top:1px solid rgba(114,198,197,.35); }
 .away-deploy p { margin:0 0 8px; font-size:11px; }
 .away-deploy .exp-button { margin:0; }
+.away-deploy .exp-text-button { margin-left:14px; }
 @media(max-width:760px) {
   .away-roster { grid-template-columns:1fr; }
   .away-deploy { bottom:-22px; margin:14px -22px -22px; padding:12px 22px 16px; }
