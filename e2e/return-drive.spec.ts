@@ -43,6 +43,22 @@ test('field test → final research → construction → continue exploring → 
   await page.screenshot({ path: testInfo.outputPath('return-drive-workshop.png'), fullPage: true })
   await page.getByRole('button', { name: 'Return home', exact: true }).click()
   await page.getByRole('button', { name: 'Activate Return Drive', exact: true }).click()
+  // The rift sends the Sovereign: hold it off, paused, one second at a time, until the drive takes hold.
+  await expect(page.getByRole('heading', { name: 'The rift will not let us go.', exact: true })).toBeVisible()
+  await page.screenshot({ path: testInfo.outputPath('finale-contact.png'), fullPage: true })
+  await page.getByRole('button', { name: 'Battle stations · enter battle paused', exact: true }).click()
+  const skip = page.getByRole('button', { name: 'Skip briefing' })
+  if (await skip.isVisible()) await skip.click()
+  await page.getByRole('button', { name: 'Decrease weapons power' }).click()
+  await page.getByRole('button', { name: 'Increase engines power' }).click()
+  await page.getByRole('button', { name: 'Spin up the Return Drive · engines required' }).click()
+  const report = page.getByRole('button', { name: 'Make the last jump', exact: true })
+  for (let i = 0; i < 120 && !(await report.isVisible()); i++) {
+    const step = page.getByRole('button', { name: 'Advance 1 second', exact: true })
+    if (await step.isVisible()) await step.click()
+    else await page.waitForTimeout(250)
+  }
+  await report.click()
   await expect(page.getByRole('heading', { name: 'A familiar sky.', exact: true })).toBeVisible()
   await page.screenshot({ path: testInfo.outputPath('home-ending.png'), fullPage: true })
   await page.reload()

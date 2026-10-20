@@ -113,7 +113,8 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  | { type: 'return-home' }
+  /** `finale: 1` (save version 12): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
   const galaxy = generateGalaxy(createRng(seed)); galaxy.seed = seed
@@ -451,7 +452,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (state.driveTest !== 'calibrating') return 'Begin the prototype test first'
       if (!['remote', 'shielded'].includes(action.approach)) return 'Unknown test approach'
       return action.approach === 'shielded' && state.hull <= 10 ? 'Requires more than 10 hull; use the remote test' : null
-    case 'return-home': return state.built.includes('return-drive') ? null : 'Construct the final Return Drive first'
+    case 'return-home': return action.finale !== undefined && action.finale !== 1 ? 'Unknown return rules' : state.built.includes('return-drive') ? null : 'Construct the final Return Drive first'
     default: return 'Unknown action'
   }
 }
@@ -722,12 +723,19 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       const battle = state.shipBattle!
       // Missiles spent stay spent; a station's escort Hellions are kept only for an escort carried through.
       const carried = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)
-      if (battle.rules === 2) next.missiles = battle.kind === 'interception' || carried ? battle.missiles : Math.min(state.missiles, battle.missiles)
+      if (battle.rules === 2) next.missiles = battle.kind || carried ? battle.missiles : Math.min(state.missiles, battle.missiles)
       // The voyage's first real exchange of fire has happened once a rules-2 battle ran its clock.
       if (battle.rules === 2 && battle.time > 0) next.fought = true
       if (state.hardcore && battle.result === 'disabled') {
         next.outcome = 'lost'; next.hull = 0; next.lastShipBattle = battle; next.shipBattle = null; next.signalAfterBattle = undefined
         message = 'Main power never comes back. There is no tow out here. The Lodestar is lost with all hands.'; break
+      }
+      if (battle.kind === 'finale') {
+        next.lastShipBattle = battle; next.shipBattle = null
+        if (['victory', 'fled', 'yielded'].includes(battle.result!)) {
+          next.hull = battle.hull; next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'
+        } else { next.hull = Math.max(1, battle.hull); days = 3; message = 'Three days adrift before main power returns. The Return Drive is intact; it can be tried again.' }
+        break
       }
       if (battle.kind === 'interception') {
         const spoils = interceptionSpoils(battle)
@@ -1005,6 +1013,10 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       if (action.approach === 'shielded') next.hull -= 10
       message = 'The probe returns with matching timestamps. For the first time, the crew sees a route home. Prototype test complete; Drive Stabilisation is now possible.'; break
     case 'return-home':
+      if (action.finale) {
+        next.shipBattle = createShipBattle(`${state.seed}:finale:${state.day}`, state.at, SHIP_BY_ID['sovereign']!, state.hull, hullCapacity(state), battleUpgrades(state), BATTLE_RULES, 'finale', state.missiles, state.armoury, BASE_REACTOR + state.reactorUpgrades)
+        message = 'The Return Drive spins up, and the rift sends something to stop us.'; break
+      }
       next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'; break
   }
   next.day += days

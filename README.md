@@ -112,6 +112,10 @@ Each station's **armoury** stocks two of five weapons (Burst laser II, Heavy
 laser, Twin Hellion, Ion blast II, Breach missile) for two spare hardpoints. Missiles are a finite magazine, sold at
 stations. More weapons than the reactor can power is the point.
 
+**The way home** is a fight. Spinning up the Return Drive draws the Ashen
+Sovereign out of the rift: survive forty seconds while the drive takes hold, with
+its gunners hunting your engines, or break it.
+
 **Hardcore** (a checkbox on the title screen): losing the ship in battle ends the
 voyage. There is no tow home, and raiders show no mercy to a wreck.
 

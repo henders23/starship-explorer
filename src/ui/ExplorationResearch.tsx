@@ -167,10 +167,10 @@ function DriveTestDialog({ state, dispatch }: { state: Campaign; dispatch: (acti
 export function ReturnHomeScene({ state, dispatch, onClose }: { state: Campaign; dispatch: (action: CampaignAction) => void; onClose: () => void }) {
   useDialogDismiss(onClose)
   return <div className="exp-modal-backdrop"><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Return home confirmation">
-    <span className="exp-eyebrow">ISS LODESTAR / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Activating it ends this voyage. You can also stay and continue exploring.</p>
+    <span className="exp-eyebrow">ISS LODESTAR / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Spinning it up will tear at the rift, and the rift will answer. Survive long enough for the drive to take hold, or destroy what comes, and the voyage ends at home. You can also stay and continue exploring.</p>
     {state.survivorArc&&state.survivorArc.stage!=='complete'&&<p>Someone left behind remains unfinished. You may return home without completing this request.</p>}
     {state.relayArc && state.relayArc.stage!=='complete' && <p>The Long Relay remains unfinished. Returning home leaves Edda or Tarek waiting for a reply; this optional mission does not block departure.</p>}
-    <ResearchAction state={state} dispatch={dispatch} action={{ type: 'return-home' }} primary>Activate Return Drive</ResearchAction>
+    <ResearchAction state={state} dispatch={dispatch} action={{ type: 'return-home', finale: 1 }} primary>Activate Return Drive</ResearchAction>
     <button className="exp-button" onClick={onClose}>Keep exploring</button>
   </section></div>
 }
@@ -179,6 +179,7 @@ export function ExplorationEnding({ state, onExit }: { state: Campaign; onExit: 
   return <div className="exp-modal-backdrop"><section className="exp-modal exp-ending" role="dialog" aria-modal="true" aria-label="Voyage complete">
     <span className="exp-eyebrow">VOYAGE COMPLETE / DAY {state.day}</span><h2>A familiar sky.</h2>
     <p>At first, nobody says anything. Then the navigation console finds a star with a name the crew learned at school.</p>
+    {state.lastShipBattle?.kind === 'finale' && <p>{state.lastShipBattle.result === 'victory' ? 'Behind them, the Ashen Sovereign is a cloud of cooling metal at the mouth of the rift.' : state.lastShipBattle.result === 'yielded' ? 'Behind them, the Ashen Sovereign drifts dark at the mouth of the rift, its crew watching them go.' : 'Behind them, the Ashen Sovereign is still firing into the place where the Lodestar used to be.'}{state.hardcore ? ' A hardcore voyage, brought home.' : ''}</p>}
     <p>Morozova checks the reading twice. Vale lets her finish. “Send our identification,” he says. “Tell them we’re home.”</p>
     <div className="exp-ending-stats"><span><b>{state.visited.length}</b>{plural(state.visited.length, 'system')} visited</span><span><b>{state.findings.length}</b>scientific {plural(state.findings.length, 'source')}</span><span><b>{state.research.completed.length}</b>{plural(state.research.completed.length, 'project')} completed</span></div>
     <p>{state.findings.some((f) => f.sourceName) ? 'The knowledge shared by distant stations travelled home with you.' : 'The observations and recovered machinery that made the journey possible are secured in the science archive.'}</p>

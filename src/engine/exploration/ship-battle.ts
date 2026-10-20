@@ -87,7 +87,7 @@ export interface ShipBattle {
   /** Rules 2: reactor power, including yard upgrades. */
   reactor?: number
   /** An interception on arrival from a jump (rules 2 only); absent means a station escort. */
-  kind?: 'interception'
+  kind?: 'interception' | 'finale'
   events?: BattleEvent[]; eventSeq?: number
 }
 export type ShipOrder =
@@ -132,6 +132,14 @@ const TEXT = {
     yielded: 'The hostile captain powers down and offers their hold for their lives. We take the cargo and let them go.',
     escaped: 'Their drive flares and they are gone, and their hold with them.',
   },
+  finale: {
+    open: 'The Return Drive spins up and the rift answers. Something vast hauls itself out of the dark across our bow.',
+    victory: 'The Sovereign comes apart without a sound. Nothing stands between the Lodestar and home.',
+    disabled: 'Main power fails. The Sovereign leaves us drifting at the edge of the rift; the Return Drive will need another try.',
+    fled: 'The Return Drive takes hold. The Sovereign, the rift and the strange sky fall away behind us.',
+    paid: '', evaded: '', caught: '', escaped: '',
+    yielded: 'The Sovereign powers down and lets us pass. Home is open.',
+  },
 }
 const text = (b: ShipBattle) => TEXT[b.kind ?? 'escort']
 /** Weapons a station armoury can sell, mounted in rules-2 battles beside the standard pair. */
@@ -145,7 +153,7 @@ export const ARMOURY: Record<ArmouryWeaponId, { weapon: Omit<ShipWeapon, 'charge
 }
 /** At most this many bought weapons ride beside the standard pair. */
 export const ARMOURY_SLOTS = 2
-export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception', missiles = 4, armoury: ArmouryWeaponId[] = [], reactor = BASE_REACTOR): ShipBattle {
+export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception' | 'finale', missiles = 4, armoury: ArmouryWeaponId[] = [], reactor = BASE_REACTOR): ShipBattle {
   const weapons: ShipWeapon[] = [
     { kind: 'laser', name: 'Pulse laser', cost: 1, period: 8, charge: 0, damage: 1, shots: 2, mode: 'auto', target: 'weapons' },
     { kind: 'missile', name: 'Hellion missile', cost: 1, period: 13, charge: 0, damage: 2, shots: 1, mode: 'off', target: 'weapons' },
@@ -171,9 +179,13 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
     for (const w of b.weapons) w.target = cls.shields ? 'shields' : 'weapons'
     b.crew = (Object.keys(CREW_STATIONS) as CrewId[]).map((id) => ({ id, room: CREW_STATIONS[id], moving: 0, recovery: 0, rest: 0, hp: CREW_HP, work: 0 }))
-    const posts: EnemyRoomKey[] = cls.tier >= 2 ? ['helm', 'weapons', 'shields', 'engines'] : ['helm', 'weapons', 'shields']
-    b.enemy.crew = posts.map((room) => ({ room, home: room, moving: 0, hp: ENEMY_CREW_HP, work: 0 }))
+    // The Sovereign carries a full complement, two hardened hands to every room.
+    const posts: EnemyRoomKey[] = kind === 'finale' ? ['helm', 'weapons', 'shields', 'engines', 'helm', 'weapons', 'shields', 'engines']
+      : cls.tier >= 2 ? ['helm', 'weapons', 'shields', 'engines'] : ['helm', 'weapons', 'shields']
+    b.enemy.crew = posts.map((room) => ({ room, home: room, moving: 0, hp: kind === 'finale' ? FINALE_CREW_HP : ENEMY_CREW_HP, work: 0 }))
     if (kind) { b.kind = kind; b.log = [TEXT[kind].open] }
+    // The rift has rebuilt the Sovereign around itself: half as much hull again.
+    if (kind === 'finale') b.enemy.hull = b.enemy.maxHull = Math.round(cls.hull * FINALE_HULL)
     for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
   }
   return b
@@ -205,6 +217,11 @@ export const burning = (r: BattleRoom) => (r.fire ?? 0) > 0
 export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1 : 1) * (b.crew && manned(b, 'weapons') ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
 /** Charge gained per second by each hostile gun. */
 export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
+/** Escape work a retreat needs; the finale's retreat is the Return Drive itself, far more work. */
+export const escapeWorkNeeded = (b: ShipBattle) => b.kind === 'finale' ? FINALE_DRIVE_WORK : 10
+export const FINALE_HULL = 1.5
+export const FINALE_CREW_HP = 6
+export const FINALE_DRIVE_WORK = 60
 /** Rules-2 interceptions: below this share of hull, the hostile spins up its FTL drive. */
 export const ENEMY_JUMP_AT = 0.3
 /** FTL work they need; each second adds a sixth of their working engine rooms while the helm is manned (twenty seconds at full engines). */
@@ -223,6 +240,7 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
   if (!a || typeof a !== 'object') return 'Invalid bridge order'
   if (b.phase === 'report') return 'Acknowledge the encounter report'
   if (b.phase === 'contact') {
+    if (b.kind === 'finale') return a.type === 'engage' ? null : 'There is no bargaining with the Sovereign'
     if (a.type === 'hail') return b.hailed ? 'Channel already open' : null
     if (a.type === 'negotiate') return b.hailed && b.upgrades.contextual ? null : 'Hail first; requires Contextual Translation'
     if (a.type === 'pay') return b.hailed ? null : 'Hail to learn their price'
@@ -340,7 +358,8 @@ function burn(b: ShipBattle, side: 'player' | 'enemy') {
 }
 /** Rules 2: hostile gunners favour their doctrine's compartment, three to one. */
 function enemyTarget(b: ShipBattle): EnemyRoomKey {
-  const favourite = PREFERRED_TARGET[SHIP_BY_ID[b.classId]!.layout]
+  // The Sovereign knows what the Return Drive needs: once it spins up, its gunners hunt our engines.
+  const favourite = b.kind === 'finale' && b.escape ? 'engines' : PREFERRED_TARGET[SHIP_BY_ID[b.classId]!.layout]
   return createRng(`${b.seed}:target:${b.rolls++}`).pick([favourite, favourite, ...SHIP_ROOMS])
 }
 /** Rules 2: seconds until hostile gun `i` fires at its current rate, or null if it is not charging. */
@@ -426,7 +445,7 @@ function tick(b: ShipBattle) {
   if (b.events) b.events = []
   if (b.escape) {
     b.escapeWork += Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2
-    if (b.escapeWork >= 10) { finish(b, 'fled', text(b).fled); return }
+    if (b.escapeWork >= escapeWorkNeeded(b)) { finish(b, 'fled', text(b).fled); return }
   }
   b.shield = Math.min(b.shield, shieldCapacity(b)); b.enemy.shield = Math.min(b.enemy.shield, enemyShieldCapacity(b))
   b.shieldWork += (b.upgrades.adaptive ? 1.2 : 1) + (b.crew && manned(b, 'shields') ? 0.25 : 0)

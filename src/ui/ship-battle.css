@@ -354,3 +354,4 @@
 .space-enemy-ftl small { color:#c3a8ff!important; }
 @keyframes space-ftl-pulse { from { opacity:.65; } to { opacity:1; } }
 @media (prefers-reduced-motion: reduce) { .space-enemy-ftl .space-meter i { animation:none; } }
+.ship-contact.finale { background:radial-gradient(ellipse at 30% 45%,rgba(120,50,200,.35),transparent 60%),linear-gradient(90deg,rgba(10,4,20,.55),rgba(8,4,16,.88)),url('/assets/galaxy/expedition-nebula.webp') center/cover #07040d; }

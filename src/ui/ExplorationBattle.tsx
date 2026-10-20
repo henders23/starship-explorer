@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock, ESCORT_MISSILES, EVADE_FUEL, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
-import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
+import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, escapeWorkNeeded, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { BattleCrew, BattleEvent, EnemyCrew, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
@@ -79,6 +79,16 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
   }
   const intercept = b.kind === 'interception'
   const place = state.galaxy.systems.find((s) => s.id === b.locationId)?.name
+  if (b.kind === 'finale') return <main className="exp-deck ship-contact finale"><section className="ship-contact-frame">
+    <div className="ship-contact-art"><img className="reconstructed" data-testid="contact-recon-art" src={contactArtForClass(cls.id, cls.sprite)} alt={'Top-down sensor reconstruction of ' + cls.name} /><span>SENSOR RECONSTRUCTION / {cls.layout.toUpperCase()} HULL</span></div>
+    <div className="ship-contact-copy"><span className="exp-eyebrow">The way home / {place}</span><h1>The rift will not let us go.</h1><h2>{cls.name}</h2>
+      <CrewLine person="vale" compact>Every hand to battle stations. Hold it off until the Return Drive takes hold, or break it. Either way, we are going home.</CrewLine>
+      <div className="ship-contact-stats"><span><b>{b.enemy.maxHull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{b.enemy.crew?.length ?? 0}</b>crew</span><span><b>{cls.evade}%</b>evasion</span></div>
+      <p className="ship-contact-response">{b.log[0]}</p>
+      <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull and {b.missiles} {b.missiles === 1 ? 'missile' : 'missiles'}. Spinning up the Return Drive takes {Math.ceil(escapeWorkNeeded(b) / 1.5)} seconds at full engines, and once it starts, they will go for our engines.</p>
+      <div className="ship-contact-options">{button({ type: 'engage' }, 'Battle stations · enter battle paused', true)}</div><small>{saved ? 'Contact saved' : 'Autosave unavailable — keep this tab open'}</small>
+    </div>
+  </section></main>
   return <main className="exp-deck ship-contact"><section className="ship-contact-frame">
     <div className="ship-contact-art"><img className="reconstructed" data-testid="contact-recon-art" src={contactArtForClass(cls.id, cls.sprite)} alt={'Top-down sensor reconstruction of ' + cls.name} /><span>SENSOR RECONSTRUCTION / {cls.layout.toUpperCase()} HULL</span></div>
     <div className="ship-contact-copy"><span className="exp-eyebrow">{intercept ? `Hostile interception / ${place}` : 'Survey escort / interception'}</span><h1>{intercept ? 'Weapons lock on arrival.' : 'A ship across our bow.'}</h1><h2>{cls.name}</h2>
@@ -105,6 +115,14 @@ function ReportScreen({ b, dispatch, saved, hardcore }: { b: ShipBattle; dispatc
     <button className="exp-button primary" onClick={() => dispatch({ type: 'ship-debrief' })}>Final log entry</button><small>{saved ? 'Report saved' : 'Autosave unavailable'}</small>
   </section></main>
   const intercept = b.kind === 'interception'
+  if (b.kind === 'finale') {
+    const home = ['victory', 'fled', 'yielded'].includes(b.result!)
+    return <main className="exp-deck ship-report"><section className="exp-modal exp-ending"><span className="exp-eyebrow">The way home / {b.time} combat seconds</span><h2>{b.result === 'victory' ? 'The Sovereign is broken.' : home ? 'The drive takes hold.' : 'Adrift at the edge.'}</h2>
+      <p>{b.log.at(-1)}</p><div className="exp-ending-stats"><span><b>{b.hull}</b>hull remaining</span><span><b>{b.enemy.hull}</b>Sovereign hull</span><span><b>{b.missiles}</b>missiles aboard</span></div>
+      <p>{home ? 'Acknowledge to make the last jump.' : 'Three days pass before main power returns. The Return Drive can be tried again.'}</p>
+      <button className="exp-button primary" onClick={() => dispatch({ type: 'ship-debrief' })}>{home ? 'Make the last jump' : 'Acknowledge'}</button><small>{saved ? 'Report saved' : 'Autosave unavailable'}</small>
+    </section></main>
+  }
   const title = intercept
     ? { victory: b.enemy.crewKilled ? 'A silent ship, ours to strip.' : 'Wreckage and salvage.', negotiated: 'Paid and on our way.', evaded: 'Lock broken.', yielded: 'Their hold, our lives.', fled: 'Lost them in the wake.', escaped: 'The prize got away.', disabled: 'A tow back to port.', cancelled: '' }[b.result!]
     : { victory: 'The lane is clear.', negotiated: 'No shots fired.', evaded: 'A quiet passage.', yielded: 'Weapons standing down.', fled: 'The tender turns back.', escaped: 'The lane is clear.', disabled: 'A tow back to port.', cancelled: 'Another captain, another day.' }[b.result!]
@@ -383,7 +401,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
       {live && <>
         <button className="exp-button primary" onClick={toggleRunning} title="Space">{running ? 'Pause battle' : 'Resume battle'}</button>
         <button className="exp-button" disabled={running} onClick={() => { reset(); order({ type: 'advance', seconds: 1 }) }}>Advance 1 second</button>
-        {button({ type: 'retreat', active: !b.escape }, b.escape ? `Cancel retreat · ${Math.floor(b.escapeWork * 10)}% charged` : 'Charge retreat · engines required')}
+        {b.kind === 'finale'
+          ? button({ type: 'retreat', active: !b.escape }, b.escape ? `Hold the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : 'Spin up the Return Drive · engines required')
+          : button({ type: 'retreat', active: !b.escape }, b.escape ? `Cancel retreat · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% charged` : 'Charge retreat · engines required')}
       </>}
       <span className="space-hint" aria-hidden="true">Space pause · 1–{b.weapons.length} weapon · F fire · V volley</span>
       {live && b.rules === 2 && <button className="exp-button" aria-pressed={coach !== null} onClick={() => { setRunning(false); setCoach(coach === null ? 0 : null) }}>Briefing</button>}
