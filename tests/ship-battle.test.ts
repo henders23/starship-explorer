@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom, enemyGunEta, playerEvasion, PREFERRED_TARGET, SHIP_ROOMS } from '../src/engine/exploration/ship-battle.js'
+import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom, enemyEvasion, enemyGunEta, playerEvasion, PREFERRED_TARGET, SHIP_ROOMS } from '../src/engine/exploration/ship-battle.js'
 import type { BattleEvent, BattleUpgrades, ShipBattle, ShipOrder } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
@@ -285,9 +285,24 @@ describe('rules 2: projectiles, flight time and fires', () => {
     b = apply(b, { type: 'power', system: 'engines', amount: 3 })
     expect(shipOrderLock(b, { type: 'power', system: 'shields', amount: 1 })).toBeNull()
     expect(reduceShipBattle(b, { type: 'power', system: 'weapons', amount: 3 })).toBe(b)
-    b = quiet(v2()); b.enemy.rooms.weapons.hp = 1; b.enemy.rooms.weapons.max = 4; b.enemy.rooms.engines.hp = 1; b.weapons.forEach((w) => { w.mode = 'off' })
-    b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 3 })
-    expect(b.enemy.rooms.weapons.hp).toBe(2); expect(b.enemy.rooms.engines.hp).toBe(1)
+    // Their crew patch the room they stand in; an idle hand runs to unattended damage.
+    b = quiet(v2()); b.weapons.forEach((w) => { w.mode = 'off' })
+    b.enemy.rooms.helm.hp = b.enemy.rooms.helm.max; b.enemy.rooms.weapons.hp = 1; b.enemy.rooms.engines.hp = 1
+    b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 5 })
+    expect(b.enemy.rooms.weapons.hp).toBe(2)
+    expect(b.enemy.crew!.some((c) => c.room === 'engines')).toBe(true)
+  })
+  it('gives them a crew who man the helm and can all be killed', () => {
+    let b = v2(); expect(enemyEvasion(b)).toBeGreaterThan(0)
+    b.enemy.crew!.find((c) => c.room === 'helm')!.hp = 0
+    expect(enemyEvasion(b)).toBe(0)
+    // Everyone in the weapons room (so nobody is at the helm to dodge), one hit from death.
+    b = v2(); b.weapons.forEach((w) => { w.mode = 'off' }); b.enemy.shield = 0
+    for (const c of b.enemy.crew!) { c.hp = 1; c.room = 'weapons'; c.home = 'weapons' }
+    b.weapons[1]!.mode = 'hold'; b.weapons[1]!.charge = b.weapons[1]!.period; b.weapons[1]!.target = 'weapons'
+    b = apply(b, { type: 'fire', index: 1 }); b = apply(b, { type: 'advance', seconds: 2 })
+    expect(b.result).toBe('victory'); expect(b.enemy.crewKilled).toBe(true)
+    expect(b.events!.filter((e) => e.type === 'enemy-crew' && e.dead).length).toBe(b.enemy.crew!.length)
   })
   it('keeps rules-1 battles free of projectiles and fires', () => {
     let b = battle(); b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 5 })

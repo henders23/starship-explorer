@@ -88,7 +88,7 @@
 .space-room { position:absolute; display:flex; flex-direction:column; justify-content:center; align-items:center; gap:2px; min-height:32px; padding:2px; border:1px solid rgba(119,188,190,.75); background:rgba(8,34,40,.3); color:#c8fbf1; cursor:pointer; text-shadow:0 1px 2px #000,0 0 6px #000; transition:background .2s,border-color .2s; overflow:hidden; }
 .space-room:hover { background:rgba(20,70,76,.7); border-color:#c8fbf1; }
 .space-room strong { position:relative; text-transform:uppercase; font-size:9px; font-weight:400; letter-spacing:.08em; }
-.space-room>span:not(.space-flames):not(.space-markers):not(.space-room-crew):not(.space-threat) { position:relative; font-size:10px; }
+.space-room>span:not(.space-flames):not(.space-markers):not(.space-room-crew):not(.space-threat):not(.space-foes) { position:relative; font-size:10px; }
 .space-sys-icon { position:relative; opacity:.9; }
 .space-room-pips { display:flex; gap:2px; }
 .space-room-pips i { width:7px; height:4px; background:#6b2a2a; }
@@ -342,3 +342,8 @@
 .space-modes button { padding:4px 0; }
 .space-unattended { position:relative; padding:0 4px; background:#f2b34b; color:#1a1205; font-size:8px; font-style:normal; font-weight:700; letter-spacing:.08em; animation:space-blink 1.2s steps(2) infinite; }
 @media(prefers-reduced-motion:reduce) { .space-unattended { animation:none; } }
+
+/* Their crew: pips in their rooms, dimmer as they are hurt. */
+.space-foes { position:absolute; left:3px; top:3px; display:flex; gap:3px; pointer-events:none; }
+.space-foes i { width:7px; height:7px; border-radius:50%; background:#ff9a6a; box-shadow:0 0 5px #ff7a3a; opacity:calc(.35 + .65 * var(--hp)); }
+.space-foes i.moving { outline:1px dashed #ffcf8a; background:transparent; }

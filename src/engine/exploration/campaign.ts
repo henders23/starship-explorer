@@ -508,7 +508,9 @@ export function interceptionSpoils(battle: ShipBattle): { materials: number; cre
   if (!found) return null
   // Heavier hulls carry richer holds.
   const heavy = (SHIP_BY_ID[battle.classId]?.tier ?? 1) >= 2
-  const base = heavy ? { ...found, materials: Math.round(found.materials * 1.5), credits: Math.round(found.credits * 1.5) } : found
+  // A ship taken by killing its crew drifts intact: its holds are fuller still.
+  const scale = (heavy ? 1.5 : 1) * (battle.enemy.crewKilled ? 1.5 : 1)
+  const base = { ...found, materials: Math.round(found.materials * scale), credits: Math.round(found.credits * scale) }
   const roll = createRng(`${battle.seed}:salvage`).int(100), armed = battle.enemy.rooms.weapons.hp > 0
   if (roll < (armed ? 50 : 30)) return { ...base, missiles: 3, find: 'An intact Hellion rack' }
   if (roll < 70) return { ...base, fuel: base.fuel + 2, find: 'Their fuel bunkers held' }
