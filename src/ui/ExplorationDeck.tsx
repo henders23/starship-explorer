@@ -263,7 +263,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
       {tab === 'lab' && <ExplorationResearch state={state} dispatch={dispatch} onShowSystem={locate} status={saveStatus} />}
       {tab === 'archive' && <Discoveries state={state} command={command} onLocate={locate} status={saveStatus} />}
     </div>
-    <div className={`exp-log${freshLog ? ' fresh' : ''}`} role="status" aria-live="polite" inert={modalOpen}>{(freshLog ?? state.log.slice(-1)).map((line, i) => <p key={i}>{line}</p>)}</div>
+    <div className={`exp-log${freshLog ? ' fresh' : ''}`} role="status" aria-live="polite" inert={modalOpen}>{(freshLog ?? state.log.slice(-1)).map((line, i) => <p key={i}>{line}</p>)}
+      {freshLog && labIdle && <p className="exp-log-nag">The research lab is idle: no project is advancing.</p>}</div>
     {teamOpen && <AwayTeam state={state} locationId={deploySite} dispatch={dispatch} onClose={() => setTeamOpen(false)} />}
     <DriveTestScene state={state} dispatch={dispatch} />
     {signalOpen && <SignalScene state={state} shown={signalShown} dispatch={dispatch}

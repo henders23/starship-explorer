@@ -382,3 +382,7 @@
 .exp-hardcore-mark { display:inline-block; margin-left:8px; padding:1px 5px; border:1px solid #ff6b5e; color:#ff9a8e; font-size:8px; letter-spacing:.12em; vertical-align:middle; }
 .exp-lost h2 { color:#ffb3a8; }
 .exp-lost { border-color:#a8574d!important; }
+.exp-log-nag { margin-top:6px!important; color:#f2b34b!important; }
+.exp-atlas-dock { fill:#7fe3c4; stroke:#04161c; stroke-width:1; }
+.exp-atlas-dock.evacuated { fill:#6c6478; }
+.exp-atlas-legend .dock { color:#7fe3c4; }
