@@ -4,6 +4,8 @@ import type { EnemyLayoutId, EnemyRoomKey, ShipClass } from '../combat/ships.js'
 
 export const SHIP_ROOMS: EnemyRoomKey[] = ['helm', 'weapons', 'shields', 'engines']
 export const REACTOR_POWER = 8
+/** Rules 2: hostile gun damage is stated for the old 100-hull scale; it lands scaled by kind. */
+export const INCOMING_DAMAGE: Record<ShipWeaponKind, number> = { laser: 0.67, missile: 0.5, ion: 0, beam: 0.67 }
 /** The longest single advance order; the campaign journal batches live seconds up to it. */
 export const MAX_ADVANCE_SECONDS = 5
 /**
@@ -67,8 +69,10 @@ export type ShipOrder =
   | { type: 'retreat'; active: boolean }
   | { type: 'accept-surrender' }
 const room = (hp: number): BattleRoom => ({ hp, max: hp, ionUntil: 0 })
-export function escortClass(seed: string, locationId: string, threat: number): ShipClass {
-  const ids = threat >= 2 ? ['carrion-jack', 'reaver'] : ['rust-queen', 'magpie']
+export function escortClass(seed: string, locationId: string, threat: number, rules: BattleRules = 1): ShipClass {
+  // Rules 2 keep the Reaver for the rift margin; threat-2 lanes see the Carrion Jack.
+  const ids = rules === 2 ? threat >= 3 ? ['carrion-jack', 'reaver'] : threat === 2 ? ['carrion-jack'] : ['rust-queen', 'magpie']
+    : threat >= 2 ? ['carrion-jack', 'reaver'] : ['rust-queen', 'magpie']
   return SHIP_BY_ID[createRng(`${seed}:${locationId}:escort-class`).pick(ids)]!
 }
 /** What the log says at each turn of an encounter, by kind. */
@@ -110,6 +114,10 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     log: ['The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.'], volley: null, shots: 0 }
   if (rules === 2) {
     b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0; b.enemy.aim = cls.guns.map(() => null)
+    // They were waiting with guns half charged, and our guns open on their shields:
+    // choosing the right compartment is the captain's first decision.
+    b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
+    for (const w of b.weapons) w.target = 'shields'
     if (kind) { b.kind = kind; b.log = [TEXT[kind].open] }
     for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
   }
@@ -203,6 +211,7 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
     log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} shield absorbs ${kind}.`); impact('shield'); return
   }
   if (kind === 'ion') { rooms[target].ionUntil = b.time + 6; log(b, `${to === 'player' ? 'Our' : 'Enemy'} ${target} ionised for six seconds.`); impact('ion'); return }
+  if (to === 'player' && b.rules === 2) damage = Math.round(damage * INCOMING_DAMAGE[kind])
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
   b.volley.damage = damage
@@ -325,8 +334,8 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
       if (roll(b, evadeChance(b))) finish(b, 'evaded', text(b).evaded)
       else {
         b.phase = 'battle'; log(b, text(b).caught)
-        // Rules 2: a failed run hands them the opening; their guns are half charged.
-        if (b.rules === 2) SHIP_BY_ID[b.classId]!.guns.forEach((g, i) => { b.enemy.charges[i] = g.time / 2 })
+        // Rules 2: a failed run hands them the opening; their guns are nearly charged.
+        if (b.rules === 2) SHIP_BY_ID[b.classId]!.guns.forEach((g, i) => { b.enemy.charges[i] = Math.max(b.enemy.charges[i]!, Math.floor(g.time * 0.75)) })
       }
       break
     case 'cancel': finish(b, 'cancelled', 'We decline the escort. The tender remains safely at the station.'); break

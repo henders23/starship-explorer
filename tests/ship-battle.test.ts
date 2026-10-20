@@ -236,11 +236,22 @@ describe('rules 2: projectiles, flight time and fires', () => {
     }
     expect(hits[PREFERRED_TARGET.raider]).toBeGreaterThan(Math.max(...SHIP_ROOMS.filter((k) => k !== PREFERRED_TARGET.raider).map((k) => hits[k] ?? 0)))
   })
-  it('gives the hostile half-charged guns after a failed evasion', () => {
+  it('opens with their guns half charged and ours aimed at their shields', () => {
+    const b = v2()
+    SHIP_BY_ID['carrion-jack']!.guns.forEach((g, j) => expect(b.enemy.charges[j]).toBe(Math.floor(g.time / 2)))
+    expect(b.weapons.map((w) => w.target)).toEqual(['shields', 'shields'])
+  })
+  it('scales incoming hull damage by weapon kind', () => {
+    let b = v2({}, 'carrion-jack'); b.shield = 0; b.rooms.helm.hp = 0; b.weapons[0]!.mode = 'off'
+    while (!b.events!.some((e) => e.type === 'impact' && e.side === 'enemy' && e.outcome === 'hit')) b = apply(b, { type: 'advance', seconds: 1 })
+    const hit = b.events!.find((e) => e.type === 'impact' && e.side === 'enemy' && e.outcome === 'hit')!
+    expect(hit.type === 'impact' && hit.damage).toBe(hit.type === 'impact' && hit.kind === 'missile' ? 3 : 2)
+  })
+  it('gives the hostile nearly charged guns after a failed evasion', () => {
     for (let i = 0; i < 30; i++) {
       const b = reduceShipBattle(createShipBattle(`run-${i}`, 'station', SHIP_BY_ID['carrion-jack']!, 100, 100, base, 2), { type: 'evade' })
       if (b.phase !== 'battle') continue
-      SHIP_BY_ID['carrion-jack']!.guns.forEach((g, j) => expect(b.enemy.charges[j]).toBe(g.time / 2))
+      SHIP_BY_ID['carrion-jack']!.guns.forEach((g, j) => expect(b.enemy.charges[j]).toBe(Math.floor(g.time * 0.75)))
       return
     }
     throw new Error('Every evasion succeeded')

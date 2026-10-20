@@ -15,7 +15,7 @@ import type { CombatSound } from './combat-sfx.js'
 
 export function EscortOffer({ state, locationId, dispatch }: { state: Campaign; locationId: string; dispatch: (a: CampaignAction) => void }) {
   const station = state.world.locations.find((s) => s.id === locationId)!
-  const cls = escortClass(state.seed, station.id, station.threat)
+  const cls = escortClass(state.seed, station.id, station.threat, BATTLE_RULES)
   const action: CampaignAction = { type: 'escort', locationId, rules: BATTLE_RULES }
   const lock = actionLock(state, action)
   return <div className="escort-offer"><span className="exp-eyebrow">Optional / survey escort</span><h3>A tender needs a clear lane.</h3>

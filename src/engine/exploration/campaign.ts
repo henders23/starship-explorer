@@ -539,7 +539,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'escort': {
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
-        escortClass(state.seed, station.id, station.threat), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1)
+        escortClass(state.seed, station.id, station.threat, action.rules ?? 1), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1)
       message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
     }
     case 'ship-order':
