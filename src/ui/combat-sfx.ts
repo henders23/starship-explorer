@@ -49,7 +49,7 @@ function audio(): AudioContext | null {
 }
 
 const readyListeners = new Set<() => void>()
-/** Calls `listener` once audio is running (now, if it already is). Returns an unsubscribe. */
+/** Calls `listener` whenever a gesture finds audio running (and now, if it already is). Returns an unsubscribe. */
 export function onAudioReady(listener: () => void) {
   readyListeners.add(listener)
   if (context?.state === 'running') listener()

@@ -19,8 +19,10 @@ const FIGHT = [[45, [57, 60, 64, 69]], [41, [57, 60, 65, 69]], [43, [55, 59, 62,
 const FINALE = [[38, [62, 65, 69, 74]], [46, [62, 65, 70, 74]], [36, [60, 64, 67, 72]], [45, [61, 64, 69, 73]]] as const
 
 let mode: ScoreMode = 'off', ambience: Ambience = 'off'
-let score: { bus: GainNode; filter: BiquadFilterNode; drones: OscillatorNode[]; pad: GainNode; timer: number; next: number; step: number } | null = null
-let wind: { bus: GainNode; nodes: AudioScheduledSourceNode[] } | null = null
+let score: { bus: GainNode; filter: BiquadFilterNode; drones: OscillatorNode[]; pad: GainNode; timer: number; next: number; step: number; stopping?: number } | null = null
+let wind: { bus: GainNode; nodes: AudioScheduledSourceNode[]; stopping?: number } | null = null
+/** Seconds a fade to silence takes before its nodes are stopped and dropped, so nothing idles in the background. */
+const RELEASE_MS = 2500
 
 function startScore() {
   const out = audioOut()
@@ -50,6 +52,8 @@ function schedule() {
   if (!out || !score) return
   const { context: c, noise } = out
   if (mode !== 'fight' && mode !== 'finale') { score.next = c.currentTime + 0.1; return }
+  // After a stall (a busy frame, a throttled background tab), skip ahead rather than play every missed note at once.
+  score.next = Math.max(score.next, c.currentTime + 0.02)
   const finale = mode === 'finale', beat = 60 / (finale ? 132 : 108) / 2, bars = finale ? FINALE : FIGHT
   const note = (f: number, at: number, dur: number, vol: number, type: OscillatorType = 'triangle') => {
     const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f
@@ -78,7 +82,18 @@ function schedule() {
 function applyScore() {
   const out = audioOut()
   if (!out) return
-  if (mode === 'off') { if (score) score.bus.gain.setTargetAtTime(0.0001, out.context.currentTime, 0.4); return }
+  if (mode === 'off') {
+    if (score && score.stopping === undefined) {
+      score.bus.gain.setTargetAtTime(0.0001, out.context.currentTime, 0.4)
+      const ending = score
+      ending.stopping = window.setTimeout(() => {
+        window.clearInterval(ending.timer); for (const o of ending.drones) o.stop(); ending.bus.disconnect()
+        if (score === ending) score = null
+      }, RELEASE_MS)
+    }
+    return
+  }
+  if (score?.stopping !== undefined) { window.clearTimeout(score.stopping); score.stopping = undefined }
   if (!score) { startScore(); return }
   const now = out.context.currentTime
   score.bus.gain.setTargetAtTime(mode === 'tension' ? 0.35 : mode === 'fight' ? 0.55 : 0.7, now, 0.6)
@@ -90,7 +105,15 @@ function applyAmbience() {
   const out = audioOut()
   if (!out) return
   const { context: c, master, noise } = out
-  if (ambience === 'off') { if (wind) wind.bus.gain.setTargetAtTime(0.0001, c.currentTime, 0.8); return }
+  if (ambience === 'off') {
+    if (wind && wind.stopping === undefined) {
+      wind.bus.gain.setTargetAtTime(0.0001, c.currentTime, 0.8)
+      const ending = wind
+      ending.stopping = window.setTimeout(() => { for (const n of ending.nodes) n.stop(); ending.bus.disconnect(); if (wind === ending) wind = null }, RELEASE_MS + 1500)
+    }
+    return
+  }
+  if (wind?.stopping !== undefined) { window.clearTimeout(wind.stopping); wind.stopping = undefined }
   if (!wind) {
     const bus = c.createGain(); bus.gain.value = 0.0001; bus.connect(master)
     const sub = [27.5, 41.2].map((f) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; g.gain.value = 0.12; o.connect(g); g.connect(bus); o.start(); return o })

@@ -183,7 +183,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const live = b.phase === 'battle' && !outro
   const [running, setRunning] = useState(false)
   // The score follows the clock: a drone while paused, the full cue while shots fly, the run home its own.
-  useEffect(() => { setScore(!live ? 'off' : b.kind === 'finale' ? 'finale' : running ? 'fight' : 'tension') }, [live, running, b.kind])
+  useEffect(() => { setScore(!live ? 'off' : !running ? 'tension' : b.kind === 'finale' ? 'finale' : 'fight') }, [live, running, b.kind])
   useEffect(() => () => setScore('off'), [])
   const [selectedWeapon, setWeapon] = useState(0)
   /** The order being given: a line runs from its origin (Repair button, or an officer) to the cursor. */
@@ -410,7 +410,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   return <main className={`exp-deck space-battle${running && live ? '' : ' halted'}${critical ? ' critical' : ''}`} data-coach={live && step ? step.focus : undefined} onPointerDown={unlockCombatAudio}>
     <header className="space-header">
       <span className={`space-clock-state ${running && live ? 'live' : ''}`} role="status">{!live ? 'ENGAGEMENT OVER' : running ? 'LIVE' : 'PAUSED'} <small>{b.time}s</small></span>
-      {live && b.enemy.jump !== undefined && <span className="space-ftl-alert" role="status">THEY ARE JUMPING · {Math.floor(b.enemy.jump * 100 / ENEMY_JUMP_WORK)}%</span>}
+      {live && b.enemy.jump !== undefined && <span className="space-ftl-alert" aria-hidden="true">THEY ARE JUMPING · {Math.floor(b.enemy.jump * 100 / ENEMY_JUMP_WORK)}%</span>}
       {live && <>
         <button className="exp-button primary" onClick={toggleRunning} title="Space">{running ? 'Pause battle' : 'Resume battle'}</button>
         <button className="exp-button" disabled={running} onClick={() => { reset(); order({ type: 'advance', seconds: 1 }) }}>Advance 1 second</button>

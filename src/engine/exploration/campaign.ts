@@ -107,7 +107,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 15: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 16: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -117,7 +117,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 15): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 16): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -321,6 +321,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     case 'ship-order':
       if (!state.shipBattle) return 'No ship encounter in progress'
       if (action.order?.type === 'evade' && state.shipBattle.kind === 'interception' && state.fuel < EVADE_FUEL) return `Requires ${EVADE_FUEL} fuel to break their lock`
+      if (action.order?.type === 'retreat' && action.order.active && state.shipBattle.kind === 'interception' && state.fuel < EVADE_FUEL) return `Requires ${EVADE_FUEL} fuel for an emergency jump`
       if (action.order?.type === 'pay' && state.exploration.credits < state.shipBattle.toll) return `Requires ${state.shipBattle.toll} credits`
       return shipOrderLock(state.shipBattle, action.order)
     case 'ship-debrief': return state.shipBattle?.phase === 'report' ? null : 'Finish the encounter first'
@@ -654,8 +655,9 @@ export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const torn = rifted(state, systemId), reaches = riftReaches(state, systemId)
   const front = !torn && reaches !== null ? ` The rift reaches it on day ${reaches}.` : ''
   const chance = Math.max(0, (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]]) - (fitted(state, 'countermeasures') ? 8 : 0))
+  if (torn) return `Rift-touched: interception risk ${chance}% from heavy hulls, wreck or not. Stations have evacuated.`
   if (state.hull <= WRECK_HULL && chance && !state.hardcore) return 'Hostile space, but our hull is too damaged to be worth attacking.' + front
-  if (torn) return `Rift-touched: interception risk ${chance}% from heavy hulls. Stations have evacuated.`
+  if (REGIONAL_THREAT[system.region] === 0 && chance && state.day + 1 < SHALLOWS_GRACE_DAYS && systemId !== state.galaxy.start) return `Quiet for now: raiders reach the Shallows from day ${SHALLOWS_GRACE_DAYS}.` + front
   if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.' + front
   const who = state.galaxy.factions.find((f) => f.id === system.faction)
   return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}.` + front
@@ -908,7 +910,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     }
     case 'begin':
       next.rift = { from: state.day }
-      message = `The rift that brought us here is widening behind us. It reaches this system on day ${riftReaches(next, state.at)}; only the galaxy's outer rim will be spared.`; break
+      message = riftReaches(next, state.at) === null ? 'The rift that brought us here is widening behind us; it will spend itself before it reaches this far.'
+        : `The rift that brought us here is widening behind us. It reaches this system on day ${riftReaches(next, state.at)}; only the galaxy's outer rim will be spared.`; break
     case 'hardcore':
       next.hardcore = true; message = 'Hardcore voyage: if the Lodestar is lost in battle, there is no tow home.'; break
     case 'buy-weapon':
@@ -935,7 +938,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', tier: 'survey', systemId: s.id }, s.id)
       }
       // Bait springs on anyone worth robbing; a near-wreck is left alone, as on arrival.
-      if (outcome.ambush && state.hull <= WRECK_HULL && !state.hardcore) message += ' They take one look at our hull and burn away for richer prey.'
+      if (outcome.ambush && state.hull <= WRECK_HULL && !state.hardcore && !rifted(state, state.at)) message += ' They take one look at our hull and burn away for richer prey.'
       else if (outcome.ambush) {
         const rng = createRng(`${state.seed}:signal:${pending.systemId}:ambush`)
         next.shipBattle = { ...intercept(next, hostileFor(state, rng), `${state.seed}:${pending.systemId}:ambush:${state.day}`), log: [outcome.text] }
@@ -1071,11 +1074,12 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'; break
   }
   next.day += days
-  // Every day spent inside the rift tears at the hull. It weakens; it never finishes the ship by itself.
+  // Every day spent inside the rift tears at the hull; only on a hardcore voyage can it finish the ship.
   // A jump pays its arrival day's toll before anyone can open fire (see travel).
   const torn = days && action.type !== 'travel' ? riftTear(next, state.day, next.day) : 0
   if (torn) message += ` The rift tears at the hull: −${torn}.`
-  if (days) {
+  if (next.lostToRift && !state.lostToRift) message = 'The rift tears the last of the hull away. The Lodestar is lost with all hands.'
+  else if (days) {
     const advanced = advanceResearch(next, days * researchRate(state), state); next = advanced.state
     if (advanced.messages.length) message += ` ${advanced.messages.join(' ')}`
   } else if (action.type !== 'pause-research') next = startQueued(next)

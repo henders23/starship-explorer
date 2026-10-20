@@ -14,7 +14,7 @@ existing journal. The battle rules ride on the orders that start a fight:
 - `travel` with `hazards: 1` can end in an interception. Without it, a jump
   replays as before.
 
-Save version 15 rejects either field in an older envelope. Versions 11 to 14 only
+Save version 16 rejects either field in an older envelope. Versions 11 to 15 only
 ever existed in pre-release builds whose rules were still moving; such saves are
 kept unchanged and reported as unreplayable. `KNOWN_BATTLE_RULES`
 lists every accepted version, so a future rules 3 cannot strand rules-2 journals.

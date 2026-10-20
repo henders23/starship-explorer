@@ -4,7 +4,7 @@ import type { Campaign } from '../engine/exploration/campaign.js'
 import { courseFinder, plotCourse } from '../engine/exploration/navigation.js'
 import { scienceLeads } from './science-leads.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
-import { riftDepth, riftDistance, rifted } from '../engine/exploration/campaign.js'
+import { riftDepth, riftDistance, rifted, riftRim } from '../engine/exploration/campaign.js'
 import type { StarType } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
 
@@ -123,7 +123,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
         {/* The rift front: swallowed systems glow violet; the next ring shimmers faintly. */}
         {state.rift && <g className="exp-atlas-rift" pointerEvents="none" data-testid="galaxy-rift">
           {systems.map((s) => { const d = riftDistance(state, s.id), depth = riftDepth(state), p = spot(s.id)
-            return d <= depth + 1 ? <circle key={s.id} cx={p.x} cy={p.y} r={d <= depth ? 62 : 40} fill="url(#atlas-rift)" opacity={d <= depth ? 1 : 0.55} className={d <= depth ? 'torn' : 'next'} /> : null })}
+            return d <= Math.min(depth + 1, riftRim(state)) ? <circle key={s.id} cx={p.x} cy={p.y} r={d <= depth ? 62 : 40} fill="url(#atlas-rift)" opacity={d <= depth ? 1 : 0.55} className={d <= depth ? 'torn' : 'next'} /> : null })}
         </g>}
         <g className="exp-atlas-lanes" pointerEvents="none">
           {state.galaxy.lanes.map(([a, b]) => {

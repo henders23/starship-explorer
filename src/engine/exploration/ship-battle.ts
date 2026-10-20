@@ -365,8 +365,8 @@ function burn(b: ShipBattle, side: 'player' | 'enemy') {
 }
 /** Rules 2: hostile gunners favour their doctrine's compartment, three to one. */
 function enemyTarget(b: ShipBattle): EnemyRoomKey {
-  // The Sovereign knows what the Return Drive needs: once it spins up, its gunners hunt our engines.
-  const favourite = b.kind === 'finale' && b.escape ? 'engines' : PREFERRED_TARGET[SHIP_BY_ID[b.classId]!.layout]
+  // The Sovereign knows what the Return Drive needs: once it has begun to spin up, its gunners hunt our engines.
+  const favourite = b.kind === 'finale' && (b.escape || b.escapeWork > 0) ? 'engines' : PREFERRED_TARGET[SHIP_BY_ID[b.classId]!.layout]
   return createRng(`${b.seed}:target:${b.rolls++}`).pick([favourite, favourite, ...SHIP_ROOMS])
 }
 /** Rules 2: seconds until hostile gun `i` fires at its current rate, or null if it is not charging. */

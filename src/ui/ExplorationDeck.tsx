@@ -164,7 +164,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const saveStatus = <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
 
   // Inside the rift, the wind is always there under the hum.
-  const riftAmbience = rifted(state, state.at) && !state.shipBattle && state.outcome === 'exploring'
+  const riftAmbience = rifted(state, state.at) && !state.shipBattle && !state.mission && state.outcome === 'exploring'
   useEffect(() => { setAmbience(riftAmbience ? 'rift' : 'off') }, [riftAmbience])
   useEffect(() => () => setAmbience('off'), [])
   const riftHere = rifted(state, state.at), riftEta = riftReaches(state, state.at), riftDays = riftEta === null ? null : riftEta - state.day

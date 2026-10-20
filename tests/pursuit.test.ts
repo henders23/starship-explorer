@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, contractPay, createCampaign, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
+import { actionLock, contractPay, createCampaign, interceptionRisk, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { BASE_REACTOR, createShipBattle, ENEMY_JUMP_WORK, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
 import type { BattleUpgrades, ShipBattle } from '../src/engine/exploration/ship-battle.js'
@@ -125,5 +125,27 @@ describe('round-six pacing', () => {
     const b = createShipBattle('lock', 'sys', SHIP_BY_ID['rust-queen']!, 100, 100, base, 2, 'interception')
     expect(escapeWorkNeeded(b)).toBe(INTERCEPTION_ESCAPE_WORK)
     expect(escapeWorkNeeded({ ...b, kind: undefined })).toBe(10)
+  })
+})
+
+describe('round-six review fixes', () => {
+  it('keeps the Sovereign on our engines while the drive is paused part-way', () => {
+    let b = reduceShipBattle(createShipBattle('doctrine', 'sys', SHIP_BY_ID['sovereign']!, 100, 100, base, 2, 'finale'), { type: 'engage' })
+    b = reduceShipBattle(reduceShipBattle(b, { type: 'retreat', active: true }), { type: 'advance', seconds: 3 })
+    b = reduceShipBattle(b, { type: 'retreat', active: false })
+    let aims: string[] = []
+    for (let i = 0; i < 40 && b.phase === 'battle'; i++) { b = reduceShipBattle(b, { type: 'advance', seconds: 1 }); aims = aims.concat((b.enemy.aim ?? []).filter((a): a is NonNullable<typeof a> => !!a)) }
+    expect(aims.length).toBeGreaterThan(0)
+    expect(aims.filter((a) => a === 'engines').length).toBeGreaterThan(aims.length / 2)
+  })
+  it('refuses an emergency jump from an interception without the fuel for it', () => {
+    const s = reduceCampaign(createCampaign('dry'), { type: 'begin' })
+    const b = reduceShipBattle(createShipBattle('dry', 'sys', SHIP_BY_ID['rust-queen']!, 100, 100, base, 2, 'interception'), { type: 'engage' })
+    expect(actionLock({ ...s, fuel: 1, shipBattle: b }, { type: 'ship-order', order: { type: 'retreat', active: true } })).toMatch(/fuel/)
+    expect(actionLock({ ...s, fuel: 5, shipBattle: b }, { type: 'ship-order', order: { type: 'retreat', active: true } })).toBeNull()
+  })
+  it('warns a wreck that the rift will hunt it', () => {
+    const s = reduceCampaign(createCampaign('wreck-warn'), { type: 'begin' })
+    expect(interceptionRisk({ ...s, day: RIFT_GRACE + 1, hull: 5 }, s.galaxy.start)).toMatch(/Rift-touched.*wreck or not/)
   })
 })
