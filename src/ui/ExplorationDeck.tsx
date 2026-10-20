@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock,
+  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches,
 } from '../engine/exploration/campaign.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
@@ -153,7 +153,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   }
   const saveStatus = <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
 
-  const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0).length
+  const riftHere = rifted(state, state.at), riftDays = state.rift ? riftReaches(state, state.at)! - state.day : null
+  const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 || rifted(state, id)).length
   /** The chart's floating card: where a system is and how to get there. */
   const systemCard = (id: SystemId) => {
     const target = state.galaxy.systems.find((system) => system.id === id)!
@@ -197,6 +198,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>FUEL <b data-testid="exp-fuel">{state.fuel}/{fuelCapacity(state)}</b></span>
         <span>HULL <b>{state.hull}/{hullCapacity(state)}</b></span>
         <span>MISSILES <b data-testid="exp-missiles">{state.missiles}</b></span>
+        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays! <= 5 ? ' near' : ''}`} title="The rift widens from the arrival system one jump-ring every six days. Rift-touched space swarms with heavy interceptors and its stations evacuate."
+          data-testid="exp-rift">RIFT <b>{riftHere ? 'HERE' : `${riftDays}d`}</b></span>}
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
       </div>

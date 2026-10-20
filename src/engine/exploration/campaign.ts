@@ -40,6 +40,8 @@ export interface Campaign {
   signal?: PendingSignal
   /** Weapons bought from station armouries, mounted in rules-2 battles. */
   armoury: ArmouryWeaponId[]
+  /** The rift front's clock, started by the voyage's first hazard-aware jump. Absent: no front. */
+  rift?: { from: number }
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -286,6 +288,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (action.rules !== undefined && !KNOWN_BATTLE_RULES.includes(action.rules)) return 'Unknown battle rules'
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
+      if (rifted(state, station.systemId)) return EVACUATED
       if (state.escortCompleted.includes(station.id)) return 'This station’s survey escort is complete'
       return state.hull <= 1 ? 'Repair the hull before accepting an escort' : null
     }
@@ -311,12 +314,14 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     case 'recruit': {
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Contact a local station first'
+      if (rifted(state, station.systemId)) return EVACUATED
       if (state.roster.filter((o) => !o.dead).length >= 6) return 'Six living operatives already aboard; injured crew recover with time'
       return state.exploration.credits >= 20 ? null : 'Requires 20 credits; station contracts can replenish funds'
     }
     case 'buy-weapon': {
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Establish contact with a local station first'
+      if (rifted(state, station.systemId)) return EVACUATED
       if (armouryStock(state.seed, station.id) !== action.weapon) return 'This armoury does not stock that weapon'
       if (state.armoury.includes(action.weapon)) return 'Already mounted'
       if (state.armoury.length >= ARMOURY_SLOTS) return `All ${ARMOURY_SLOTS} hardpoints are full`
@@ -353,6 +358,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Establish contact with a local station first'
       if (!['refuel', 'repair', 'sell', 'buy', 'contract', 'ordnance'].includes(action.service)) return 'Unknown station service'
+      if (rifted(state, station.systemId)) return EVACUATED
       if (action.service === 'ordnance') return state.missiles >= MAGAZINE_CAPACITY ? 'Magazine full' : state.exploration.credits < ORDNANCE_PRICE ? `Requires ${ORDNANCE_PRICE} credits` : null
       if (action.service === 'contract') return null
       if (action.service === 'sell') return state.exploration.materials < 4 ? 'Requires 4 materials' : null
@@ -489,9 +495,9 @@ export function interceptionSpoils(battle: ShipBattle): { materials: number; cre
  */
 export function interceptor(state: Campaign): ShipClass | null {
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
-  const threat = REGIONAL_THREAT[system.region]
-  if (state.at === state.galaxy.start || state.hull <= WRECK_HULL) return null
-  const chance = INTERCEPTION_CHANCE[threat] - (fitted(state, 'countermeasures') ? 8 : 0)
+  const threat = REGIONAL_THREAT[system.region], torn = rifted(state, system.id)
+  if ((state.at === state.galaxy.start && !torn) || state.hull <= WRECK_HULL) return null
+  const chance = (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[threat]) - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
   return hostileFor(state, rng)
@@ -501,8 +507,41 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
   const threat = REGIONAL_THREAT[system.region]
   const archetype = state.galaxy.factions.find((f) => f.id === system.faction)?.archetype ?? 'raider'
-  const tier = threat >= 3 || (threat >= 2 && state.day >= 45) ? 2 : 1
-  return rng.pick(classPool(archetype, tier).filter((c) => c.tier <= tier))
+  const torn = rifted(state, system.id), tier = threat >= 3 || (threat >= 2 && state.day >= 45) || torn ? 2 : 1
+  const pool = classPool(archetype, tier).filter((c) => c.tier <= tier), heavy = pool.filter((c) => c.tier === 2)
+  // Only heavy hulls survive in rift-touched space.
+  return rng.pick(torn && heavy.length ? heavy : pool)
+}
+/**
+ * The rift front: the anomaly that brought the Lodestar here keeps widening
+ * from the arrival system. After a grace period it swallows one jump-ring
+ * every RIFT_PACE days. Rift-touched space swarms with heavy interceptors and
+ * its stations evacuate. The clock starts at the voyage's first hazard-aware
+ * jump, so journals from before the front existed never meet it.
+ */
+export const RIFT_GRACE = 15
+export const RIFT_PACE = 6
+export const RIFT_INTERCEPTION_CHANCE = 55
+const EVACUATED = 'The station has evacuated ahead of the rift'
+/** How many jump-rings from the arrival system the rift has swallowed; -1 before it opens. */
+export function riftDepth(state: Campaign, day = state.day): number {
+  return state.rift ? Math.floor((day - state.rift.from - RIFT_GRACE) / RIFT_PACE) : -1
+}
+const jumpsCache = new WeakMap<Galaxy, Map<SystemId, number>>()
+/** Lanes between the arrival system and `systemId` (memoised per galaxy). */
+export function riftDistance(state: Campaign, systemId: SystemId): number {
+  let table = jumpsCache.get(state.galaxy)
+  if (!table) {
+    const index = new GalaxyIndex(state.galaxy)
+    table = new Map(state.galaxy.systems.map((s) => [s.id, index.jumps(state.galaxy.start, s.id)]))
+    jumpsCache.set(state.galaxy, table)
+  }
+  return table.get(systemId) ?? Infinity
+}
+export const rifted = (state: Campaign, systemId: SystemId) => riftDistance(state, systemId) <= riftDepth(state)
+/** The day the front reaches a system, or null when the clock has not started. */
+export function riftReaches(state: Campaign, systemId: SystemId): number | null {
+  return state.rift ? state.rift.from + RIFT_GRACE + riftDistance(state, systemId) * RIFT_PACE : null
 }
 /** A rules-2 interception against `hostile`, drawing on the ship's magazine and armoury. */
 function intercept(state: Campaign, hostile: ShipClass, seed: string): ShipBattle {
@@ -515,11 +554,14 @@ export function armouryStock(seed: string, stationId: string): ArmouryWeaponId {
 /** The chart's plain-language warning for arriving at a system. */
 export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const system = state.galaxy.systems.find((s) => s.id === systemId)!
-  const chance = Math.max(0, INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]] - (fitted(state, 'countermeasures') ? 8 : 0))
-  if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.'
-  if (state.hull <= WRECK_HULL) return 'Hostile space, but our hull is too damaged to be worth attacking.'
+  const torn = rifted(state, systemId), reaches = riftReaches(state, systemId)
+  const front = !torn && reaches !== null ? ` The rift reaches it on day ${reaches}.` : ''
+  const chance = Math.max(0, (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]]) - (fitted(state, 'countermeasures') ? 8 : 0))
+  if (state.hull <= WRECK_HULL && chance) return 'Hostile space, but our hull is too damaged to be worth attacking.' + front
+  if (torn) return `Rift-touched: interception risk ${chance}% from heavy hulls. Stations have evacuated.`
+  if (!chance || systemId === state.galaxy.start) return 'Quiet space: no hostile patrols reported.' + front
   const who = state.galaxy.factions.find((f) => f.id === system.faction)
-  return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}.`
+  return `Interception risk ${chance}% on arrival · ${who ? `${who.name} patrols` : 'raider territory'}.` + front
 }
 function fitUpgrade(state: Campaign, id: BuildId): Campaign {
   if (equipLock(state, id)) return state
@@ -712,6 +754,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.visited = state.visited.includes(system.id) ? state.visited : [...state.visited, system.id]
       next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', systemId: next.at, tier: 'passive' }, next.at)
       message = `Arrived at ${system.name}. Passive sensors have catalogued the obvious contacts.`
+      // The first hazard-aware jump starts the rift front's clock.
+      if (action.hazards && !state.rift) next.rift = { from: state.day }
       const hostile = action.hazards ? interceptor(next) : null
       const signal = action.hazards && !hostile && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id) : null
       if (hostile) {

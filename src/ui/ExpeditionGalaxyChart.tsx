@@ -3,6 +3,7 @@ import type { PointerEvent, ReactNode } from 'react'
 import type { Campaign } from '../engine/exploration/campaign.js'
 import { plotCourse } from '../engine/exploration/navigation.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
+import { riftDepth, riftDistance } from '../engine/exploration/campaign.js'
 import type { StarType } from '../engine/worldgen/types.js'
 import { REGION_NAMES } from '../engine/worldgen/types.js'
 
@@ -103,6 +104,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
       onPointerDown={pointerDown} onPointerMove={pointerMove} onPointerUp={pointerUp} onPointerCancel={pointerUp}>
       <defs>
         <radialGradient id="atlas-halo"><stop stopColor="#9cdff6" stopOpacity=".55"/><stop offset="1" stopColor="#72c4f2" stopOpacity="0"/></radialGradient>
+        <radialGradient id="atlas-rift"><stop stopColor="#d27bff" stopOpacity=".95"/><stop offset=".55" stopColor="#8a35e6" stopOpacity=".45"/><stop offset="1" stopColor="#7a2fd0" stopOpacity="0"/></radialGradient>
         <radialGradient id="atlas-danger"><stop stopColor="#ff4a3a" stopOpacity=".5"/><stop offset=".55" stopColor="#ff4a3a" stopOpacity=".16"/><stop offset="1" stopColor="#ff4a3a" stopOpacity="0"/></radialGradient>
       </defs>
       <image href="/assets/galaxy/expedition-nebula.webp" x={0} y={0} width={w} height={h} preserveAspectRatio="xMidYMid slice" pointerEvents="none" />
@@ -113,6 +115,11 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
           {systems.filter((s) => REGIONAL_THREAT[s.region] > 0).map((s) => { const p = spot(s.id), t = REGIONAL_THREAT[s.region]
             return <circle key={s.id} cx={p.x} cy={p.y} r={26 + t * 9} fill="url(#atlas-danger)" opacity={0.3 + t * 0.2} /> })}
         </g>
+        {/* The rift front: swallowed systems glow violet; the next ring shimmers faintly. */}
+        {state.rift && <g className="exp-atlas-rift" pointerEvents="none" data-testid="galaxy-rift">
+          {systems.map((s) => { const d = riftDistance(state, s.id), depth = riftDepth(state), p = spot(s.id)
+            return d <= depth + 1 ? <circle key={s.id} cx={p.x} cy={p.y} r={d <= depth ? 62 : 40} fill="url(#atlas-rift)" opacity={d <= depth ? 1 : 0.55} className={d <= depth ? 'torn' : 'next'} /> : null })}
+        </g>}
         <g className="exp-atlas-lanes" pointerEvents="none">
           {state.galaxy.lanes.map(([a, b]) => {
             const p = spot(a), q = spot(b), highlighted = routeEdges.has([a, b].sort().join('|'))
@@ -156,7 +163,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     </section>}
     <div className="exp-atlas-key">
       <span><strong>GALACTIC ATLAS</strong> · {systems.length} systems · {state.visited.length} visited</span>
-      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span><span className="danger">◍ Hostile space</span></span>
+      <span className="exp-atlas-legend"><span className="ithaca">▲ Lodestar</span><span>● Visited</span><span>○ Unvisited</span><span className="selected">◌ Selected</span><span className="danger">◍ Hostile space</span>{state.rift && <span className="rift">◍ Rift</span>}</span>
       {status}
     </div>
   </section>

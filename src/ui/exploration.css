@@ -362,3 +362,14 @@
 .exp-signal-outcome { color:#e5d8bd!important; border-left:2px solid #d4b382; padding:6px 0 6px 14px; }
 .exp-story-choice .exp-button.risky { border-color:#c99a52; }
 .exp-story-choice .exp-button.risky small { color:#e7b866; }
+
+/* The rift front. */
+.exp-atlas-rift circle { mix-blend-mode:screen; }
+.exp-atlas-rift circle.next { animation:exp-rift-pulse 3s ease-in-out infinite; }
+@keyframes exp-rift-pulse { 50% { opacity:.15; } }
+@keyframes exp-rift-blink { 50% { opacity:.3; } }
+.exp-atlas-legend .rift { color:#d39bff; }
+.exp-rift-stat b { color:#d39bff!important; }
+.exp-rift-stat.near b { color:#ff9a8e!important; }
+.exp-rift-stat.here b { color:#ff6b5e!important; animation:exp-rift-blink 1s steps(2) infinite; }
+@media(prefers-reduced-motion:reduce) { .exp-atlas-rift circle.next,.exp-rift-stat.here b { animation:none; } }
