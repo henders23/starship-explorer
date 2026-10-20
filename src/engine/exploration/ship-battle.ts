@@ -30,13 +30,17 @@ export const ENEMY_REPAIR_ORDER: EnemyRoomKey[] = ['weapons', 'shields', 'helm',
 /** Rules 2: a hostile crew member. They have no medical bay: at zero they are dead. */
 export interface EnemyCrew { room: EnemyRoomKey; home: EnemyRoomKey; moving: number; hp: number; work: number }
 export const ENEMY_CREW_HP = 4
+/** Seconds a struck hostile room stays off-limits to their crew. */
+export const ENEMY_CREW_CAUTION = 3
 /** Fraction of charge at which a hostile gun locks its target, giving the crew warning (rules 2). */
 export const AIM_AT = 0.6
 /** Each hull plan's gunnery doctrine: the compartment its gunners favour three to one (rules 2). */
 export const PREFERRED_TARGET: Record<EnemyLayoutId, EnemyRoomKey> = {
   raider: 'weapons', clan: 'weapons', flagship: 'weapons', spine: 'shields', order: 'shields', hauler: 'engines', alien: 'helm',
 }
-export interface BattleRoom { hp: number; max: number; ionUntil: number; fire?: number }
+export interface BattleRoom { hp: number; max: number; ionUntil: number; fire?: number
+  /** Rules 2, hostile rooms: the second our fire last struck it. Their crew keep out of rooms under fire. */
+  hitAt?: number }
 export interface Projectile { id: number; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; damage: number; launched: number; lands: number; shot: number }
 export type ImpactOutcome = 'miss' | 'shield' | 'blocked' | 'hit' | 'ion'
 /** What happened during the latest simulated second, for presentation. Ids only ever increase. */
@@ -218,7 +222,9 @@ export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1
 /** Charge gained per second by each hostile gun. */
 export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
 /** Escape work a retreat needs; the finale's retreat is the Return Drive itself, far more work. */
-export const escapeWorkNeeded = (b: ShipBattle) => b.kind === 'finale' ? FINALE_DRIVE_WORK : 10
+export const escapeWorkNeeded = (b: ShipBattle) => b.kind === 'finale' ? FINALE_DRIVE_WORK : b.kind === 'interception' ? INTERCEPTION_ESCAPE_WORK : 10
+/** An interceptor holds a jump lock: breaking it takes twice an escort's retreat. */
+export const INTERCEPTION_ESCAPE_WORK = 20
 export const FINALE_HULL = 1.5
 export const FINALE_CREW_HP = 6
 export const FINALE_DRIVE_WORK = 60
@@ -307,6 +313,7 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   if (to === 'player' && b.rules === 2) damage = Math.round(damage * INCOMING_DAMAGE[kind])
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
+  if (to === 'enemy' && b.rules === 2) rooms[target].hitAt = b.time
   b.volley.damage = damage
   log(b, b.rules === 2 ? to === 'player' ? `They hit our ${target}: ${damage} hull damage.` : `We hit their ${target}: ${damage} hull damage.` : `${to === 'player' ? 'Lodestar' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
   impact('hit', damage)
@@ -392,9 +399,11 @@ function woundEnemy(b: ShipBattle, room: EnemyRoomKey) {
 function enemyCrewWork(b: ShipBattle) {
   const crew = b.enemy.crew!, rooms = b.enemy.rooms
   const needs = (k: EnemyRoomKey) => burning(rooms[k]) || rooms[k].hp < rooms[k].max
-  // Running for it: someone has to fly. The first hand free heads for an empty helm and stays there.
+  // Nobody walks into a room our guns struck in the last few seconds.
+  const underFire = (k: EnemyRoomKey) => (rooms[k].hitAt ?? -Infinity) > b.time - ENEMY_CREW_CAUTION
+  // Running for it: someone has to fly. The first hand free heads for an empty helm, once it is safe, and stays there.
   const running = b.enemy.jump !== undefined
-  if (running && !crew.some((c) => c.hp > 0 && c.room === 'helm')) {
+  if (running && !underFire('helm') && !crew.some((c) => c.hp > 0 && c.room === 'helm')) {
     const pilot = crew.find((c) => c.hp > 0 && !c.moving)
     if (pilot) { pilot.room = 'helm'; pilot.moving = CREW_MOVE_SECONDS; pilot.work = 0 }
   }
@@ -406,8 +415,8 @@ function enemyCrewWork(b: ShipBattle) {
       c.work = 0
       if (running && c.room === 'helm') continue
       // Run to the worst unattended damage, guns first; otherwise go home.
-      const target = ENEMY_REPAIR_ORDER.find((k) => needs(k) && !crew.some((o) => o !== c && o.hp > 0 && o.room === k))
-      const next = target ?? c.home
+      const target = ENEMY_REPAIR_ORDER.find((k) => needs(k) && !underFire(k) && !crew.some((o) => o !== c && o.hp > 0 && o.room === k))
+      const next = target ?? (underFire(c.home) ? c.room : c.home)
       if (next !== c.room) { c.room = next; c.moving = CREW_MOVE_SECONDS }
       continue
     }

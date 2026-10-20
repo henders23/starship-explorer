@@ -161,7 +161,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   }
   const saveStatus = <span className="exp-save" role="status">{saved ? 'Voyage saved' : 'Autosave unavailable — keep this tab open'}</span>
 
-  const riftHere = rifted(state, state.at), riftDays = state.rift ? riftReaches(state, state.at)! - state.day : null
+  const riftHere = rifted(state, state.at), riftEta = riftReaches(state, state.at), riftDays = riftEta === null ? null : riftEta - state.day
   const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 || rifted(state, id)).length
   /** The chart's floating card: where a system is and how to get there. */
   const leadSystems = new Set(scienceLeads(state, courses).map((l) => l.site.systemId))
@@ -209,8 +209,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>FUEL <b data-testid="exp-fuel">{state.fuel}/{fuelCapacity(state)}</b></span>
         <span>HULL <b>{state.hull}/{hullCapacity(state)}</b></span>
         <span>MISSILES <b data-testid="exp-missiles">{state.missiles}</b></span>
-        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays! <= 5 ? ' near' : ''}`} title={`Days until the rift reaches the system the Lodestar is in. It widens from the arrival system one jump-ring every ${RIFT_PACE} days. Rift-touched space swarms with heavy interceptors, its stations evacuate, and each day inside it tears ${RIFT_HULL_TOLL} hull.`}
-          data-testid="exp-rift">RIFT <b>{riftHere ? 'HERE' : `${riftDays}d`}</b></span>}
+        {state.rift && <span className={`exp-rift-stat${riftHere ? ' here' : riftDays !== null && riftDays <= 5 ? ' near' : ''}`} title={`Days until the rift reaches the system the Lodestar is in. It widens from the arrival system one jump-ring every ${RIFT_PACE} days. Rift-touched space swarms with heavy interceptors, its stations evacuate, and each day inside it tears ${RIFT_HULL_TOLL} hull.`}
+          data-testid="exp-rift">RIFT <b>{riftHere ? 'HERE' : riftDays === null ? 'SPARED' : `${riftDays}d`}</b></span>}
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
       </div>
@@ -290,6 +290,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
 /** A hardcore voyage's end: the ship lost in battle. */
 function lostLine(state: Campaign, foe: string | null | undefined) {
   const name = foe ? `${foe[0]!.toUpperCase()}${foe.slice(1)}` : 'A hostile ship'
+  if (state.lostToRift) return 'The rift took the Lodestar apart, plate by plate, with no one near enough to hear.'
   return rifted(state, state.at) ? `${name} finished what the rift began.` : `${name} caught the Lodestar too far from help.`
 }
 function VoyageLost({ state, onExit }: { state: Campaign; onExit: () => void }) {

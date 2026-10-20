@@ -92,7 +92,8 @@ export const SIGNALS: ArrivalSignal[] = [
   { id: 'pilot', title: 'A lifepod with a heartbeat', speaker: 'cross', line: 'One survivor, conscious and asking for a ship. We could use another pair of hands.',
     text: 'A lone pilot drifts in a scuffed lifepod, the last of a crew lost to raiders. They ask to come aboard and earn their keep.',
     choices: [
-      { id: 'rescue', label: 'Bring them aboard', good: { text: 'The pilot signs on as an operative and asks where the armoury is.', recruit: true, echo: 'pilot-kin' } },
+      { id: 'rescue', label: 'Bring them aboard', odds: 80, good: { text: 'The pilot signs on as an operative and asks where the armoury is.', recruit: true, echo: 'pilot-kin' },
+        bad: { text: 'The pod is empty but for a transmitter. It was bait, and the ship that set it is already burning towards us.', ambush: true } },
       { id: 'beacon', label: 'Leave a rescue beacon', good: { text: 'We boost their beacon and log the position with the nearest station.' } },
     ] },
   { id: 'storm', title: 'An ion storm across the lane', speaker: 'mori', line: 'I can ride the leading edge and save us fuel, or we wait for it to pass.',
@@ -107,7 +108,8 @@ export const SIGNALS: ArrivalSignal[] = [
     text: 'A pre-collapse relay satellite responds to our handshake with a polite request for maintenance.',
     choices: [
       { id: 'repair', label: 'Repair its relay', cost: { materials: 4 }, good: { text: 'Restored, the relay shares its survey of every system one lane away and a station pays a finder\'s fee.', charts: true, credits: 6 } },
-      { id: 'salvage', label: 'Salvage its core', good: { text: 'The core is worth something to the right buyer.', credits: 14 } },
+      { id: 'salvage', label: 'Salvage its core', odds: 75, good: { text: 'The core is worth something to the right buyer.', credits: 14 },
+        bad: { text: 'Pulling the core trips a tamper alarm. Whoever owns this relay comes to see who is stealing from it.', ambush: true } },
       { id: 'leave', label: 'Let it keep listening', good: { text: 'We leave the relay to its long watch.' } },
     ] },
   { id: 'smugglers', title: 'Smugglers with a spare crate', speaker: 'cross', line: 'No transponder, two crates of untaxed alloy, and a very friendly captain. There is a bounty on boats like that.',

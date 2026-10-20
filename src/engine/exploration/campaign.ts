@@ -65,6 +65,8 @@ export interface Campaign {
   outcome: 'exploring' | 'home' | 'lost'
   /** Hardcore voyages end when the ship is lost in battle: no tow home, and no mercy for a wreck. */
   hardcore?: true
+  /** A hardcore voyage the rift itself tore apart. */
+  lostToRift?: true
   /** Survey contracts taken at each station while the rift runs; each pays less than the last. */
   contracts?: Record<string, number>
   roster: Operative[]; mission: Mission | null; missionAttempts: number; recruits: number
@@ -105,7 +107,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 14: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 15: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -115,7 +117,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 14): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 15): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -498,7 +500,9 @@ function battleUpgrades(state: Campaign): BattleUpgrades {
   }
 }
 /** Percent chance, by regional threat, that a hostile is waiting at the end of a jump. */
-export const INTERCEPTION_CHANCE = [0, 14, 24, 34] as const
+export const INTERCEPTION_CHANCE = [8, 18, 28, 38] as const
+/** The shallows stay quiet for the voyage's first days. */
+export const SHALLOWS_GRACE_DAYS = 4
 /** What a defeated or surrendering interceptor leaves behind, before the luck of the wreck. */
 export const INTERCEPTION_SPOILS: Partial<Record<NonNullable<ShipBattle['result']>, { materials: number; credits: number; fuel: number; missiles: number }>> = {
   victory: { materials: 10, credits: 22, fuel: 1, missiles: 0 }, yielded: { materials: 7, credits: 16, fuel: 1, missiles: 0 },
@@ -523,7 +527,7 @@ export function interceptionSpoils(battle: ShipBattle): { materials: number; cre
   // Heavier hulls carry richer holds.
   const heavy = (SHIP_BY_ID[battle.classId]?.tier ?? 1) >= 2
   // A ship taken by killing its crew drifts intact: its holds are fuller still.
-  const scale = (heavy ? 1.5 : 1) * (battle.enemy.crewKilled ? 1.5 : 1)
+  const scale = (heavy ? 1.5 : 1) * (battle.enemy.crewKilled ? CREW_KILL_BONUS : 1)
   const base = { ...found, materials: Math.round(found.materials * scale), credits: Math.round(found.credits * scale) }
   const roll = createRng(`${battle.seed}:salvage`).int(100), armed = battle.enemy.rooms.weapons.hp > 0
   if (roll < (armed ? 50 : 30)) return { ...base, missiles: 3, find: 'An intact Hellion rack' }
@@ -542,6 +546,7 @@ export function interceptor(state: Campaign): ShipClass | null {
   const threat = REGIONAL_THREAT[system.region], torn = rifted(state, system.id)
   // Nothing is too broken to hunt inside the rift.
   if ((state.at === state.galaxy.start && !torn) || (state.hull <= WRECK_HULL && !state.hardcore && !torn)) return null
+  if (!torn && threat === 0 && state.day < SHALLOWS_GRACE_DAYS) return null
   const chance = (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[threat]) - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
@@ -567,8 +572,8 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
  */
 /** From this day, threat-2 space fields the heavy tier too. */
 export const HEAVY_THREAT2_DAY = 25
-export const RIFT_GRACE = 15
-export const RIFT_PACE = 5
+export const RIFT_GRACE = 10
+export const RIFT_PACE = 4
 /** Hull the rift tears away for each day the Lodestar spends inside it. */
 export const RIFT_HULL_TOLL = 3
 /** Patching the hull without a station: slow, costly, possible anywhere. */
@@ -577,17 +582,34 @@ export const FIELD_REPAIR = { materials: 6, hull: 12, days: 2 }
 export const FINALE_RECOVERY_HULL = 30
 /** Hull the rift tears away for the days in (from, to] that the ship spends inside it; never below 1. */
 function riftTear(next: Campaign, from: number, to: number): number {
-  if (next.outcome !== 'exploring' || next.hull <= 1) return 0
+  // On a hardcore voyage the rift can finish what it starts.
+  const floor = next.hardcore ? 0 : 1
+  if (next.outcome !== 'exploring' || next.hull <= floor) return 0
   let inside = 0
   for (let d = from + 1; d <= to; d++) if (riftDistance(next, next.at) <= riftDepth(next, d)) inside++
-  const torn = Math.min(next.hull - 1, RIFT_HULL_TOLL * inside); next.hull -= torn
+  const torn = Math.min(next.hull - floor, RIFT_HULL_TOLL * inside); next.hull -= torn
+  if (next.hull <= 0) { next.outcome = 'lost'; next.lostToRift = true; next.shipBattle = null; next.signal = undefined; next.signalAfterBattle = undefined }
   return torn
 }
 export const RIFT_INTERCEPTION_CHANCE = 55
+/** Spoils from a ship whose crew we killed, against one we broke. */
+export const CREW_KILL_BONUS = 1.25
 const EVACUATED = 'The station has evacuated ahead of the rift'
 /** How many jump-rings from the arrival system the rift has swallowed; -1 before it opens. */
 export function riftDepth(state: Campaign, day = state.day): number {
-  return state.rift ? Math.floor((day - state.rift.from - RIFT_GRACE) / RIFT_PACE) : -1
+  return state.rift ? Math.min(riftRim(state), Math.floor((day - state.rift.from - RIFT_GRACE) / RIFT_PACE)) : -1
+}
+/** The rift spends itself before the galaxy's edge: the outermost rings are never swallowed. */
+export const RIFT_SPARED_RINGS = 2
+const rimCache = new WeakMap<Galaxy, number>()
+/** The deepest ring the rift ever reaches. */
+export function riftRim(state: Campaign): number {
+  let rim = rimCache.get(state.galaxy)
+  if (rim === undefined) {
+    rim = Math.max(0, ...state.galaxy.systems.map((s) => riftDistance(state, s.id)).filter(Number.isFinite)) - RIFT_SPARED_RINGS
+    rimCache.set(state.galaxy, rim)
+  }
+  return rim
 }
 const jumpsCache = new WeakMap<Galaxy, Map<SystemId, number>>()
 /** Lanes between the arrival system and `systemId` (memoised per galaxy). */
@@ -603,7 +625,8 @@ export function riftDistance(state: Campaign, systemId: SystemId): number {
 export const rifted = (state: Campaign, systemId: SystemId) => riftDistance(state, systemId) <= riftDepth(state)
 /** The day the front reaches a system, or null when the clock has not started. */
 export function riftReaches(state: Campaign, systemId: SystemId): number | null {
-  return state.rift ? state.rift.from + RIFT_GRACE + riftDistance(state, systemId) * RIFT_PACE : null
+  const ring = riftDistance(state, systemId)
+  return state.rift && ring <= riftRim(state) ? state.rift.from + RIFT_GRACE + ring * RIFT_PACE : null
 }
 /** A rules-2 interception against `hostile`, drawing on the ship's magazine and armoury. */
 function intercept(state: Campaign, hostile: ShipClass, seed: string): ShipBattle {
@@ -767,6 +790,10 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           const materials = Math.min(8, next.exploration.materials), credits = Math.min(20, next.exploration.credits)
           next.exploration.materials -= materials; next.exploration.credits -= credits
           message = `Emergency tow completed. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
+        } else if (battle.result === 'fled') {
+          // Breaking an interceptor's lock by jumping burns the same fuel as running from it.
+          next.fuel = Math.max(0, state.fuel - EVADE_FUEL)
+          message = `Interception over. The emergency jump burned ${state.fuel - next.fuel} fuel; hull damage persists.`
         } else message = battle.result === 'escaped' ? 'They jumped away with their hold. We continue the voyage; hull damage persists.' : 'Interception over. We continue the voyage; hull damage persists.'
         next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null
         if (state.signalAfterBattle) { next.signal = state.signalAfterBattle; next.signalAfterBattle = undefined }
@@ -849,8 +876,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       // The arrival day's rift toll lands first, so an interception starts from the torn hull.
       const torn = riftTear(next, state.day, state.day + 1)
       // Interception odds and the rift are judged on the arrival day.
-      const hostile = action.hazards ? interceptor({ ...next, day: state.day + 1 }) : null
-      const signal = action.hazards && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id, state.signalsSeen) : null
+      const alive = next.outcome === 'exploring'
+      const hostile = action.hazards && alive ? interceptor({ ...next, day: state.day + 1 }) : null
+      const signal = action.hazards && alive && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id, state.signalsSeen) : null
       if (signal) next.signalsSeen = [...state.signalsSeen, signal.id]
       if (hostile) {
         next.shipBattle = intercept(next, hostile, `${state.seed}:${system.id}:intercept:${state.day}`)
@@ -860,7 +888,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       } else if (signal) {
         next.signal = { id: signal.id, systemId: system.id }
         message = `Arrived at ${system.name}. Signal: ${signal.title.toLowerCase()}.`
-      } else if (action.hazards && state.echoes?.length && createRng(`${state.seed}:echo:${system.id}:${state.day}`).int(100) < ECHO_CHANCE) {
+      } else if (action.hazards && alive && state.echoes?.length && createRng(`${state.seed}:echo:${system.id}:${state.day}`).int(100) < ECHO_CHANCE) {
         const echo = state.echoes[0]!
         next.echoes = state.echoes.slice(1); next.signal = { id: echo, systemId: system.id }
         message = `Arrived at ${system.name}. Signal: ${SIGNAL_BY_ID[echo]!.title.toLowerCase()}.`
@@ -880,7 +908,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     }
     case 'begin':
       next.rift = { from: state.day }
-      message = `The rift that brought us here is widening behind us. It reaches this system on day ${riftReaches(next, state.at)}.`; break
+      message = `The rift that brought us here is widening behind us. It reaches this system on day ${riftReaches(next, state.at)}; only the galaxy's outer rim will be spared.`; break
     case 'hardcore':
       next.hardcore = true; message = 'Hardcore voyage: if the Lodestar is lost in battle, there is no tow home.'; break
     case 'buy-weapon':

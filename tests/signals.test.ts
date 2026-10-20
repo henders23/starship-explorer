@@ -67,7 +67,8 @@ describe('arrival signals', () => {
     throw new Error('No ambush found')
   })
   it('brings a survivor aboard, or takes their fare when the roster is full', () => {
-    const s = signalled('signal-pilot', 'pilot')
+    let s = signalled('signal-pilot', 'pilot')
+    for (let i = 1; signalLuck(s.seed, s.signal!, SIGNAL_BY_ID.pilot!.choices[0]!) === false; i++) s = signalled(`signal-pilot-${i}`, 'pilot')
     const joined = reduceCampaign(s, { type: 'signal', choiceId: 'rescue' })
     expect(joined.roster.length).toBe(s.roster.length + (s.roster.filter((o) => !o.dead).length < 6 ? 1 : 0))
   })

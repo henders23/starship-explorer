@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock, ESCORT_MISSILES, EVADE_FUEL, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
-import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, escapeWorkNeeded, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
+import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { BattleCrew, BattleEvent, EnemyCrew, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
@@ -102,7 +102,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
       <div className="ship-contact-options">{button({ type: 'hail' }, 'Hail the contact')}
         {b.hailed && <>{button({ type: 'pay' }, `Pay passage · ${b.toll} credits`)}{b.upgrades.contextual ? button({ type: 'negotiate' }, 'Negotiate passage · no payment', true) : <small>Contextual Translation opens a negotiated passage without a toll.</small>}</>}
         {button({ type: 'evade' }, `${intercept ? `Break their lock · ${EVADE_FUEL} fuel` : 'Evade with the tender'} · ${evadeChance(b)}% chance`)}
-        <small>{intercept ? `A failed evasion begins battle. Victory recovers ${Math.round(INTERCEPTION_SPOILS.victory!.materials * (cls.tier >= 2 ? 1.5 : 1))} materials, ${Math.round(INTERCEPTION_SPOILS.victory!.credits * (cls.tier >= 2 ? 1.5 : 1))} credits and fuel from the wreck, and perhaps more.` : 'A failed evasion begins battle. A successful passage earns 6 materials and 18 credits.'}</small>
+        <small>{intercept ? `A failed evasion begins battle. Victory recovers ${Math.round(INTERCEPTION_SPOILS.victory!.materials * (cls.tier >= 2 ? 1.5 : 1))} materials, ${Math.round(INTERCEPTION_SPOILS.victory!.credits * (cls.tier >= 2 ? 1.5 : 1))} credits and fuel from the wreck, and perhaps more. An emergency jump once battle begins takes ${Math.ceil(INTERCEPTION_ESCAPE_WORK / 1.5)} seconds at full engines and burns ${EVADE_FUEL} fuel.` : 'A failed evasion begins battle. A successful passage earns 6 materials and 18 credits.'}</small>
         {button({ type: 'engage' }, 'Engage · enter battle paused', true)}
         {!intercept && button({ type: 'cancel' }, 'Decline escort · no cost')}
       </div><small>{saved ? 'Contact saved' : 'Autosave unavailable — keep this tab open'}</small>
@@ -458,7 +458,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         {repairing && <svg className="space-repair-line" aria-hidden="true"><line x1={repairing.origin.x} y1={repairing.origin.y} x2={repairing.cursor.x} y2={repairing.cursor.y} /><circle cx={repairing.origin.x} cy={repairing.origin.y} r={3} className="dot" /><circle cx={repairing.cursor.x} cy={repairing.cursor.y} r={7} /></svg>}
       </article>
       <div className="space-versus" aria-hidden="true"><span>{b.kind === 'interception' ? <>JUMP<br />POINT</> : b.kind === 'finale' ? <>RIFT<br />EDGE</> : <>ESCORT<br />CORRIDOR</>}</span>
-        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b5a880" strokeWidth="1"><path d="M12 3l9 9-9 9-9-9z" /></svg><small>{!live ? 'CEASEFIRE' : running ? 'LIVE FIRE' : 'TACTICAL PAUSE'}</small></div>
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b5a880" strokeWidth="1"><path d="M12 3l9 9-9 9-9-9z" /></svg><small>{!live ? 'CEASEFIRE' : running ? 'LIVE FIRE' : 'TACTICAL PAUSE'}</small>
+        {b.kind === 'finale' && <div className={`space-drive${b.escape ? ' spinning' : ''}`}><span>RETURN<br />DRIVE</span><div className="space-drive-meter"><i style={{ height: `${Math.min(100, (b.escapeWork + (live && b.escape ? Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2 * frac : 0)) * 100 / escapeWorkNeeded(b))}%` }} /></div><b>{Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}%</b></div>}</div>
       <article className={`space-ship hostile${outro === 'victory' ? ' destroyed' : ''}${outro === 'yielded' ? ' yielded' : ''}`}>
         <ShipReadout name={cls.name} hull={b.enemy.hull} max={b.enemy.maxHull} shields={b.enemy.shield} capacity={cls.shields} evasion={enemyEvasion(b)} segments={b.enemy.maxHull} />
         <div className={`space-hull enemy${shakeClass('enemy')}`}>

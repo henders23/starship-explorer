@@ -357,3 +357,9 @@
 .ship-contact.finale { background:radial-gradient(ellipse at 30% 45%,rgba(120,50,200,.35),transparent 60%),linear-gradient(90deg,rgba(10,4,20,.55),rgba(8,4,16,.88)),url('/assets/galaxy/expedition-nebula.webp') center/cover #07040d; }
 .space-ftl-alert { padding:4px 8px; border:1px solid #b48cff; color:#e6d6ff; background:rgba(70,30,120,.6); font-size:11px; letter-spacing:.08em; animation:space-ftl-pulse .8s ease-in-out infinite alternate; }
 @media (prefers-reduced-motion: reduce) { .space-ftl-alert { animation:none; } }
+.space-drive { display:flex; flex-direction:column; align-items:center; gap:6px; color:#c8b4ff; font-size:8px; letter-spacing:1.5px; }
+.space-drive b { font-size:13px; color:#e6d6ff; letter-spacing:1px; }
+.space-drive-meter { position:relative; width:14px; height:150px; border:1px solid #8c6cd6; background:rgba(30,12,60,.7); box-shadow:0 0 12px rgba(150,90,255,.35); }
+.space-drive-meter i { position:absolute; left:0; right:0; bottom:0; background:linear-gradient(0deg,#6a3fd0,#c9a6ff); box-shadow:0 0 10px #b48cff; }
+.space-drive.spinning .space-drive-meter { animation:space-ftl-pulse .7s ease-in-out infinite alternate; }
+@media (prefers-reduced-motion: reduce) { .space-drive.spinning .space-drive-meter { animation:none; } }

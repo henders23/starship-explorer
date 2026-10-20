@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, contractPay, createCampaign, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, rifted, riftReaches } from '../src/engine/exploration/campaign.js'
+import { actionLock, contractPay, createCampaign, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
-import { BASE_REACTOR, createShipBattle, ENEMY_JUMP_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
+import { BASE_REACTOR, createShipBattle, ENEMY_JUMP_WORK, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
 import type { BattleUpgrades, ShipBattle } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import { loadExploration, saveExploration } from '../src/ui/exploration-save.js'
@@ -26,8 +26,8 @@ describe('a voyage begun under the rift', () => {
     const { s, station } = contacted(reduceCampaign(createCampaign('begin-b'), { type: 'begin' }))
     const pays: number[] = []
     let t = s
-    for (let i = 0; i < 4; i++) { const before = t.exploration.credits; t = reduceCampaign(t, { type: 'service', locationId: station.id, service: 'contract' }); pays.push(t.exploration.credits - before) }
-    expect(pays).toEqual([18, 12, 6, 4])
+    for (let i = 0; i < 3; i++) { const before = t.exploration.credits; t = reduceCampaign(t, { type: 'service', locationId: station.id, service: 'contract' }); pays.push(t.exploration.credits - before) }
+    expect(pays).toEqual([18, 12, 6])
     expect(contractPay(t, station.id)).toEqual({ materials: 2, credits: 4 })
     const legacy = contacted(createCampaign('begin-b')).s
     expect(contractPay({ ...legacy, contracts: { [station.id]: 5 } }, station.id)).toEqual({ materials: 8, credits: 18 })
@@ -102,5 +102,28 @@ describe('round-five review fixes', () => {
     expect(spun).toBeGreaterThan(0)
     b = reduceShipBattle(b, { type: 'retreat', active: false })
     expect(b.escapeWork).toBe(spun)
+  })
+})
+
+describe('round-six pacing', () => {
+  it('spares the outer rim, so the front always leaves somewhere to run', () => {
+    const s = reduceCampaign(createCampaign('rim'), { type: 'begin' })
+    const late = { ...s, day: 1000 }
+    const outer = s.galaxy.systems.filter((x) => Number.isFinite(riftDistance(s, x.id))).sort((a, b) => riftDistance(s, b.id) - riftDistance(s, a.id))[0]!
+    expect(riftDepth(late)).toBe(riftRim(s))
+    expect(rifted(late, outer.id)).toBe(false); expect(riftReaches(s, outer.id)).toBeNull()
+  })
+  it('lets the rift finish a hardcore voyage, and only that', () => {
+    let s = reduceCampaign(reduceCampaign(createCampaign('rift-death'), { type: 'begin' }), { type: 'hardcore' })
+    s = { ...s, day: RIFT_GRACE + 1, hull: 3 }
+    const dead = reduceCampaign(s, { type: 'scan', tier: 'survey' })
+    expect(dead.outcome).toBe('lost'); expect(dead.lostToRift).toBe(true); expect(dead.hull).toBe(0)
+    const soft = reduceCampaign({ ...s, hardcore: undefined }, { type: 'scan', tier: 'survey' })
+    expect(soft.outcome).toBe('exploring'); expect(soft.hull).toBe(1)
+  })
+  it('makes an interception retreat a real jump: twice the work, and fuel', () => {
+    const b = createShipBattle('lock', 'sys', SHIP_BY_ID['rust-queen']!, 100, 100, base, 2, 'interception')
+    expect(escapeWorkNeeded(b)).toBe(INTERCEPTION_ESCAPE_WORK)
+    expect(escapeWorkNeeded({ ...b, kind: undefined })).toBe(10)
   })
 })
