@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches,
+  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches, reactorUpgradeCost, REACTOR_UPGRADES,
 } from '../engine/exploration/campaign.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
@@ -26,7 +26,7 @@ import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { SignalScene } from './SignalScene.js'
 import type { PendingSignal } from '../engine/exploration/signals.js'
-import { ARMOURY, ARMOURY_SLOTS } from '../engine/exploration/ship-battle.js'
+import { ARMOURY, ARMOURY_SLOTS, BASE_REACTOR } from '../engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../engine/combat/ships.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
@@ -286,12 +286,15 @@ function VoyageLost({ state, onExit }: { state: Campaign; onExit: () => void }) 
   </section></div>
 }
 
-/** The station armoury: one weapon in stock, mounted on a spare hardpoint. */
+/** The station armoury and yard: two weapons in stock, buy-back for what is mounted, and reactor work. */
 function ArmouryOffer({ state, stationId, command }: { state: Campaign; stationId: string; command: Command }) {
-  const id = armouryStock(state.seed, stationId), item = ARMOURY[id], owned = state.armoury.includes(id)
-  return <div className="exp-armoury"><h3>Armoury</h3>
-    {owned ? <small>{item.weapon.name} mounted. {state.armoury.length}/{ARMOURY_SLOTS} hardpoints used.</small>
-      : command({ type: 'buy-weapon', locationId: stationId, weapon: id }, `${item.weapon.name} · ${item.blurb} · ${item.weapon.cost} power · ${item.price} credits`)}
+  const stock = armouryStock(state.seed, stationId), cost = reactorUpgradeCost(state)
+  return <div className="exp-armoury"><h3>Armoury & yard</h3>
+    <small>{state.armoury.length}/{ARMOURY_SLOTS} hardpoints used · reactor {BASE_REACTOR + state.reactorUpgrades} power in battle</small>
+    {stock.filter((id) => !state.armoury.includes(id)).map((id) => <div key={id}>{command({ type: 'buy-weapon', locationId: stationId, weapon: id },
+      `${ARMOURY[id].weapon.name} · ${ARMOURY[id].blurb} · ${ARMOURY[id].weapon.cost} power · ${ARMOURY[id].price} credits`)}</div>)}
+    {state.armoury.map((id) => <div key={id}>{command({ type: 'sell-weapon', locationId: stationId, weapon: id }, `Sell ${ARMOURY[id].weapon.name} · +${Math.floor(ARMOURY[id].price / 2)} credits`)}</div>)}
+    {state.reactorUpgrades < REACTOR_UPGRADES && command({ type: 'upgrade-reactor', locationId: stationId }, `Upgrade reactor to ${BASE_REACTOR + state.reactorUpgrades + 1} power · ${cost.materials} materials + ${cost.credits} credits · 1 day`)}
   </div>
 }
 

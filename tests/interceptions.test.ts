@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, armouryStock, createCampaign, ESCORT_MISSILES, EVADE_FUEL, WRECK_HULL, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
+import { actionLock, armouryStock, createCampaign, REACTOR_UPGRADES, ESCORT_MISSILES, EVADE_FUEL, WRECK_HULL, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
 import { escortContact } from '../tools/ship-walkthrough.js'
-import { ARMOURY, createShipBattle, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
+import { ARMOURY, createShipBattle, reactorPower, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
 import type { ArmouryWeaponId } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
@@ -122,7 +122,8 @@ describe('station armouries', () => {
     let s = createCampaign('armoury-a')
     const station = s.world.locations.find((l) => l.systemId === s.at && l.kind === 'station')!
     s = reduceCampaign(s, { type: 'investigate', locationId: station.id })
-    const id = armouryStock(s.seed, station.id), other = (Object.keys(ARMOURY) as ArmouryWeaponId[]).find((w) => w !== id)!
+    const stock = armouryStock(s.seed, station.id), id = stock[0]!, other = (Object.keys(ARMOURY) as ArmouryWeaponId[]).find((w) => !stock.includes(w))!
+    expect(new Set(stock).size).toBe(2)
     expect(actionLock(s, { type: 'buy-weapon', locationId: station.id, weapon: other })).toMatch(/does not stock/)
     expect(actionLock({ ...s, exploration: { ...s.exploration, credits: 10 } }, { type: 'buy-weapon', locationId: station.id, weapon: id })).toMatch(/credits/)
     s = { ...s, exploration: { ...s.exploration, credits: 200 } }
@@ -133,6 +134,20 @@ describe('station armouries', () => {
     expect(escort.shipBattle!.weapons.map((w) => w.name)).toContain(ARMOURY[id].weapon.name)
     const legacy = reduceCampaign(s, { type: 'escort', locationId: station.id })
     expect(legacy.shipBattle!.weapons.map((w) => w.name)).not.toContain(ARMOURY[id].weapon.name)
+    const sold = reduceCampaign(s, { type: 'sell-weapon', locationId: station.id, weapon: id })
+    expect(sold.armoury).toEqual([]); expect(sold.exploration.credits).toBe(s.exploration.credits + Math.floor(ARMOURY[id].price / 2))
+  })
+  it('upgrades the reactor at a yard, one point at a time, up to ten', () => {
+    let s = createCampaign('yard-a')
+    const station = s.world.locations.find((l) => l.systemId === s.at && l.kind === 'station')!
+    s = reduceCampaign(s, { type: 'investigate', locationId: station.id })
+    expect(actionLock(s, { type: 'upgrade-reactor', locationId: station.id })).toMatch(/materials/)
+    s = { ...s, exploration: { ...s.exploration, materials: 500, credits: 500 } }
+    for (let i = 0; i < REACTOR_UPGRADES; i++) s = reduceCampaign(s, { type: 'upgrade-reactor', locationId: station.id })
+    expect(s.reactorUpgrades).toBe(REACTOR_UPGRADES)
+    expect(actionLock(s, { type: 'upgrade-reactor', locationId: station.id })).toMatch(/limit/)
+    const escort = reduceCampaign(s, { type: 'escort', locationId: station.id, rules: 2 })
+    expect(reactorPower(escort.shipBattle!)).toBe(10)
   })
   it('fires a Twin Hellion as two missiles, and only with two in the magazine', () => {
     let b = reduceShipBattle(createShipBattle('twin', 'st', SHIP_BY_ID['rust-queen']!, 100, 100,

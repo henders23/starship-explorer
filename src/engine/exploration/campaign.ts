@@ -9,7 +9,7 @@ import { storyAt } from './stories.js'
 import { SIGNAL_BY_ID, signalAt, signalLuck } from './signals.js'
 import type { PendingSignal } from './signals.js'
 import type { StoryRecord } from './stories.js'
-import { ARMOURY, ARMOURY_SLOTS, BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
+import { ARMOURY, ARMOURY_SLOTS, BASE_REACTOR, BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ArmouryWeaponId, BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
 import { classPool, SHIP_BY_ID } from '../combat/ships.js'
 import type { ShipClass } from '../combat/ships.js'
@@ -46,6 +46,8 @@ export interface Campaign {
   fought?: true
   /** Weapons bought from station armouries, mounted in rules-2 battles. */
   armoury: ArmouryWeaponId[]
+  /** Yard upgrades to the rules-2 reactor, one power each. */
+  reactorUpgrades: number
   /** The rift front's clock, started by the voyage's first hazard-aware jump. Absent: no front. */
   rift?: { from: number }
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
@@ -89,6 +91,8 @@ export type CampaignAction =
   /** The voyage's first order, if any: losing the ship ends it. */
   | { type: 'hardcore' }
   | { type: 'buy-weapon'; locationId: string; weapon: ArmouryWeaponId }
+  | { type: 'sell-weapon'; locationId: string; weapon: ArmouryWeaponId }
+  | { type: 'upgrade-reactor'; locationId: string }
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
   | { type: 'recover'; locationId: string; approach: 'careful' | 'rapid' }
@@ -124,7 +128,7 @@ export function createCampaign(seed: string): Campaign {
     research: { active: null, progress: {}, completed: [], queue: [] },
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
-    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES, armoury: [], signalsSeen: [],
+    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES, armoury: [], reactorUpgrades: 0, signalsSeen: [],
     completedOperations: [], loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
@@ -333,10 +337,20 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Establish contact with a local station first'
       if (rifted(state, station.systemId)) return EVACUATED
-      if (armouryStock(state.seed, station.id) !== action.weapon) return 'This armoury does not stock that weapon'
+      if (!armouryStock(state.seed, station.id).includes(action.weapon)) return 'This armoury does not stock that weapon'
       if (state.armoury.includes(action.weapon)) return 'Already mounted'
       if (state.armoury.length >= ARMOURY_SLOTS) return `All ${ARMOURY_SLOTS} hardpoints are full`
       return state.exploration.credits < ARMOURY[action.weapon].price ? `Requires ${ARMOURY[action.weapon].price} credits` : null
+    }
+    case 'sell-weapon': case 'upgrade-reactor': {
+      const station = contacted(state, action.locationId)
+      if (!station || station.systemId !== state.at) return 'Establish contact with a local station first'
+      if (rifted(state, station.systemId)) return EVACUATED
+      if (action.type === 'sell-weapon') return state.armoury.includes(action.weapon) ? null : 'Not mounted'
+      if (state.reactorUpgrades >= REACTOR_UPGRADES) return 'The reactor is at its rated limit'
+      const cost = reactorUpgradeCost(state)
+      if (state.exploration.materials < cost.materials) return `Requires ${cost.materials} materials`
+      return state.exploration.credits < cost.credits ? `Requires ${cost.credits} credits` : null
     }
     case 'hardcore': return state.actions.length === 0 && !state.hardcore ? null : 'Hardcore is chosen before the voyage begins'
     case 'signal': {
@@ -562,12 +576,17 @@ export function riftReaches(state: Campaign, systemId: SystemId): number | null 
 }
 /** A rules-2 interception against `hostile`, drawing on the ship's magazine and armoury. */
 function intercept(state: Campaign, hostile: ShipClass, seed: string): ShipBattle {
-  return createShipBattle(seed, state.at, hostile, state.hull, hullCapacity(state), battleUpgrades(state), BATTLE_RULES, 'interception', state.missiles, state.armoury)
+  return createShipBattle(seed, state.at, hostile, state.hull, hullCapacity(state), battleUpgrades(state), BATTLE_RULES, 'interception', state.missiles, state.armoury, BASE_REACTOR + state.reactorUpgrades)
 }
-/** The one weapon a station's armoury has in stock, fixed for the voyage. */
-export function armouryStock(seed: string, stationId: string): ArmouryWeaponId {
-  return createRng(`${seed}:${stationId}:armoury`).pick(Object.keys(ARMOURY) as ArmouryWeaponId[])
+/** The two weapons a station's armoury has in stock, fixed for the voyage. */
+export function armouryStock(seed: string, stationId: string): ArmouryWeaponId[] {
+  const rng = createRng(`${seed}:${stationId}:armoury`), pool = Object.keys(ARMOURY) as ArmouryWeaponId[]
+  const first = rng.pick(pool)
+  return [first, rng.pick(pool.filter((w) => w !== first))]
 }
+/** Yard upgrades: each adds a point of rules-2 reactor power, up to ten in all. */
+export const REACTOR_UPGRADES = 3
+export const reactorUpgradeCost = (state: Campaign) => ({ materials: 25 + state.reactorUpgrades * 10, credits: 40 + state.reactorUpgrades * 20 })
 /** The chart's plain-language warning for arriving at a system. */
 export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const system = state.galaxy.systems.find((s) => s.id === systemId)!
@@ -669,7 +688,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
         escortClass(state.seed, station.id, station.threat, action.rules ?? 1), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1,
-        undefined, action.rules ? Math.min(MAGAZINE_CAPACITY, state.missiles + ESCORT_MISSILES) : 4, action.rules ? state.armoury : [])
+        undefined, action.rules ? Math.min(MAGAZINE_CAPACITY, state.missiles + ESCORT_MISSILES) : 4, action.rules ? state.armoury : [], BASE_REACTOR + state.reactorUpgrades)
       message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
     }
     case 'ship-order':
@@ -795,6 +814,16 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         message = `Arrived at ${system.name}. Signal: ${signal.title.toLowerCase()}.`
       }
       break
+    }
+    case 'sell-weapon': {
+      const refund = Math.floor(ARMOURY[action.weapon].price / 2)
+      next.armoury = state.armoury.filter((w) => w !== action.weapon); next.exploration.credits += refund
+      message = `The armourers dismount the ${ARMOURY[action.weapon].weapon.name} and pay ${refund} credits for it.`; break
+    }
+    case 'upgrade-reactor': {
+      const cost = reactorUpgradeCost(state)
+      next.exploration.materials -= cost.materials; next.exploration.credits -= cost.credits; next.reactorUpgrades = state.reactorUpgrades + 1; days = 1
+      message = `Yard crews rebuild the reactor's containment: ${BASE_REACTOR + next.reactorUpgrades} power in battle.`; break
     }
     case 'hardcore':
       next.hardcore = true; message = 'Hardcore voyage: if the Lodestar is lost in battle, there is no tow home.'; break
