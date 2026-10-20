@@ -143,7 +143,11 @@ describe('station armouries', () => {
     s = reduceCampaign(s, { type: 'investigate', locationId: station.id })
     expect(actionLock(s, { type: 'upgrade-reactor', locationId: station.id })).toMatch(/materials/)
     s = { ...s, exploration: { ...s.exploration, materials: 500, credits: 500 } }
-    for (let i = 0; i < REACTOR_UPGRADES; i++) s = reduceCampaign(s, { type: 'upgrade-reactor', locationId: station.id })
+    for (let i = 0; i < REACTOR_UPGRADES - 1; i++) s = reduceCampaign(s, { type: 'upgrade-reactor', locationId: station.id })
+    // Nine power fills every system until layered shields can take a fourth point.
+    expect(actionLock(s, { type: 'upgrade-reactor', locationId: station.id })).toMatch(/Layered Shields/)
+    s = { ...s, research: { ...s.research, completed: [...s.research.completed, 'layered-shields'] } }
+    s = reduceCampaign(s, { type: 'upgrade-reactor', locationId: station.id })
     expect(s.reactorUpgrades).toBe(REACTOR_UPGRADES)
     expect(actionLock(s, { type: 'upgrade-reactor', locationId: station.id })).toMatch(/limit/)
     const escort = reduceCampaign(s, { type: 'escort', locationId: station.id, rules: 2 })

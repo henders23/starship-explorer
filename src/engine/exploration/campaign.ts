@@ -350,6 +350,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (rifted(state, station.systemId)) return EVACUATED
       if (action.type === 'sell-weapon') return state.armoury.includes(action.weapon) ? null : 'Not mounted'
       if (state.reactorUpgrades >= REACTOR_UPGRADES) return 'The reactor is at its rated limit'
+      if (BASE_REACTOR + state.reactorUpgrades >= usablePower(state)) return 'Nothing aboard could draw more power: research Layered Shields first'
       const cost = reactorUpgradeCost(state)
       if (state.exploration.materials < cost.materials) return `Requires ${cost.materials} materials`
       return state.exploration.credits < cost.credits ? `Requires ${cost.credits} credits` : null
@@ -590,6 +591,8 @@ export function armouryStock(seed: string, stationId: string): ArmouryWeaponId[]
 }
 /** Yard upgrades: each adds a point of rules-2 reactor power, up to ten in all. */
 export const REACTOR_UPGRADES = 3
+/** The most power the battle systems can take at once: shields (four with layered shields), engines three, weapons four. */
+export const usablePower = (state: Campaign) => (hasTech(state, 'layered-shields') ? 4 : 2) + 3 + 4
 export const reactorUpgradeCost = (state: Campaign) => ({ materials: 25 + state.reactorUpgrades * 10, credits: 40 + state.reactorUpgrades * 20 })
 /** The chart's plain-language warning for arriving at a system. */
 export function interceptionRisk(state: Campaign, systemId: SystemId): string {
@@ -805,7 +808,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = `Arrived at ${system.name}. Passive sensors have catalogued the obvious contacts.`
       // The first hazard-aware jump starts the rift front's clock.
       if (action.hazards && !state.rift) next.rift = { from: state.day }
-      const hostile = action.hazards ? interceptor(next) : null
+      // Interception odds and the rift are judged on the arrival day.
+      const hostile = action.hazards ? interceptor({ ...next, day: state.day + 1 }) : null
       const signal = action.hazards && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id, state.signalsSeen) : null
       if (signal) next.signalsSeen = [...state.signalsSeen, signal.id]
       if (hostile) {

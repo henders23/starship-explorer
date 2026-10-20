@@ -344,6 +344,8 @@
 @media(prefers-reduced-motion:reduce) { .space-unattended { animation:none; } }
 
 /* Their crew: pips in their rooms, dimmer as they are hurt. */
-.space-foes { position:absolute; left:3px; top:3px; display:flex; gap:3px; pointer-events:none; }
-.space-foes i { width:7px; height:7px; border-radius:50%; background:#ff9a6a; box-shadow:0 0 5px #ff7a3a; opacity:calc(.35 + .65 * var(--hp)); }
+.space-foes { position:absolute; right:3px; top:50%; transform:translateY(-50%); display:flex; flex-direction:column; gap:2px; pointer-events:none; }
+.space-foes i { width:5px; height:5px; border-radius:50%; background:#ff9a6a; box-shadow:0 0 5px #ff7a3a; opacity:calc(.35 + .65 * var(--hp)); }
 .space-foes i.moving { outline:1px dashed #ffcf8a; background:transparent; }
+/* Short laptop screens: the briefing already explains crew; keep the console clear of the roster. */
+@media (max-height: 820px) and (min-width: 700px) { .space-crew-hint.idle { display:none; } }

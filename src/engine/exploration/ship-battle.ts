@@ -404,8 +404,8 @@ function tick(b: ShipBattle) {
   if (b.enemy.shieldWork >= 5) { if (b.enemy.shield < enemyShieldCapacity(b)) b.enemy.shield++; b.enemy.shieldWork = 0 }
   if (b.rules === 2) {
     burn(b, 'player'); burn(b, 'enemy')
-    crewWork(b); enemyCrewWork(b)
     if (b.phase !== 'battle') { b.inFlight = []; return }
+    crewWork(b); enemyCrewWork(b)
     const arriving = b.inFlight!.filter((p) => p.lands <= b.time)
     b.inFlight = b.inFlight!.filter((p) => p.lands > b.time)
     for (const p of arriving) if (b.phase === 'battle') attack(b, p.side, p.kind, p.target, p.damage, p.shot)

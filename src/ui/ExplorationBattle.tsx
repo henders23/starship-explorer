@@ -411,7 +411,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
                 <i className="space-crew-hp" aria-hidden="true">{Array.from({ length: CREW_HP }, (_, n) => <b key={n} className={n < c.hp ? 'ok' : ''} />)}</i></span>
             </button>
           })}
-          <small role="status" className="space-crew-hint">{repairing?.crew ? `Select a compartment for ${CREW[repairing.crew].name.split(' ')[1]}` : 'Crew repair and fight fire where they stand. The helm needs an officer for evasion.'}</small>
+          <small role="status" className={`space-crew-hint${repairing?.crew ? '' : ' idle'}`}>{repairing?.crew ? `Select a compartment for ${CREW[repairing.crew].name.split(' ')[1]}` : 'Crew repair and fight fire where they stand. The helm needs an officer for evasion.'}</small>
         </div> : <div className="space-repair">
           <button ref={repairButton} className="exp-button space-repair-button" aria-pressed={!!repairing} disabled={!live} onClick={() => startRepair()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z" /></svg>

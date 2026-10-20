@@ -81,3 +81,13 @@ describe('station recovery', () => {
     expect(actionLock(s, { type: 'service', locationId: station.id, service: 'contract' })).toBeNull()
   })
 })
+
+describe('pre-release saves', () => {
+  it('keeps a version-11 save unchanged and says it cannot be replayed', () => {
+    const s = createCampaign('pre-release')
+    const raw = JSON.stringify({ version: 11, ruleset: s.ruleset, seed: s.seed, legacyActions: null, actions: [] })
+    const storage = mem(); storage.setItem(EXPLORATION_SAVE_KEY, raw)
+    expect(loadExploration(storage)).toEqual({ campaign: null, error: expect.stringMatching(/pre-release/) })
+    expect(storage.getItem()).toBe(raw)
+  })
+})

@@ -84,7 +84,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   const signalOpen = !!state.signal || (!!signalShown && !state.shipBattle)
   // An ambush replaces the signal's outcome with the fight; there is nothing to come back to.
   useEffect(() => { if (state.shipBattle) setSignalShown(null) }, [state.shipBattle])
-  const modalOpen = signalOpen || teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home'
+  const modalOpen = signalOpen || teamOpen || returnConfirm || state.driveTest === 'calibrating' || state.outcome === 'home' || state.outcome === 'lost'
   useEffect(() => {
     // A signal focuses its walk-away choice, so a reflexive Enter never takes the bait.
     if (modalOpen) (document.querySelector<HTMLButtonElement>('[role=dialog] [data-testid=signal-walk-away]') ?? document.querySelector<HTMLButtonElement>('[role=dialog] button:not(:disabled)'))?.focus()
@@ -276,11 +276,15 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
 }
 
 /** A hardcore voyage's end: the ship lost in battle. */
+function lostLine(state: Campaign, foe: string | null | undefined) {
+  const name = foe ? `${foe[0]!.toUpperCase()}${foe.slice(1)}` : 'A hostile ship'
+  return rifted(state, state.at) ? `${name} finished what the rift began.` : `${name} caught the Lodestar too far from help.`
+}
 function VoyageLost({ state, onExit }: { state: Campaign; onExit: () => void }) {
   const foe = state.lastShipBattle ? SHIP_BY_ID[state.lastShipBattle.classId]?.name : null
   return <div className="exp-modal-backdrop"><section className="exp-modal exp-ending exp-lost" role="dialog" aria-modal="true" aria-label="Voyage lost">
     <span className="exp-eyebrow">HARDCORE VOYAGE / DAY {state.day}</span><h2>The Lodestar is lost.</h2>
-    <p>{foe ? `${foe[0]!.toUpperCase()}${foe.slice(1)} finished what the rift began.` : 'The rift finished what it began.'} Somewhere far from home, the last transmission is a list of names.</p>
+    <p>{lostLine(state, foe)} Somewhere far from home, the last transmission is a list of names.</p>
     <div className="exp-ending-stats"><span><b>{state.visited.length}</b>{plural(state.visited.length, 'system')} visited</span><span><b>{state.findings.length}</b>scientific {plural(state.findings.length, 'source')}</span><span><b>{state.research.completed.length}</b>{plural(state.research.completed.length, 'project')} completed</span></div>
     <p>The voyage record survives in the archive. Another crew, another sky: begin a new expedition from the title screen.</p>
     <button className="exp-button primary" onClick={onExit}>Return to title</button>

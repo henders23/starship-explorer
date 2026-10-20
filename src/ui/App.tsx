@@ -84,7 +84,7 @@ export function App() {
     ? <ExplorationDeck initial={expedition} onExit={leave} />
     : <div className="crt app-shell h-full"><StartScreen
         onExplore={enter}
-        explorationSaved={!!saved.campaign}
+        explorationSaved={!!saved.campaign && saved.campaign.outcome !== 'lost'}
         explorationError={saved.error}
         storageBlocked={storageBlocked}
       /></div>
