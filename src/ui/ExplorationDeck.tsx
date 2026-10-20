@@ -7,6 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
+  travelOrder,
 } from '../engine/exploration/campaign.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
 import type { Course } from '../engine/exploration/navigation.js'
@@ -113,7 +114,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
     if (!next) return
     setCourse(destination)
     if (whole) { setState((current) => followCourse(current, destination).state); arrive() }
-    else dispatch({ type: 'travel', systemId: next })
+    else dispatch(travelOrder(next))
   }
   const courseControls = (destination: SystemId, plan: Course, staged: boolean) => {
     const jumps = plan.path.length - 1, hop = plan.path[1]!
@@ -163,7 +164,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         ? <p className="exp-card-route"><strong>{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'} · {plan.fuel} FUEL</strong> · arrives day {state.day + jumps}</p>
         : <p className="exp-card-route">No course reaches {target.name} with the current drive.</p>)}
       {neighbour ? <div className="exp-course-actions">
-        {command({ type: 'travel', systemId: id }, `Travel · ${travelCost(state, id)} fuel · 1 day`, true)}
+        {command(travelOrder(id), `Travel · ${travelCost(state, id)} fuel · 1 day`, true)}
         {actionLock(state, { type: 'travel', systemId: id }) && <small>{actionLock(state, { type: 'travel', systemId: id })}.</small>}
       </div> : !current && plan && jumps > 1 ? courseControls(id, plan, false) : null}
     </>

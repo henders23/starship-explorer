@@ -42,6 +42,8 @@ export interface ShipBattle {
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
   /** Present from rules 2; absent means the frozen rules 1. */
   rules?: BattleRules; inFlight?: Projectile[]
+  /** An interception on arrival from a jump (rules 2 only); absent means a station escort. */
+  kind?: 'interception'
   events?: BattleEvent[]; eventSeq?: number
 }
 export type ShipOrder =
@@ -59,7 +61,31 @@ export function escortClass(seed: string, locationId: string, threat: number): S
   const ids = threat >= 2 ? ['carrion-jack', 'reaver'] : ['rust-queen', 'magpie']
   return SHIP_BY_ID[createRng(`${seed}:${locationId}:escort-class`).pick(ids)]!
 }
-export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1): ShipBattle {
+/** What the log says at each turn of an encounter, by kind. */
+const TEXT = {
+  escort: {
+    open: 'The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.',
+    victory: 'The hostile ship breaks apart. The tender has a clear route.',
+    disabled: 'Main power fails. The tender retrieves the disabled Lodestar under emergency tow.',
+    fled: 'Escape jump complete. The tender turns back with us; no contract payment.',
+    paid: 'Transit payment accepted. The tender reaches its survey site.',
+    evaded: 'The tender follows our wake past the interception point. Escort complete.',
+    caught: 'They match our course. The tender falls behind our shields. Battle stations.',
+    yielded: 'The hostile captain powers down. We accept the surrender and escort the tender through.',
+  },
+  interception: {
+    open: 'We drop out of the jump into a waiting weapons lock. The contact transmits a demand for payment.',
+    victory: 'The hostile ship breaks apart. Salvage drones are already moving through the debris.',
+    disabled: 'Main power fails. A passing hauler tows the dead Lodestar to the nearest station, at a price.',
+    fled: 'Emergency jump complete. We lose them in the drive wake and come back out where we meant to be.',
+    paid: 'Transit payment accepted. The contact peels away to wait for someone else.',
+    evaded: 'We burn hard for the shadow of the primary and slip their lock.',
+    caught: 'They read our burn and match it. Shields up. Battle stations.',
+    yielded: 'The hostile captain powers down and offers their hold for their lives. We take the cargo and let them go.',
+  },
+}
+const text = (b: ShipBattle) => TEXT[b.kind ?? 'escort']
+export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception'): ShipBattle {
   const weapons: ShipWeapon[] = [
     { kind: 'laser', name: 'Pulse laser', cost: 1, period: 8, charge: 0, damage: 1, shots: 2, mode: 'auto', target: 'weapons' },
     { kind: 'missile', name: 'Hellion missile', cost: 1, period: 13, charge: 0, damage: 2, shots: 1, mode: 'off', target: 'weapons' },
@@ -74,6 +100,7 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     log: ['The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.'], volley: null, shots: 0 }
   if (rules === 2) {
     b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0
+    if (kind) { b.kind = kind; b.log = [TEXT[kind].open] }
     for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
   }
   return b
@@ -112,7 +139,8 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
     if (a.type === 'hail') return b.hailed ? 'Channel already open' : null
     if (a.type === 'negotiate') return b.hailed && b.upgrades.contextual ? null : 'Hail first; requires Contextual Translation'
     if (a.type === 'pay') return b.hailed ? null : 'Hail to learn their price'
-    if (['evade', 'engage', 'cancel'].includes(a.type)) return null
+    if (a.type === 'cancel') return b.kind === 'interception' ? 'There is no declining an interception' : null
+    if (['evade', 'engage'].includes(a.type)) return null
     return 'Resolve the contact first'
   }
   switch (a.type) {
@@ -172,8 +200,8 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
     log(b, `Fire in the ${to === 'player' ? 'Lodestar' : 'hostile'} ${target} compartment.`)
     emit(b, { type: 'fire', side: to, target })
   }
-  if (b.enemy.hull <= 0) finish(b, 'victory', 'The hostile ship breaks apart. The tender has a clear route.')
-  else if (b.hull <= 1) finish(b, 'disabled', 'Main power fails. The tender retrieves the disabled Lodestar under emergency tow.')
+  if (b.enemy.hull <= 0) finish(b, 'victory', text(b).victory)
+  else if (b.hull <= 1) finish(b, 'disabled', text(b).disabled)
 }
 /** Rules 2: a shot leaves the gun now and is resolved when it arrives. */
 function launch(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, target: EnemyRoomKey, damage: number, shot: number) {
@@ -210,7 +238,7 @@ function tick(b: ShipBattle) {
   if (b.events) b.events = []
   if (b.escape) {
     b.escapeWork += Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2
-    if (b.escapeWork >= 10) { finish(b, 'fled', 'Escape jump complete. The tender turns back with us; no contract payment.'); return }
+    if (b.escapeWork >= 10) { finish(b, 'fled', text(b).fled); return }
   }
   b.shield = Math.min(b.shield, shieldCapacity(b)); b.enemy.shield = Math.min(b.enemy.shield, enemyShieldCapacity(b))
   b.shieldWork += b.upgrades.adaptive ? 1.2 : 1
@@ -265,11 +293,11 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
   const b = structuredClone(state)
   switch (a.type) {
     case 'hail': b.hailed = true; b.toll = b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to clear the tender's route.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
-    case 'pay': finish(b, 'negotiated', 'Transit payment accepted. The tender reaches its survey site.'); break
+    case 'pay': finish(b, 'negotiated', text(b).paid); break
     case 'negotiate': finish(b, 'negotiated', 'We offer a public navigation advisory. Their captain calls it sufficient courtesy and opens the lane.'); break
     case 'evade':
-      if (roll(b, evadeChance(b))) finish(b, 'evaded', 'The tender follows our wake past the interception point. Escort complete.')
-      else { b.phase = 'battle'; log(b, 'They match our course. The tender falls behind our shields. Battle stations.') }
+      if (roll(b, evadeChance(b))) finish(b, 'evaded', text(b).evaded)
+      else { b.phase = 'battle'; log(b, text(b).caught) }
       break
     case 'cancel': finish(b, 'cancelled', 'We decline the escort. The tender remains safely at the station.'); break
     case 'engage': b.phase = 'battle'; log(b, 'Weapons ready. Target a compartment and manage reactor power.'); break
@@ -281,7 +309,7 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
     // Rules 2 keep the team's progress when the same compartment is chosen again.
     case 'repair': if (b.rules !== 2 || b.repair !== a.room) b.repairWork = 0; b.repair = a.room; break
     case 'retreat': b.escape = a.active; if (!a.active) b.escapeWork = 0; break
-    case 'accept-surrender': finish(b, 'yielded', 'The hostile captain powers down. We accept the surrender and escort the tender through.'); break
+    case 'accept-surrender': finish(b, 'yielded', text(b).yielded); break
   }
   return b
 }

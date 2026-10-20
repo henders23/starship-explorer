@@ -8,7 +8,9 @@ import type { DeckVariant } from '../tactical/variants.js'
 import { storyAt } from './stories.js'
 import type { StoryRecord } from './stories.js'
 import { BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
-import type { ShipBattle, ShipOrder } from './ship-battle.js'
+import type { BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
+import { classPool } from '../combat/ships.js'
+import type { ShipClass } from '../combat/ships.js'
 import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
 import { createRng } from '../rng/prng.js'
@@ -16,7 +18,7 @@ import { laneCost } from '../travel/travel.js'
 import { generateGalaxy } from '../worldgen/galaxy.js'
 import { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import type { Galaxy, SystemId } from '../worldgen/types.js'
-import { generateExplorationWorld, initialExplorationState, reduceExploration } from './v2.js'
+import { generateExplorationWorld, initialExplorationState, reduceExploration, REGIONAL_THREAT } from './v2.js'
 import type { DiscoveryKind, ExplorationLocation, ExplorationState, ExplorationWorld, ScanTier } from './v2.js'
 import { DRIVE_SEQUENCE, PROJECTS, PROJECT_IDS, SLOT_LIMITS, blueprintFor, buildName } from './research.js'
 import type { BuildId, ProjectId } from './research.js'
@@ -63,7 +65,8 @@ export type CampaignAction =
   | { type: 'debrief' }
   | { type: 'rest-team' }
   | { type: 'recruit'; locationId: string }
-  | { type: 'travel'; systemId: SystemId }
+  /** `hazards` turns on interceptions after the jump; journals before save version 11 carry none. */
+  | { type: 'travel'; systemId: SystemId; hazards?: 1 }
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
   | { type: 'recover'; locationId: string; approach: 'careful' | 'rapid' }
@@ -300,6 +303,7 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       return state.exploration.credits >= 20 ? null : 'Requires 20 credits; station contracts can replenish funds'
     }
     case 'travel': {
+      if (action.hazards !== undefined && action.hazards !== 1) return 'Unknown travel rules'
       const cost = travelCost(state, action.systemId)
       if (cost === null) return 'Select a connected system, or research Slipstream Navigation for two-lane travel'
       return state.fuel < cost ? `Requires ${cost} fuel` : null
@@ -406,6 +410,39 @@ function advanceResearch(state: Campaign, work: number, knowledge: Campaign): { 
   }
   return { state: startQueued(next), messages }
 }
+/** A jump as the current game orders it: arrival can bring an interception. */
+export const travelOrder = (systemId: SystemId): CampaignAction => ({ type: 'travel', systemId, hazards: 1 })
+/** The research and fitted equipment a battle uses. */
+function battleUpgrades(state: Campaign): BattleUpgrades {
+  return {
+    fireControl: hasTech(state, 'fire-control'), ion: fitted(state, 'ion-projector'), beam: fitted(state, 'focus-beam'),
+    layered: hasTech(state, 'layered-shields'), adaptive: hasTech(state, 'adaptive-shields'),
+    translated: hasTech(state, 'trade-language'), contextual: hasTech(state, 'contextual-translation'), countermeasures: fitted(state, 'countermeasures'),
+  }
+}
+/** Percent chance, by regional threat, that a hostile is waiting at the end of a jump. */
+export const INTERCEPTION_CHANCE = [0, 14, 24, 34] as const
+/** What a defeated or surrendering interceptor leaves behind. */
+export const INTERCEPTION_SPOILS: Partial<Record<NonNullable<ShipBattle['result']>, { materials: number; credits: number; fuel: number }>> = {
+  victory: { materials: 10, credits: 22, fuel: 1 }, yielded: { materials: 7, credits: 16, fuel: 1 },
+}
+/**
+ * Whether a hostile waits at the system just reached, and which. The claiming
+ * faction's patrols hunt their own space; raiders work everywhere else. The
+ * shallows are safe, countermeasures make the Lodestar harder to find, and a
+ * hull below 25 reads as a wreck not worth the trouble.
+ */
+export function interceptor(state: Campaign): ShipClass | null {
+  const system = state.galaxy.systems.find((s) => s.id === state.at)!
+  const threat = REGIONAL_THREAT[system.region]
+  if (state.at === state.galaxy.start || state.hull < 25) return null
+  const chance = INTERCEPTION_CHANCE[threat] - (fitted(state, 'countermeasures') ? 8 : 0)
+  const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
+  if (rng.int(100) >= chance) return null
+  const archetype = state.galaxy.factions.find((f) => f.id === system.faction)?.archetype ?? 'raider'
+  const tier = threat >= 3 || (threat >= 2 && state.day >= 45) ? 2 : 1
+  return rng.pick(classPool(archetype, tier).filter((c) => c.tier <= tier))
+}
 function fitUpgrade(state: Campaign, id: BuildId): Campaign {
   if (equipLock(state, id)) return state
   return { ...state, equipped: [...state.equipped, id], hull: state.hull + (id === 'composite-hull' ? 20 : 0) }
@@ -494,11 +531,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'escort': {
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
-        escortClass(state.seed, station.id, station.threat), state.hull, hullCapacity(state), {
-          fireControl: hasTech(state, 'fire-control'), ion: fitted(state, 'ion-projector'), beam: fitted(state, 'focus-beam'),
-          layered: hasTech(state, 'layered-shields'), adaptive: hasTech(state, 'adaptive-shields'),
-          translated: hasTech(state, 'trade-language'), contextual: hasTech(state, 'contextual-translation'), countermeasures: fitted(state, 'countermeasures'),
-        }, action.rules ?? 1)
+        escortClass(state.seed, station.id, station.threat), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1)
       message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
     }
     case 'ship-order':
@@ -509,6 +542,20 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = next.shipBattle.log.at(-1)!; break
     case 'ship-debrief': {
       const battle = state.shipBattle!
+      if (battle.kind === 'interception') {
+        const spoils = INTERCEPTION_SPOILS[battle.result!]
+        days = battle.result === 'disabled' ? 3 : 0
+        if (spoils) {
+          next.exploration.materials += spoils.materials; next.exploration.credits += spoils.credits
+          next.fuel = Math.min(fuelCapacity(state), state.fuel + spoils.fuel)
+          message = `Interception over. Salvage recovered: ${spoils.materials} materials, ${spoils.credits} credits${spoils.fuel ? `, ${spoils.fuel} fuel` : ''}.`
+        } else if (battle.result === 'disabled') {
+          const materials = Math.min(8, next.exploration.materials), credits = Math.min(20, next.exploration.credits)
+          next.exploration.materials -= materials; next.exploration.credits -= credits
+          message = `Emergency tow completed. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
+        } else message = 'Interception over. We continue the voyage; hull damage persists.'
+        next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null; break
+      }
       const success = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)
       days = battle.result === 'cancelled' ? 0 : battle.result === 'disabled' ? 3 : 1
       if (success) {
@@ -581,6 +628,11 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.visited = state.visited.includes(system.id) ? state.visited : [...state.visited, system.id]
       next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', systemId: next.at, tier: 'passive' }, next.at)
       message = `Arrived at ${system.name}. Passive sensors have catalogued the obvious contacts.`
+      const hostile = action.hazards ? interceptor(next) : null
+      if (hostile) {
+        next.shipBattle = createShipBattle(`${state.seed}:${system.id}:intercept:${state.day}`, system.id, hostile, next.hull, hullCapacity(next), battleUpgrades(next), BATTLE_RULES, 'interception')
+        message = `Arrived at ${system.name}. Hostile contact: ${hostile.name} has a weapons lock on us.`
+      }
       break
     }
     case 'scan': {

@@ -1,7 +1,7 @@
 import { GalaxyIndex } from '../worldgen/index-galaxy.js'
 import type { SystemId } from '../worldgen/types.js'
-import { actionLock, hasTech, reduceCampaign, travelCost } from './campaign.js'
-import type { Campaign } from './campaign.js'
+import { actionLock, hasTech, reduceCampaign, travelCost, travelOrder } from './campaign.js'
+import type { Campaign, CampaignAction } from './campaign.js'
 
 /** A plotted course: every system it stops at, origin first, and the fuel it needs. */
 export interface Course { path: SystemId[]; fuel: number }
@@ -48,23 +48,26 @@ export function courseFinder(state: Campaign): (target: SystemId) => Course | nu
 
 export const plotCourse = (state: Campaign, target: SystemId) => courseFinder(state)(target)
 
-export type CourseStop = 'arrived' | 'research' | 'blocked'
+export type CourseStop = 'arrived' | 'research' | 'contact' | 'blocked'
 
 /**
  * Follows the plotted course one legal travel order at a time, exactly as if
  * each jump had been ordered by hand. It stops early when research completes,
  * so the captain sees the result and can choose what the laboratory does next,
- * or when a jump is refused (for example, not enough fuel).
+ * when a hostile intercepts the ship, or when a jump is refused (for example,
+ * not enough fuel).
  */
-export function followCourse(state: Campaign, target: SystemId): { state: Campaign; stop: CourseStop; reason: string | null } {
+export function followCourse(state: Campaign, target: SystemId, hazards = true): { state: Campaign; stop: CourseStop; reason: string | null } {
   const course = plotCourse(state, target)
   if (!course || course.path.length < 2) return { state, stop: 'blocked', reason: course ? 'The Ithaca is already here' : 'No course with the current drive' }
   let s = state
   for (const systemId of course.path.slice(1)) {
-    const reason = actionLock(s, { type: 'travel', systemId })
+    const order: CampaignAction = hazards ? travelOrder(systemId) : { type: 'travel', systemId }
+    const reason = actionLock(s, order)
     if (reason) return { state: s, stop: 'blocked', reason }
     const completed = s.research.completed.length
-    s = reduceCampaign(s, { type: 'travel', systemId })
+    s = reduceCampaign(s, order)
+    if (s.shipBattle) return { state: s, stop: 'contact', reason: null }
     if (s.at !== target && s.research.completed.length > completed) return { state: s, stop: 'research', reason: null }
   }
   return { state: s, stop: 'arrived', reason: null }

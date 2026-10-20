@@ -44,7 +44,7 @@ describe('following a course', () => {
   it('flies the whole route as ordinary travel orders that replay exactly', () => {
     const s = createCampaign('nav-follow'), [target, lanes] = farthest(s), course = plotCourse(s, target)!
     expect(lanes).toBeGreaterThan(3)
-    const result = followCourse(s, target)
+    const result = followCourse(s, target, false)
     expect(result.stop).toBe('arrived')
     expect(result.state.at).toBe(target)
     expect(result.state.day).toBe(s.day + lanes)
@@ -58,12 +58,25 @@ describe('following a course', () => {
     let s = reduceCampaign(createCampaign('nav-research'), { type: 'research', project: 'drive-diagnostics' })
     const [target, lanes] = farthest(s)
     expect(lanes).toBeGreaterThan(4)
-    const result = followCourse(s, target)
+    const result = followCourse(s, target, false)
     expect(result.stop).toBe('research')
     expect(result.state.research.completed).toContain('drive-diagnostics')
     expect(result.state.at).toBe(plotCourse(s, target)!.path[4])
-    s = followCourse(result.state, target).state
+    s = followCourse(result.state, target, false).state
     expect(s.at).toBe(target)
+  })
+  it('stops where a hostile intercepts the ship, and replays the contact exactly', () => {
+    let stopped: ReturnType<typeof followCourse> | null = null
+    for (let i = 0; i < 40 && !stopped; i++) {
+      const s = createCampaign(`nav-intercept-${i}`), [target] = farthest(s), result = followCourse(s, target)
+      if (result.stop === 'contact') stopped = result
+    }
+    expect(stopped).not.toBeNull()
+    const s = stopped!.state
+    expect(s.shipBattle!.kind).toBe('interception'); expect(s.shipBattle!.phase).toBe('contact'); expect(s.shipBattle!.locationId).toBe(s.at)
+    expect(s.actions.every((a) => a.type === 'travel' && a.hazards === 1)).toBe(true)
+    const storage = mem(); saveExploration(s, storage)
+    expect(loadExploration(storage)).toEqual({ campaign: s, error: null })
   })
   it('stops before a jump it cannot afford and explains why', () => {
     const s = createCampaign('nav-fuel'), [target] = farthest(s), course = plotCourse(s, target)!

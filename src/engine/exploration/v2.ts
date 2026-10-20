@@ -48,7 +48,7 @@ export type ExplorationAction =
   | { type: 'investigate'; locationId: string }
   | { type: 'resolve'; locationId: string }
 
-const REGIONAL_THREAT: Record<RegionId, 0 | 1 | 2 | 3> = {
+export const REGIONAL_THREAT: Record<RegionId, 0 | 1 | 2 | 3> = {
   shallows: 0, 'trade-reach': 1, 'cinder-belt': 2, xenoline: 2, 'rift-margin': 3,
 }
 const TIER_ORDER: Record<ScanTier, number> = { passive: 0, survey: 1, deep: 2 }
