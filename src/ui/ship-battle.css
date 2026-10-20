@@ -300,3 +300,4 @@
   .hostile.destroyed .space-bob,.friendly.jumping .space-hull { animation:none; opacity:.2; }
   .space-bar i { transition:none; }
 }
+.space-find { margin:-8px 0 14px!important; color:#f2c94c!important; font-size:12px; }

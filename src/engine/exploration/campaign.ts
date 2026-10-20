@@ -32,6 +32,8 @@ export interface Campaign {
   relayArc?: RelayArc
   /** Set only by an explicit order: an idle laboratory continues the Return Drive sequence. */
   autoResearch?: true
+  /** The Hellion magazine that rules-2 battles draw on and spend. */
+  missiles: number
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -70,7 +72,7 @@ export type CampaignAction =
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
   | { type: 'recover'; locationId: string; approach: 'careful' | 'rapid' }
-  | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' }
+  | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
@@ -102,7 +104,7 @@ export function createCampaign(seed: string): Campaign {
     research: { active: null, progress: {}, completed: [], queue: [] },
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
-    shipBattle: null, escortCompleted: [], lastShipBattle: null,
+    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES,
     completedOperations: [], loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
@@ -324,7 +326,8 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     case 'service': {
       const station = contacted(state, action.locationId)
       if (!station || station.systemId !== state.at) return 'Establish contact with a local station first'
-      if (!['refuel', 'repair', 'sell', 'buy', 'contract'].includes(action.service)) return 'Unknown station service'
+      if (!['refuel', 'repair', 'sell', 'buy', 'contract', 'ordnance'].includes(action.service)) return 'Unknown station service'
+      if (action.service === 'ordnance') return state.missiles >= MAGAZINE_CAPACITY ? 'Magazine full' : state.exploration.credits < ORDNANCE_PRICE ? `Requires ${ORDNANCE_PRICE} credits` : null
       if (action.service === 'contract') return null
       if (action.service === 'sell') return state.exploration.materials < 4 ? 'Requires 4 materials' : null
       if (action.service === 'buy') return state.exploration.credits < 18 ? 'Requires 18 credits' : null
@@ -422,9 +425,28 @@ function battleUpgrades(state: Campaign): BattleUpgrades {
 }
 /** Percent chance, by regional threat, that a hostile is waiting at the end of a jump. */
 export const INTERCEPTION_CHANCE = [0, 14, 24, 34] as const
-/** What a defeated or surrendering interceptor leaves behind. */
-export const INTERCEPTION_SPOILS: Partial<Record<NonNullable<ShipBattle['result']>, { materials: number; credits: number; fuel: number }>> = {
-  victory: { materials: 10, credits: 22, fuel: 1 }, yielded: { materials: 7, credits: 16, fuel: 1 },
+/** What a defeated or surrendering interceptor leaves behind, before the luck of the wreck. */
+export const INTERCEPTION_SPOILS: Partial<Record<NonNullable<ShipBattle['result']>, { materials: number; credits: number; fuel: number; missiles: number }>> = {
+  victory: { materials: 10, credits: 22, fuel: 1, missiles: 0 }, yielded: { materials: 7, credits: 16, fuel: 1, missiles: 0 },
+}
+export const STARTING_MISSILES = 6
+export const MAGAZINE_CAPACITY = 12
+export const ORDNANCE_PRICE = 14
+/** Hellions a station hands over with a rules-2 escort contract. */
+export const ESCORT_MISSILES = 2
+/**
+ * The salvage an interception leaves: the fixed share plus one find from the
+ * wreck, seeded by the battle so a reload finds the same thing. A kill that
+ * left the hostile's weapons room intact yields more ordnance.
+ */
+export function interceptionSpoils(battle: ShipBattle): { materials: number; credits: number; fuel: number; missiles: number; find: string } | null {
+  const base = INTERCEPTION_SPOILS[battle.result!]
+  if (!base) return null
+  const roll = createRng(`${battle.seed}:salvage`).int(100), armed = battle.enemy.rooms.weapons.hp > 0
+  if (roll < (armed ? 50 : 30)) return { ...base, missiles: 3, find: 'An intact Hellion rack' }
+  if (roll < 70) return { ...base, fuel: base.fuel + 2, find: 'Their fuel bunkers held' }
+  if (roll < 90) return { ...base, materials: base.materials + 8, find: 'Salvageable hull plate' }
+  return { ...base, credits: base.credits + 30, find: 'A strongbox of trade credit' }
 }
 /**
  * Whether a hostile waits at the system just reached, and which. The claiming
@@ -539,7 +561,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
     case 'escort': {
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
-        escortClass(state.seed, station.id, station.threat, action.rules ?? 1), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1)
+        escortClass(state.seed, station.id, station.threat, action.rules ?? 1), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1,
+        undefined, action.rules ? Math.min(MAGAZINE_CAPACITY, state.missiles + ESCORT_MISSILES) : 4)
       message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
     }
     case 'ship-order':
@@ -550,13 +573,16 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = next.shipBattle.log.at(-1)!; break
     case 'ship-debrief': {
       const battle = state.shipBattle!
+      // Rules 2 battles fire from the ship's own magazine; what was spent stays spent.
+      if (battle.rules === 2 && battle.result !== 'cancelled') next.missiles = battle.missiles
       if (battle.kind === 'interception') {
-        const spoils = INTERCEPTION_SPOILS[battle.result!]
+        const spoils = interceptionSpoils(battle)
         days = battle.result === 'disabled' ? 3 : 0
         if (spoils) {
           next.exploration.materials += spoils.materials; next.exploration.credits += spoils.credits
           next.fuel = Math.min(fuelCapacity(state), state.fuel + spoils.fuel)
-          message = `Interception over. Salvage recovered: ${spoils.materials} materials, ${spoils.credits} credits${spoils.fuel ? `, ${spoils.fuel} fuel` : ''}.`
+          next.missiles = Math.min(MAGAZINE_CAPACITY, next.missiles + spoils.missiles)
+          message = `Interception over. Salvage recovered: ${spoils.materials} materials, ${spoils.credits} credits${spoils.fuel ? `, ${spoils.fuel} fuel` : ''}${spoils.missiles ? `, ${spoils.missiles} Hellion missiles` : ''}.`
         } else if (battle.result === 'disabled') {
           const materials = Math.min(8, next.exploration.materials), credits = Math.min(20, next.exploration.credits)
           next.exploration.materials -= materials; next.exploration.credits -= credits
@@ -638,7 +664,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = `Arrived at ${system.name}. Passive sensors have catalogued the obvious contacts.`
       const hostile = action.hazards ? interceptor(next) : null
       if (hostile) {
-        next.shipBattle = createShipBattle(`${state.seed}:${system.id}:intercept:${state.day}`, system.id, hostile, next.hull, hullCapacity(next), battleUpgrades(next), BATTLE_RULES, 'interception')
+        next.shipBattle = createShipBattle(`${state.seed}:${system.id}:intercept:${state.day}`, system.id, hostile, next.hull, hullCapacity(next), battleUpgrades(next), BATTLE_RULES, 'interception', next.missiles)
         message = `Arrived at ${system.name}. Hostile contact: ${hostile.name} has a weapons lock on us.`
       }
       break
@@ -683,6 +709,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       } else if (action.service === 'buy') {
         next.exploration.materials += 4; next.exploration.credits -= 18
         message = 'Bought 4 materials for 18 credits.'
+      } else if (action.service === 'ordnance') {
+        next.missiles = Math.min(MAGAZINE_CAPACITY, state.missiles + 2); next.exploration.credits -= ORDNANCE_PRICE
+        message = `The armourer loads ${next.missiles - state.missiles} Hellion missiles for ${ORDNANCE_PRICE} credits. Magazine: ${next.missiles}.`
       } else {
         next.exploration.credits -= stationPrice(state)
         if (action.service === 'refuel') {

@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder, interceptionRisk,
+  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY,
 } from '../engine/exploration/campaign.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
@@ -191,6 +191,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>DAY <b data-testid="exp-day">{state.day}</b></span>
         <span>FUEL <b data-testid="exp-fuel">{state.fuel}/{fuelCapacity(state)}</b></span>
         <span>HULL <b>{state.hull}/{hullCapacity(state)}</b></span>
+        <span>MISSILES <b data-testid="exp-missiles">{state.missiles}</b></span>
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
       </div>
@@ -305,6 +306,7 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
           {command({ type: 'service', locationId: site.id, service: 'repair' }, `Repair +20 · 5 materials + ${stationPrice(state)} credits · 1 day`)}
           {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
           {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
+          {command({ type: 'service', locationId: site.id, service: 'ordnance' }, `Buy 2 Hellion missiles · ${ORDNANCE_PRICE} credits · 1 day · ${state.missiles}/${MAGAZINE_CAPACITY} aboard`)}
           {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
           {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <section className="exp-relay" aria-label="The last post delivery"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</section>}
           <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />

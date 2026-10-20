@@ -1,7 +1,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
-import { actionLock, INTERCEPTION_SPOILS } from '../engine/exploration/campaign.js'
+import { actionLock, ESCORT_MISSILES, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
 import { assignedPower, BATTLE_RULES, burning, CREW_HP, enemyGunEta, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, REACTOR_POWER, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { BattleCrew, BattleEvent, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
@@ -77,7 +77,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
       <CrewLine person="cross" compact>{intercept ? 'They were waiting at the jump point. We can pay them, run for it, or fight.' : 'We can talk, slip past, or fight. Their systems tell us what a fight would cost.'}</CrewLine>
       <div className="ship-contact-stats"><span><b>{cls.hull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{cls.evade}%</b>evasion</span></div>
       {!intercept && <p>The tender’s captain keeps her voice level. “We can wait at the station. But if you’re taking us out, I need to know you can get us through.”</p>}
-      <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull. {intercept ? 'The armoury has loaded four Hellion missiles.' : 'The station supplies four missiles for this escort; unused ordnance is returned afterward.'}</p>
+      <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull. {!b.rules ? 'The station supplies four missiles for this escort; unused ordnance is returned afterward.' : `${intercept ? 'The magazine holds' : `The station adds ${ESCORT_MISSILES} Hellions to our magazine:`} ${b.missiles} ${b.missiles === 1 ? 'missile' : 'missiles'}. Missiles fired are gone for good.`}</p>
       {b.hailed && <p className="ship-contact-response">{b.log.at(-1)}</p>}
       <div className="ship-contact-options">{button({ type: 'hail' }, 'Hail the contact')}
         {b.hailed && <>{button({ type: 'pay' }, `Pay passage · ${b.toll} credits`)}{b.upgrades.contextual ? button({ type: 'negotiate' }, 'Negotiate passage · no payment', true) : <small>Contextual Translation opens a negotiated passage without a toll.</small>}</>}
@@ -96,12 +96,13 @@ function ReportScreen({ b, dispatch, saved }: { b: ShipBattle; dispatch: (a: Cam
     ? { victory: 'Wreckage and salvage.', negotiated: 'Paid and on our way.', evaded: 'Lock broken.', yielded: 'Their hold, our lives.', fled: 'Lost them in the wake.', disabled: 'A tow back to port.', cancelled: '' }[b.result!]
     : { victory: 'The lane is clear.', negotiated: 'No shots fired.', evaded: 'A quiet passage.', yielded: 'Weapons standing down.', fled: 'The tender turns back.', disabled: 'A tow back to port.', cancelled: 'Another captain, another day.' }[b.result!]
   const success = ['victory', 'negotiated', 'evaded', 'yielded'].includes(b.result!)
-  const spoils = intercept ? INTERCEPTION_SPOILS[b.result!] : success ? b.result === 'victory' ? { materials: 12, credits: 35, fuel: 0 } : { materials: 6, credits: 18, fuel: 0 } : null
+  const spoils = intercept ? interceptionSpoils(b) : success ? b.result === 'victory' ? { materials: 12, credits: 35, fuel: 0 } : { materials: 6, credits: 18, fuel: 0 } : null
   const note = b.result === 'disabled' ? 'Emergency recovery takes three days and costs up to 8 materials and 20 credits from your stores. Station survey contracts can fund repairs; the voyage can continue.'
     : intercept ? spoils ? 'The salvage comes aboard when you acknowledge this report. No campaign time passes.' : 'No campaign time passes. Hull damage persists until a station repairs it.'
     : b.result === 'cancelled' ? 'The tender stays at the station. No campaign time passes, and you can reconsider later.' : success ? 'The station pays once when you acknowledge this report. One campaign day passes. The laboratory continues its work.' : 'One campaign day passes. The escort can be attempted again; hull damage remains.'
   return <main className="exp-deck ship-report"><section className="exp-modal exp-ending"><span className="exp-eyebrow">{intercept ? 'Interception report' : 'Escort report'} / {b.time} combat seconds</span><h2>{title}</h2>
-    <p>{b.log.at(-1)}</p><div className="exp-ending-stats"><span><b>{b.hull}</b>hull remaining</span><span><b>{spoils?.materials ?? 0}</b>materials {intercept ? 'salvaged' : 'earned'}</span><span><b>{spoils?.credits ?? 0}</b>credits {intercept ? 'salvaged' : 'earned'}</span>{intercept && <span><b>{spoils?.fuel ?? 0}</b>fuel recovered</span>}</div>
+    <p>{b.log.at(-1)}</p><div className="exp-ending-stats"><span><b>{b.hull}</b>hull remaining</span><span><b>{spoils?.materials ?? 0}</b>materials {intercept ? 'salvaged' : 'earned'}</span><span><b>{spoils?.credits ?? 0}</b>credits {intercept ? 'salvaged' : 'earned'}</span>{intercept && <span><b>{spoils?.fuel ?? 0}</b>fuel recovered</span>}{b.rules === 2 && <span><b>{b.missiles + (intercept && spoils && 'missiles' in spoils ? spoils.missiles : 0)}</b>missiles aboard</span>}</div>
+    {intercept && spoils && 'find' in spoils && <p className="space-find">{spoils.find}.</p>}
     <p>{note}</p>
     <button className="exp-button primary" onClick={() => dispatch({ type: 'ship-debrief' })}>{intercept ? 'Acknowledge interception report' : 'Acknowledge escort report'}</button><small>{saved ? 'Report saved' : 'Autosave unavailable'}</small>
   </section></main>

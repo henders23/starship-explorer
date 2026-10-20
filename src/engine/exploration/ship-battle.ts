@@ -116,7 +116,7 @@ const TEXT = {
   },
 }
 const text = (b: ShipBattle) => TEXT[b.kind ?? 'escort']
-export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception'): ShipBattle {
+export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception', missiles = 4): ShipBattle {
   const weapons: ShipWeapon[] = [
     { kind: 'laser', name: 'Pulse laser', cost: 1, period: 8, charge: 0, damage: 1, shots: 2, mode: 'auto', target: 'weapons' },
     { kind: 'missile', name: 'Hellion missile', cost: 1, period: 13, charge: 0, damage: 2, shots: 1, mode: 'off', target: 'weapons' },
@@ -125,7 +125,7 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
   if (upgrades.beam) weapons.push({ kind: 'beam', name: 'Focus beam', cost: 2, period: 15, charge: 0, damage: 3, shots: 1, mode: 'off', target: 'weapons' })
   const b: ShipBattle = { seed, locationId, classId: cls.id, phase: 'contact', hailed: false, result: null, hull, hullMax, upgrades, time: 0, rolls: 0, toll: 0,
     power: { shields: 2, engines: 2, weapons: 2 }, rooms: { helm: room(2), weapons: room(4), shields: room(4), engines: room(3) },
-    shield: 1, shieldWork: 0, repair: 'weapons', repairWork: 0, missiles: 4, weapons, escape: false, escapeWork: 0,
+    shield: 1, shieldWork: 0, repair: 'weapons', repairWork: 0, missiles, weapons, escape: false, escapeWork: 0,
     enemy: { hull: cls.hull, maxHull: cls.hull, shield: cls.shields, shieldWork: 0, repairWork: 0,
       rooms: { helm: room(cls.rooms.helm), weapons: room(cls.rooms.weapons), shields: room(cls.rooms.shields), engines: room(cls.rooms.engines) }, charges: cls.guns.map(() => 0) },
     log: ['The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.'], volley: null, shots: 0 }

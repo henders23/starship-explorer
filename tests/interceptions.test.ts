@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, createCampaign, interceptor, reduceCampaign, travelOrder } from '../src/engine/exploration/campaign.js'
+import { actionLock, createCampaign, ESCORT_MISSILES, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
+import { escortContact } from '../tools/ship-walkthrough.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { followCourse } from '../src/engine/exploration/navigation.js'
 import { REGIONAL_THREAT } from '../src/engine/exploration/v2.js'
@@ -46,7 +47,7 @@ describe('interceptions on arrival', () => {
     s = reduceCampaign(s, { type: 'ship-debrief' })
     expect(s.shipBattle).toBeNull(); expect(s.escortCompleted).toEqual([])
     if (result === 'victory') {
-      expect(s.exploration.materials).toBe(before.materials + 10); expect(s.exploration.credits).toBe(before.credits + 22); expect(s.day).toBe(day)
+      expect(s.exploration.materials).toBeGreaterThanOrEqual(before.materials + 10); expect(s.exploration.credits).toBeGreaterThanOrEqual(before.credits + 22); expect(s.day).toBe(day)
     } else expect(['disabled', 'fled']).toContain(result)
   })
   it('rejects hazardous travel inside journals older than save version 11', () => {
@@ -60,5 +61,37 @@ describe('interceptions on arrival', () => {
     const [target] = [...s.galaxy.systems].sort((a, b) => b.r - a.r)
     const result = followCourse(s, target!.id, false)
     expect(result.state.shipBattle).toBeNull()
+  })
+})
+
+describe('the Hellion magazine', () => {
+  it('starts stocked, is spent in rules-2 battles and restocked by salvage or the armourer', () => {
+    let s = intercepted('magazine-a')
+    expect(s.shipBattle!.missiles).toBe(s.missiles)
+    s = order(s, { type: 'engage' }); s = order(s, { type: 'weapon', index: 1, mode: 'auto' })
+    for (let i = 0; i < 200 && s.shipBattle!.phase === 'battle'; i++) s = order(s, { type: 'advance', seconds: 5 })
+    const battle = s.shipBattle!, spoils = interceptionSpoils(battle)
+    expect(battle.missiles).toBeLessThan(STARTING_MISSILES)
+    s = reduceCampaign(s, { type: 'ship-debrief' })
+    expect(s.missiles).toBe(Math.min(MAGAZINE_CAPACITY, battle.missiles + (spoils?.missiles ?? 0)))
+    expect(interceptionSpoils(battle)).toEqual(spoils)
+  })
+  it('sells two missiles at a contacted station, up to the magazine capacity', () => {
+    let s = createCampaign('magazine-b')
+    const station = s.world.locations.find((l) => l.systemId === s.at && l.kind === 'station')!
+    s = reduceCampaign(s, { type: 'investigate', locationId: station.id })
+    const credits = s.exploration.credits
+    s = reduceCampaign(s, { type: 'service', locationId: station.id, service: 'ordnance' })
+    expect(s.missiles).toBe(STARTING_MISSILES + 2); expect(s.exploration.credits).toBe(credits - ORDNANCE_PRICE)
+    expect(actionLock({ ...s, missiles: MAGAZINE_CAPACITY }, { type: 'service', locationId: station.id, service: 'ordnance' })).toBe('Magazine full')
+  })
+  it('keeps escort missiles only when the escort is flown, not declined', () => {
+    const contact = escortContact('magazine-c')
+    expect(contact.shipBattle!.missiles).toBe(contact.missiles + ESCORT_MISSILES)
+    let declined = reduceCampaign(contact, { type: 'ship-order', order: { type: 'cancel' } })
+    declined = reduceCampaign(declined, { type: 'ship-debrief' })
+    expect(declined.missiles).toBe(contact.missiles)
+    const legacy = escortContact('magazine-d', 1)
+    expect(legacy.shipBattle!.missiles).toBe(4)
   })
 })
