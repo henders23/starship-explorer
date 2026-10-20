@@ -94,6 +94,10 @@ may be bait, a hulk to strip, a trader, refugees short of fuel, a trapped weapon
 cache and more. Each offers choices with their costs and risks shown, and always a
 way to walk away.
 
+Each station's **armoury** stocks one weapon (Burst laser II, Heavy laser or Twin
+Hellion) for two spare hardpoints. Missiles are a finite magazine, sold at
+stations. More weapons than the reactor can power is the point.
+
 Victory over an interceptor salvages materials, credits and fuel. A disabled ship
 is towed home at a cost. See [docs/FTL-COMBAT.md](docs/FTL-COMBAT.md).
 

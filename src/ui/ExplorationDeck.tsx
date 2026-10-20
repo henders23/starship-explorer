@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY,
+  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock,
 } from '../engine/exploration/campaign.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
@@ -25,6 +25,7 @@ import { DRIVE_SEQUENCE } from '../engine/exploration/research.js'
 import { ExplorationResearch, DriveTestScene, ReturnHomeScene, ExplorationEnding } from './ExplorationResearch.js'
 import { EscortOffer, ExplorationBattle } from './ExplorationBattle.js'
 import { SignalScene } from './SignalScene.js'
+import { ARMOURY, ARMOURY_SLOTS } from '../engine/exploration/ship-battle.js'
 import { AwayTeam, TacticalMission } from './TacticalMission.js'
 import './exploration.css'
 import './crew-presence.css'
@@ -264,6 +265,15 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   </main>
 }
 
+/** The station armoury: one weapon in stock, mounted on a spare hardpoint. */
+function ArmouryOffer({ state, stationId, command }: { state: Campaign; stationId: string; command: Command }) {
+  const id = armouryStock(state.seed, stationId), item = ARMOURY[id], owned = state.armoury.includes(id)
+  return <div className="exp-armoury"><h3>Armoury</h3>
+    {owned ? <small>{item.weapon.name} mounted. {state.armoury.length}/{ARMOURY_SLOTS} hardpoints used.</small>
+      : command({ type: 'buy-weapon', locationId: stationId, weapon: id }, `${item.weapon.name} · ${item.blurb} · ${item.weapon.cost} power · ${item.price} credits`)}
+  </div>
+}
+
 /**
  * A place in the current system, shown full-bleed. The story sits over the art;
  * every order (contact, recovery, station services) lives in the science
@@ -313,6 +323,7 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
           {command({ type: 'service', locationId: site.id, service: 'sell' }, `Sell 4 materials · receive ${salePrice(state)} credits · 1 day`)}
           {command({ type: 'service', locationId: site.id, service: 'buy' }, 'Buy 4 materials · 18 credits · 1 day')}
           {command({ type: 'service', locationId: site.id, service: 'ordnance' }, `Buy 2 Hellion missiles · ${ORDNANCE_PRICE} credits · ${state.missiles}/${MAGAZINE_CAPACITY} aboard`)}
+          <ArmouryOffer state={state} stationId={site.id} command={command} />
           {command({ type: 'service', locationId: site.id, service: 'contract' }, 'Survey contract · 3 days · earn 8 materials + 18 credits')}
           {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <section className="exp-relay" aria-label="The last post delivery"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</section>}
           <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />

@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, createCampaign, ESCORT_MISSILES, EVADE_FUEL, WRECK_HULL, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
+import { actionLock, armouryStock, createCampaign, ESCORT_MISSILES, EVADE_FUEL, WRECK_HULL, interceptionSpoils, interceptor, MAGAZINE_CAPACITY, ORDNANCE_PRICE, reduceCampaign, STARTING_MISSILES, travelOrder } from '../src/engine/exploration/campaign.js'
 import { escortContact } from '../tools/ship-walkthrough.js'
+import { ARMOURY, createShipBattle, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
+import type { ArmouryWeaponId } from '../src/engine/exploration/ship-battle.js'
+import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { followCourse } from '../src/engine/exploration/navigation.js'
 import { REGIONAL_THREAT } from '../src/engine/exploration/v2.js'
@@ -106,5 +109,34 @@ describe('interception pressure', () => {
   it('leaves only near-wrecks alone', () => {
     const s = { ...intercepted('wreck'), shipBattle: null }
     expect(interceptor({ ...s, hull: WRECK_HULL })).toBeNull()
+  })
+})
+
+describe('station armouries', () => {
+  it('sell the stocked weapon onto a free hardpoint and mount it in rules-2 battles', () => {
+    let s = createCampaign('armoury-a')
+    const station = s.world.locations.find((l) => l.systemId === s.at && l.kind === 'station')!
+    s = reduceCampaign(s, { type: 'investigate', locationId: station.id })
+    const id = armouryStock(s.seed, station.id), other = (Object.keys(ARMOURY) as ArmouryWeaponId[]).find((w) => w !== id)!
+    expect(actionLock(s, { type: 'buy-weapon', locationId: station.id, weapon: other })).toMatch(/does not stock/)
+    expect(actionLock({ ...s, exploration: { ...s.exploration, credits: 10 } }, { type: 'buy-weapon', locationId: station.id, weapon: id })).toMatch(/credits/)
+    s = { ...s, exploration: { ...s.exploration, credits: 200 } }
+    s = reduceCampaign(s, { type: 'buy-weapon', locationId: station.id, weapon: id })
+    expect(s.armoury).toEqual([id]); expect(s.exploration.credits).toBe(200 - ARMOURY[id].price)
+    expect(actionLock(s, { type: 'buy-weapon', locationId: station.id, weapon: id })).toBe('Already mounted')
+    const escort = reduceCampaign(s, { type: 'escort', locationId: station.id, rules: 2 })
+    expect(escort.shipBattle!.weapons.map((w) => w.name)).toContain(ARMOURY[id].weapon.name)
+    const legacy = reduceCampaign(s, { type: 'escort', locationId: station.id })
+    expect(legacy.shipBattle!.weapons.map((w) => w.name)).not.toContain(ARMOURY[id].weapon.name)
+  })
+  it('fires a Twin Hellion as two missiles, and only with two in the magazine', () => {
+    let b = reduceShipBattle(createShipBattle('twin', 'st', SHIP_BY_ID['rust-queen']!, 100, 100,
+      { fireControl: false, ion: false, beam: false, layered: false, adaptive: false, translated: false, contextual: false, countermeasures: false }, 2, undefined, 3, ['twin-hellion']), { type: 'engage' })
+    const twin = b.weapons.findIndex((w) => w.name === 'Twin Hellion')
+    b = { ...b, power: { ...b.power, weapons: 3 }, weapons: b.weapons.map((w, i) => i === twin ? { ...w, mode: 'hold' as const, charge: w.period } : { ...w, mode: 'off' as const }) }
+    b = reduceShipBattle(b, { type: 'fire', index: twin })
+    expect(b.missiles).toBe(1); expect(b.inFlight).toHaveLength(2)
+    b = { ...b, weapons: b.weapons.map((w, i) => i === twin ? { ...w, charge: w.period } : w) }
+    expect(reduceShipBattle(b, { type: 'fire', index: twin })).toBe(b)
   })
 })

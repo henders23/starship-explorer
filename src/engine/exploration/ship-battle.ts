@@ -120,7 +120,16 @@ const TEXT = {
   },
 }
 const text = (b: ShipBattle) => TEXT[b.kind ?? 'escort']
-export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception', missiles = 4): ShipBattle {
+/** Weapons a station armoury can sell, mounted in rules-2 battles beside the standard pair. */
+export type ArmouryWeaponId = 'burst-laser' | 'heavy-laser' | 'twin-hellion'
+export const ARMOURY: Record<ArmouryWeaponId, { weapon: Omit<ShipWeapon, 'charge' | 'mode' | 'target'>; price: number; blurb: string }> = {
+  'burst-laser': { weapon: { kind: 'laser', name: 'Burst laser II', cost: 2, period: 12, damage: 1, shots: 3 }, price: 55, blurb: 'Three shots: strips a shield and still hits' },
+  'heavy-laser': { weapon: { kind: 'laser', name: 'Heavy laser', cost: 1, period: 10, damage: 2, shots: 1 }, price: 45, blurb: 'One shot, double damage' },
+  'twin-hellion': { weapon: { kind: 'missile', name: 'Twin Hellion', cost: 2, period: 17, damage: 2, shots: 2 }, price: 50, blurb: 'Two missiles at once, through any shield' },
+}
+/** At most this many bought weapons ride beside the standard pair. */
+export const ARMOURY_SLOTS = 2
+export function createShipBattle(seed: string, locationId: string, cls: ShipClass, hull: number, hullMax: number, upgrades: BattleUpgrades, rules: BattleRules = 1, kind?: 'interception', missiles = 4, armoury: ArmouryWeaponId[] = []): ShipBattle {
   const weapons: ShipWeapon[] = [
     { kind: 'laser', name: 'Pulse laser', cost: 1, period: 8, charge: 0, damage: 1, shots: 2, mode: 'auto', target: 'weapons' },
     { kind: 'missile', name: 'Hellion missile', cost: 1, period: 13, charge: 0, damage: 2, shots: 1, mode: 'off', target: 'weapons' },
@@ -135,6 +144,7 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     log: ['The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.'], volley: null, shots: 0 }
   if (rules === 2) {
     b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0; b.enemy.aim = cls.guns.map(() => null)
+    for (const id of armoury) b.weapons.push({ ...ARMOURY[id].weapon, charge: 0, mode: 'off', target: 'shields' })
     // They were waiting with guns half charged, and our guns open on their shields:
     // choosing the right compartment is the captain's first decision.
     b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
@@ -174,7 +184,7 @@ export function fireLock(b: ShipBattle, index: number): string | null {
   if (!w || !Number.isInteger(index)) return 'Unknown weapon'
   if (w.mode === 'off') return 'Power this weapon first'
   if (!effectiveRoom(b, 'player', 'weapons')) return 'Weapon compartment disabled; assign repairs'
-  if (w.kind === 'missile' && !b.missiles) return 'Missile magazine empty'
+  if (w.kind === 'missile' && b.missiles < w.shots) return b.missiles ? `Needs ${w.shots} missiles` : 'Missile magazine empty'
   return w.charge < w.period ? 'Weapon charging' : null
 }
 export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
@@ -277,7 +287,7 @@ function shoot(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, ta
 function fire(b: ShipBattle, i: number) {
   const w = b.weapons[i]!
   w.charge = 0
-  if (w.kind === 'missile') b.missiles--
+  if (w.kind === 'missile') b.missiles -= w.shots
   shoot(b, 'player', w.kind, w.target, w.damage, w.shots)
 }
 /** Rules 2: fires burn down their compartment until put out or burnt out. */
@@ -364,7 +374,7 @@ function tick(b: ShipBattle) {
   const chargeRate = playerChargeRate(b)
   for (let i = 0; i < b.weapons.length && b.phase === 'battle'; i++) {
     const w = b.weapons[i]!
-    if (w.mode === 'off' || (w.kind === 'missile' && !b.missiles)) continue
+    if (w.mode === 'off' || (w.kind === 'missile' && b.missiles < w.shots)) continue
     w.charge = Math.min(w.period, w.charge + chargeRate)
     if (w.mode === 'auto' && !fireLock(b, i)) fire(b, i)
   }

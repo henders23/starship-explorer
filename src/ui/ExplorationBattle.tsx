@@ -297,7 +297,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     if (!live || e.repeat || e.ctrlKey || e.metaKey || e.altKey || target?.closest('input,textarea,select')) return
     // A focused button keeps Space for itself, as keyboard users expect.
     if (e.code === 'Space') { if (target?.closest('button')) return; e.preventDefault(); toggleRunning() }
-    else if (/^Digit[1-4]$/.test(e.code)) { const i = Number(e.code.slice(5)) - 1; if (b.weapons[i]) { setWeapon(i); playCombatSound('click') } }
+    else if (/^Digit[1-6]$/.test(e.code)) { const i = Number(e.code.slice(5)) - 1; if (b.weapons[i]) { setWeapon(i); playCombatSound('click') } }
     else if (e.key === 'f' || e.key === 'F') { if (!actionLock(state, { type: 'ship-order', order: { type: 'fire', index: selectedWeapon } })) order({ type: 'fire', index: selectedWeapon }) }
     else if (e.key === 'v' || e.key === 'V') volley()
   }
@@ -456,9 +456,9 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
           <button className="exp-button space-volley" disabled={!live || ready.length < 2} title="V · fire every charged weapon together" onClick={volley}>Volley · {ready.length} ready</button></div>
         {b.weapons.map((w, i) => {
           const disabled = effectiveRoom(b, 'player', 'weapons') === 0, value = smooth(w.charge, w.period, playerRate, w.mode !== 'off' && !(w.kind === 'missile' && !b.missiles)), ready = w.charge >= w.period
-          return <article key={w.kind} className={`${selectedWeapon === i ? 'selected' : ''}${ready && w.mode !== 'off' ? ' ready' : ''}${w.mode === 'off' ? ' unpowered' : ''}`} aria-label={w.name} title={`${WEAPON_NOTES[w.kind]} · Auto fires at the selected room when charged; hold keeps a full charge`} style={{ ['--gun' as string]: WEAPON_COLOUR[w.kind] }}>
-            <button className="space-weapon-title" aria-pressed={selectedWeapon === i} onClick={() => { setWeapon(i); playCombatSound('click') }}><kbd>{i + 1}</kbd>{w.name}<small>{w.cost} power · → {w.target}</small></button>
-            <div className="space-charge"><span className="space-meter" role="progressbar" aria-label={`${w.name} charge`} aria-valuemin={0} aria-valuemax={w.period} aria-valuenow={Math.floor(w.charge)}><i style={{ width: `${value * 100 / w.period}%` }} /></span><small>{disabled ? 'COMPARTMENT DISABLED' : `${ready ? 'READY' : `${Math.floor(value * 100 / w.period)}%`} · ${w.mode.toUpperCase()}`}</small></div>
+          return <article key={i} className={`${selectedWeapon === i ? 'selected' : ''}${ready && w.mode !== 'off' ? ' ready' : ''}${w.mode === 'off' ? ' unpowered' : ''}`} aria-label={w.name} title={`${w.name === 'Pulse laser' || w.name === 'Hellion missile' || !b.rules ? WEAPON_NOTES[w.kind] : `${w.shots} × ${w.damage} damage${w.kind === 'missile' ? ' / bypasses shields / uses ammo' : ''}`} · Auto fires at the selected room when charged; hold keeps a full charge`} style={{ ['--gun' as string]: WEAPON_COLOUR[w.kind] }}>
+            <button className="space-weapon-title" aria-pressed={selectedWeapon === i} onClick={() => { setWeapon(i); playCombatSound('click') }}><kbd>{i + 1}</kbd>{w.name}<small><b>{disabled ? 'ROOM DISABLED' : ready ? 'READY' : `${Math.floor(value * 100 / w.period)}%`}</b> · → {w.target} · {w.cost} power</small></button>
+            <div className="space-charge"><span className="space-meter" role="progressbar" aria-label={`${w.name} charge`} aria-valuemin={0} aria-valuemax={w.period} aria-valuenow={Math.floor(w.charge)}><i style={{ width: `${value * 100 / w.period}%` }} /></span></div>
             <div className="space-modes" role="group" aria-label={`${w.name} mode`}>{(['off', 'hold', 'auto'] as const).map((mode) => <button key={mode} aria-pressed={w.mode === mode} disabled={!!actionLock(state, { type: 'ship-order', order: { type: 'weapon', index: i, mode } })} onClick={() => { playCombatSound('click'); order({ type: 'weapon', index: i, mode }) }}>{mode}</button>)}</div>
             {button({ type: 'fire', index: i }, 'Fire', true)}
           </article>

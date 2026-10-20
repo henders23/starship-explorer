@@ -9,8 +9,8 @@ import { storyAt } from './stories.js'
 import { SIGNAL_BY_ID, signalAt, signalLuck } from './signals.js'
 import type { PendingSignal } from './signals.js'
 import type { StoryRecord } from './stories.js'
-import { BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
-import type { BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
+import { ARMOURY, ARMOURY_SLOTS, BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
+import type { ArmouryWeaponId, BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
 import { classPool, SHIP_BY_ID } from '../combat/ships.js'
 import type { ShipClass } from '../combat/ships.js'
 import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
@@ -38,6 +38,8 @@ export interface Campaign {
   missiles: number
   /** An arrival signal awaiting the captain's answer. */
   signal?: PendingSignal
+  /** Weapons bought from station armouries, mounted in rules-2 battles. */
+  armoury: ArmouryWeaponId[]
   completedOperations: { locationId: string; kind: OperationKind; survivors: number; cases: number }[]
   loadouts: Record<string, OperativeLoadout>
   stories: StoryRecord[]; lettersDelivered: boolean
@@ -74,6 +76,7 @@ export type CampaignAction =
   /** `hazards` turns on interceptions after the jump; journals before save version 11 carry none. */
   | { type: 'travel'; systemId: SystemId; hazards?: 1 }
   | { type: 'signal'; choiceId: string }
+  | { type: 'buy-weapon'; locationId: string; weapon: ArmouryWeaponId }
   | { type: 'scan'; tier: 'survey' | 'deep' }
   | { type: 'investigate'; locationId: string }
   | { type: 'recover'; locationId: string; approach: 'careful' | 'rapid' }
@@ -109,7 +112,7 @@ export function createCampaign(seed: string): Campaign {
     research: { active: null, progress: {}, completed: [], queue: [] },
     built: [], equipped: [], deepArray: false, driveTest: 'idle', outcome: 'exploring',
     roster: initialRoster(), mission: null, missionAttempts: 0, recruits: 0, lastMission: null,
-    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES,
+    shipBattle: null, escortCompleted: [], lastShipBattle: null, missiles: STARTING_MISSILES, armoury: [],
     completedOperations: [], loadouts: {}, stories: [], lettersDelivered: false, legacyActions: null, actions: [],
     log: ['Morozova: “The way home is something we can build. Start Drive Diagnostics while we investigate the Silent Courier.”'] }
 }
@@ -311,6 +314,14 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
       if (state.roster.filter((o) => !o.dead).length >= 6) return 'Six living operatives already aboard; injured crew recover with time'
       return state.exploration.credits >= 20 ? null : 'Requires 20 credits; station contracts can replenish funds'
     }
+    case 'buy-weapon': {
+      const station = contacted(state, action.locationId)
+      if (!station || station.systemId !== state.at) return 'Establish contact with a local station first'
+      if (armouryStock(state.seed, station.id) !== action.weapon) return 'This armoury does not stock that weapon'
+      if (state.armoury.includes(action.weapon)) return 'Already mounted'
+      if (state.armoury.length >= ARMOURY_SLOTS) return `All ${ARMOURY_SLOTS} hardpoints are full`
+      return state.exploration.credits < ARMOURY[action.weapon].price ? `Requires ${ARMOURY[action.weapon].price} credits` : null
+    }
     case 'signal': {
       const choice = state.signal && SIGNAL_BY_ID[state.signal.id]?.choices.find((c) => c.id === action.choiceId)
       if (!choice) return state.signal ? 'Unknown response' : 'No signal to answer'
@@ -493,9 +504,13 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
   const tier = threat >= 3 || (threat >= 2 && state.day >= 45) ? 2 : 1
   return rng.pick(classPool(archetype, tier).filter((c) => c.tier <= tier))
 }
-/** A rules-2 interception against `hostile`, drawing on the ship's magazine. */
+/** A rules-2 interception against `hostile`, drawing on the ship's magazine and armoury. */
 function intercept(state: Campaign, hostile: ShipClass, seed: string): ShipBattle {
-  return createShipBattle(seed, state.at, hostile, state.hull, hullCapacity(state), battleUpgrades(state), BATTLE_RULES, 'interception', state.missiles)
+  return createShipBattle(seed, state.at, hostile, state.hull, hullCapacity(state), battleUpgrades(state), BATTLE_RULES, 'interception', state.missiles, state.armoury)
+}
+/** The one weapon a station's armoury has in stock, fixed for the voyage. */
+export function armouryStock(seed: string, stationId: string): ArmouryWeaponId {
+  return createRng(`${seed}:${stationId}:armoury`).pick(Object.keys(ARMOURY) as ArmouryWeaponId[])
 }
 /** The chart's plain-language warning for arriving at a system. */
 export function interceptionRisk(state: Campaign, systemId: SystemId): string {
@@ -595,7 +610,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       const station = contacted(state, action.locationId)!
       next.shipBattle = createShipBattle(`${state.seed}:${station.id}:escort`, station.id,
         escortClass(state.seed, station.id, station.threat, action.rules ?? 1), state.hull, hullCapacity(state), battleUpgrades(state), action.rules ?? 1,
-        undefined, action.rules ? Math.min(MAGAZINE_CAPACITY, state.missiles + ESCORT_MISSILES) : 4)
+        undefined, action.rules ? Math.min(MAGAZINE_CAPACITY, state.missiles + ESCORT_MISSILES) : 4, action.rules ? state.armoury : [])
       message = 'The station’s survey tender requests an escort. An armed ship is waiting on its departure lane.'; break
     }
     case 'ship-order':
@@ -708,6 +723,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       }
       break
     }
+    case 'buy-weapon':
+      next.exploration.credits -= ARMOURY[action.weapon].price; next.armoury = [...state.armoury, action.weapon]
+      message = `The armourers mount a ${ARMOURY[action.weapon].weapon.name} on a spare hardpoint. Power it from the weapons system in battle.`; break
     case 'signal': {
       const pending = state.signal!, choice = SIGNAL_BY_ID[pending.id]!.choices.find((c) => c.id === action.choiceId)!
       next.signal = undefined
