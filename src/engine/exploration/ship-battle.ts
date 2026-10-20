@@ -1,6 +1,6 @@
 import { createRng } from '../rng/prng.js'
 import { SHIP_BY_ID } from '../combat/ships.js'
-import type { EnemyRoomKey, ShipClass } from '../combat/ships.js'
+import type { EnemyLayoutId, EnemyRoomKey, ShipClass } from '../combat/ships.js'
 
 export const SHIP_ROOMS: EnemyRoomKey[] = ['helm', 'weapons', 'shields', 'engines']
 export const REACTOR_POWER = 8
@@ -23,6 +23,12 @@ export const FLIGHT_SECONDS: Record<ShipWeaponKind, number> = { laser: 1, ion: 1
 export const FIRE_CHANCE: Record<ShipWeaponKind, number> = { laser: 10, ion: 0, missile: 35, beam: 25 }
 /** A fire burns this long unless damage control puts it out, costing a compartment point every five seconds. */
 export const FIRE_SECONDS = 10
+/** Fraction of charge at which a hostile gun locks its target, giving the crew warning (rules 2). */
+export const AIM_AT = 0.6
+/** Each hull plan's gunnery doctrine: the compartment its gunners favour three to one (rules 2). */
+export const PREFERRED_TARGET: Record<EnemyLayoutId, EnemyRoomKey> = {
+  raider: 'weapons', clan: 'weapons', flagship: 'weapons', spine: 'shields', order: 'shields', hauler: 'engines', alien: 'helm',
+}
 export interface BattleRoom { hp: number; max: number; ionUntil: number; fire?: number }
 export interface Projectile { id: number; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; damage: number; launched: number; lands: number; shot: number }
 export type ImpactOutcome = 'miss' | 'shield' | 'blocked' | 'hit' | 'ion'
@@ -40,7 +46,9 @@ export interface ShipBattle {
   power: { shields: number; engines: number; weapons: number }; rooms: Record<EnemyRoomKey, BattleRoom>
   shield: number; shieldWork: number; repair: EnemyRoomKey; repairWork: number; missiles: number
   weapons: ShipWeapon[]; escape: boolean; escapeWork: number
-  enemy: { hull: number; maxHull: number; shield: number; shieldWork: number; repairWork: number; rooms: Record<EnemyRoomKey, BattleRoom>; charges: number[] }
+  enemy: { hull: number; maxHull: number; shield: number; shieldWork: number; repairWork: number; rooms: Record<EnemyRoomKey, BattleRoom>; charges: number[]
+    /** Rules 2: the compartment each gun has locked, chosen as it passes AIM_AT of its charge. */
+    aim?: (EnemyRoomKey | null)[] }
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
   /** Present from rules 2; absent means the frozen rules 1. */
   rules?: BattleRules; inFlight?: Projectile[]
@@ -101,7 +109,7 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
       rooms: { helm: room(cls.rooms.helm), weapons: room(cls.rooms.weapons), shields: room(cls.rooms.shields), engines: room(cls.rooms.engines) }, charges: cls.guns.map(() => 0) },
     log: ['The survey tender is holding beside us. An armed ship crosses its departure lane and transmits a demand for payment.'], volley: null, shots: 0 }
   if (rules === 2) {
-    b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0
+    b.rules = 2; b.inFlight = []; b.events = []; b.eventSeq = 0; b.enemy.aim = cls.guns.map(() => null)
     if (kind) { b.kind = kind; b.log = [TEXT[kind].open] }
     for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
   }
@@ -198,7 +206,7 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
   b.volley.damage = damage
-  log(b, `${to === 'player' ? 'Lodestar' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
+  log(b, b.rules === 2 ? to === 'player' ? `They hit our ${target}: ${damage} hull damage.` : `We hit their ${target}: ${damage} hull damage.` : `${to === 'player' ? 'Lodestar' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
   impact('hit', damage)
   if (b.rules === 2 && !burning(rooms[target]) && roll(b, FIRE_CHANCE[kind])) {
     rooms[target].fire = FIRE_SECONDS
@@ -237,6 +245,16 @@ function burn(b: ShipBattle, side: 'player' | 'enemy') {
     if (r.fire! % 5 === 0 && r.hp > 0) { r.hp--; log(b, `Fire damages the ${side === 'player' ? 'Lodestar' : 'hostile'} ${key}.`) }
     if (!r.fire) emit(b, { type: 'extinguished', side, target: key })
   }
+}
+/** Rules 2: hostile gunners favour their doctrine's compartment, three to one. */
+function enemyTarget(b: ShipBattle): EnemyRoomKey {
+  const favourite = PREFERRED_TARGET[SHIP_BY_ID[b.classId]!.layout]
+  return createRng(`${b.seed}:target:${b.rolls++}`).pick([favourite, favourite, ...SHIP_ROOMS])
+}
+/** Rules 2: seconds until hostile gun `i` fires at its current rate, or null if it is not charging. */
+export function enemyGunEta(b: ShipBattle, i: number): number | null {
+  const g = SHIP_BY_ID[b.classId]!.guns[i], rate = enemyChargeRate(b)
+  return g && rate > 0 ? Math.ceil((g.time - b.enemy.charges[i]!) / rate) : null
 }
 function tick(b: ShipBattle) {
   b.time++
@@ -286,9 +304,12 @@ function tick(b: ShipBattle) {
   for (let i = 0; i < cls.guns.length && b.phase === 'battle'; i++) {
     const g = cls.guns[i]!
     b.enemy.charges[i] = Math.min(g.time, b.enemy.charges[i]! + enemyRate)
+    const aim = b.enemy.aim
+    if (aim && !aim[i] && b.enemy.charges[i]! >= g.time * AIM_AT) aim[i] = enemyTarget(b)
     if (b.enemy.charges[i]! >= g.time) {
       b.enemy.charges[i] = 0
-      const target = createRng(`${b.seed}:target:${b.rolls++}`).pick(SHIP_ROOMS)
+      const target = aim ? aim[i] ?? enemyTarget(b) : createRng(`${b.seed}:target:${b.rolls++}`).pick(SHIP_ROOMS)
+      if (aim) aim[i] = null
       shoot(b, 'enemy', g.kind, target, g.dmg, g.shots)
     }
   }
@@ -302,7 +323,11 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
     case 'negotiate': finish(b, 'negotiated', 'We offer a public navigation advisory. Their captain calls it sufficient courtesy and opens the lane.'); break
     case 'evade':
       if (roll(b, evadeChance(b))) finish(b, 'evaded', text(b).evaded)
-      else { b.phase = 'battle'; log(b, text(b).caught) }
+      else {
+        b.phase = 'battle'; log(b, text(b).caught)
+        // Rules 2: a failed run hands them the opening; their guns are half charged.
+        if (b.rules === 2) SHIP_BY_ID[b.classId]!.guns.forEach((g, i) => { b.enemy.charges[i] = g.time / 2 })
+      }
       break
     case 'cancel': finish(b, 'cancelled', 'We decline the escort. The tender remains safely at the station.'); break
     case 'engage': b.phase = 'battle'; log(b, 'Weapons ready. Target a compartment and manage reactor power.'); break

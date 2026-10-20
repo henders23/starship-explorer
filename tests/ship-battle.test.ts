@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
-import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom } from '../src/engine/exploration/ship-battle.js'
-import type { BattleUpgrades, ShipBattle, ShipOrder } from '../src/engine/exploration/ship-battle.js'
+import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom, enemyGunEta, PREFERRED_TARGET, SHIP_ROOMS } from '../src/engine/exploration/ship-battle.js'
+import type { BattleEvent, BattleUpgrades, ShipBattle, ShipOrder } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import { loadExploration, saveExploration, EXPLORATION_SAVE_KEY } from '../src/ui/exploration-save.js'
@@ -215,6 +215,35 @@ describe('rules 2: projectiles, flight time and fires', () => {
     let batched = b; for (let i = 0; i < 5; i++) batched = apply(batched, { type: 'advance', seconds: 5 })
     expect(batched).toEqual(steps)
     const ids = steps.events!.map((e) => e.id); expect([...ids].sort((x, y) => x - y)).toEqual(ids)
+  })
+  it('locks a hostile gun on a compartment before it fires, and fires there', () => {
+    let b = v2({}, 'rust-queen'); b.weapons[0]!.mode = 'off'
+    const gun = SHIP_BY_ID['rust-queen']!.guns[0]!
+    while (b.enemy.charges[0]! < gun.time * 0.6 - 1e-9) { expect(b.enemy.aim![0]).toBeNull(); b = apply(b, { type: 'advance', seconds: 1 }) }
+    const locked = b.enemy.aim![0]!
+    expect(SHIP_ROOMS).toContain(locked); expect(enemyGunEta(b, 0)).toBeGreaterThan(0)
+    while (!b.events!.some((e) => e.type === 'launch' && e.side === 'enemy')) b = apply(b, { type: 'advance', seconds: 1 })
+    expect(b.events!.find((e) => e.type === 'launch' && e.side === 'enemy')!.target).toBe(locked)
+    expect(b.enemy.aim![0]).toBeNull()
+  })
+  it('follows each hull plan\'s gunnery doctrine', () => {
+    const hits: Record<string, number> = {}
+    for (let i = 0; i < 60; i++) {
+      let b = reduceShipBattle(createShipBattle(`doctrine-${i}`, 'station', SHIP_BY_ID['rust-queen']!, 100, 100, base, 2), { type: 'engage' }); b.weapons[0]!.mode = 'off'
+      let launch: BattleEvent | undefined
+      for (let t = 0; t < 12 && !launch; t++) { b = apply(b, { type: 'advance', seconds: 1 }); launch = b.events!.find((e) => e.type === 'launch' && e.side === 'enemy') }
+      if (launch?.type === 'launch') hits[launch.target] = (hits[launch.target] ?? 0) + 1
+    }
+    expect(hits[PREFERRED_TARGET.raider]).toBeGreaterThan(Math.max(...SHIP_ROOMS.filter((k) => k !== PREFERRED_TARGET.raider).map((k) => hits[k] ?? 0)))
+  })
+  it('gives the hostile half-charged guns after a failed evasion', () => {
+    for (let i = 0; i < 30; i++) {
+      const b = reduceShipBattle(createShipBattle(`run-${i}`, 'station', SHIP_BY_ID['carrion-jack']!, 100, 100, base, 2), { type: 'evade' })
+      if (b.phase !== 'battle') continue
+      SHIP_BY_ID['carrion-jack']!.guns.forEach((g, j) => expect(b.enemy.charges[j]).toBe(g.time / 2))
+      return
+    }
+    throw new Error('Every evasion succeeded')
   })
   it('keeps rules-1 battles free of projectiles and fires', () => {
     let b = battle(); b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 5 })
