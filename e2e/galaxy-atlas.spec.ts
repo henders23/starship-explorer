@@ -35,7 +35,8 @@ for(const width of [1440,390])test(`new galaxy atlas draws real generated world 
   await page.mouse.down()
   await page.mouse.move(box.x+64,box.y+29,{steps:3})
   await page.mouse.up()
-  expect(await camera.getAttribute('transform')).not.toEqual(beforePan)
+  // The pan lands on the next frame; wait for it rather than racing the render.
+  await expect.poll(()=>camera.getAttribute('transform')).not.toEqual(beforePan)
   await chart.getByRole('button',{name:'Recenter chart'}).click()
   await chart.scrollIntoViewIfNeeded()
   await page.screenshot({path:info.outputPath(`galaxy-atlas-${width}.png`),fullPage:true,animations:'disabled'})
