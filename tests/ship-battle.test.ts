@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom, enemyGunEta, PREFERRED_TARGET, SHIP_ROOMS } from '../src/engine/exploration/ship-battle.js'
+import { createShipBattle, reduceShipBattle, shipOrderLock, shieldCapacity, assignedPower, enemyShieldCapacity, surrenderAvailable, effectiveRoom, enemyGunEta, playerEvasion, PREFERRED_TARGET, SHIP_ROOMS } from '../src/engine/exploration/ship-battle.js'
 import type { BattleEvent, BattleUpgrades, ShipBattle, ShipOrder } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
@@ -183,17 +183,40 @@ describe('rules 2: projectiles, flight time and fires', () => {
     b.weapons[1]!.mode = 'off'; b.weapons[2]!.mode = 'hold'; b.weapons[2]!.charge = 15
     b = apply(b, { type: 'fire', index: 2 }); expect(b.enemy.hull).toBe(hull - 5); expect(b.inFlight).toHaveLength(0)
   })
-  it('lets fires burn compartments until damage control puts them out', () => {
-    let b = quiet(v2()); b.weapons[0]!.mode = 'off'
+  it('lets fires burn compartments until the crew in the room puts them out', () => {
+    let b = quiet(v2()); b.weapons.forEach((w) => { w.mode = 'off' })
     b.rooms.shields.fire = 10; b.rooms.engines.fire = 10
-    b = apply(b, { type: 'repair', room: 'shields' })
-    b = apply(b, { type: 'advance', seconds: 3 })
+    b = apply(b, { type: 'crew', id: 'kerr', room: 'helm' })
+    b = apply(b, { type: 'advance', seconds: 4 })
     expect(b.rooms.shields.fire).toBe(0); expect(b.rooms.shields.hp).toBe(4)
+    expect(b.events!.some((e) => e.type === 'extinguished' && e.target === 'shields')).toBe(true)
+    b = apply(b, { type: 'advance', seconds: 1 })
+    expect(b.rooms.engines.fire).toBe(5); expect(b.rooms.engines.hp).toBe(2)
     b = apply(b, { type: 'advance', seconds: 5 })
-    expect(b.rooms.engines.fire).toBe(2); expect(b.rooms.engines.hp).toBe(2)
-    b = apply(b, { type: 'advance', seconds: 2 })
     expect(b.rooms.engines.fire).toBe(0); expect(b.rooms.engines.hp).toBe(1)
     expect(b.events!.some((e) => e.type === 'extinguished' && e.target === 'engines')).toBe(true)
+  })
+  it('mans stations: the helm needs an officer, moves take time, crew repair where they stand', () => {
+    let b = quiet(v2()); b.weapons.forEach((w) => { w.mode = 'off' })
+    const evade = playerEvasion(b)
+    expect(evade).toBeGreaterThan(0)
+    expect(shipOrderLock(b, { type: 'repair', room: 'helm' })).toMatch(/crew/)
+    b = apply(b, { type: 'crew', id: 'mori', room: 'weapons' })
+    expect(playerEvasion(b)).toBe(0)
+    b = apply(b, { type: 'advance', seconds: 2 }); expect(b.crew!.find((c) => c.id === 'mori')!.moving).toBe(0)
+    b.rooms.weapons.hp = 2
+    b = apply(b, { type: 'advance', seconds: 5 }); b = apply(b, { type: 'advance', seconds: 5 })
+    expect(b.rooms.weapons.hp).toBe(4) // Cross and Mori each patch a point in ten seconds
+    b = apply(b, { type: 'crew', id: 'mori', room: 'helm' }); b = apply(b, { type: 'advance', seconds: 2 })
+    expect(playerEvasion(b)).toBe(evade)
+  })
+  it('wounds the crew in a struck room and sends the downed to the medical bay', () => {
+    let b = v2(); const cross = () => b.crew!.find((c) => c.id === 'cross')!
+    cross().hp = 1; b.shield = 0; b.rooms.helm.hp = 0; b.weapons.forEach((w) => { w.mode = 'off' })
+    for (let t = 0; t < 60 && cross().hp > 0; t++) b = apply(b, { type: 'advance', seconds: 1 })
+    expect(cross().hp).toBe(0); expect(shipOrderLock(b, { type: 'crew', id: 'cross', room: 'helm' })).toMatch(/medical/)
+    for (let t = 0; t < 20; t++) b = apply(b, { type: 'advance', seconds: 1 })
+    expect(cross().hp).toBeGreaterThan(0); expect(cross().room).toBe('weapons')
   })
   it('starts fires from hull hits, deterministically', () => {
     let fires = 0
@@ -245,7 +268,8 @@ describe('rules 2: projectiles, flight time and fires', () => {
     let b = v2({}, 'carrion-jack'); b.shield = 0; b.rooms.helm.hp = 0; b.weapons[0]!.mode = 'off'
     while (!b.events!.some((e) => e.type === 'impact' && e.side === 'enemy' && e.outcome === 'hit')) b = apply(b, { type: 'advance', seconds: 1 })
     const hit = b.events!.find((e) => e.type === 'impact' && e.side === 'enemy' && e.outcome === 'hit')!
-    expect(hit.type === 'impact' && hit.damage).toBe(hit.type === 'impact' && hit.kind === 'missile' ? 3 : 2)
+    // Carrion Jack: laser 3 lands in full, missile 6 lands halved.
+    expect(hit.type === 'impact' && hit.damage).toBe(3)
   })
   it('gives the hostile nearly charged guns after a failed evasion', () => {
     for (let i = 0; i < 30; i++) {

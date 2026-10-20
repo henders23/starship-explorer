@@ -5,7 +5,7 @@ import type { EnemyLayoutId, EnemyRoomKey, ShipClass } from '../combat/ships.js'
 export const SHIP_ROOMS: EnemyRoomKey[] = ['helm', 'weapons', 'shields', 'engines']
 export const REACTOR_POWER = 8
 /** Rules 2: hostile gun damage is stated for the old 100-hull scale; it lands scaled by kind. */
-export const INCOMING_DAMAGE: Record<ShipWeaponKind, number> = { laser: 0.67, missile: 0.5, ion: 0, beam: 0.67 }
+export const INCOMING_DAMAGE: Record<ShipWeaponKind, number> = { laser: 1, missile: 0.5, ion: 0, beam: 0.67 }
 /** The longest single advance order; the campaign journal batches live seconds up to it. */
 export const MAX_ADVANCE_SECONDS = 5
 /**
@@ -39,6 +39,20 @@ export type BattleEvent =
   | { id: number; type: 'launch'; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; shot: number }
   | { id: number; type: 'impact'; side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; shot: number; outcome: ImpactOutcome; damage: number }
   | { id: number; type: 'fire' | 'extinguished' | 'repaired'; side: 'player' | 'enemy'; target: EnemyRoomKey }
+  | { id: number; type: 'wounded' | 'down' | 'returned'; side: 'player'; target: EnemyRoomKey; crew: CrewId }
+/** The Lodestar's bridge crew at battle stations (rules 2). */
+export type CrewId = 'mori' | 'cross' | 'morozova' | 'kerr'
+export interface BattleCrew { id: CrewId; room: EnemyRoomKey; moving: number; hp: number; work: number }
+export const CREW_HP = 4
+/** Seconds a crew member spends crossing the ship. */
+export const CREW_MOVE_SECONDS = 2
+/** Officer-seconds to patch one compartment point, and to put out a fire. */
+export const CREW_REPAIR_WORK = 10
+export const CREW_FIRE_WORK = 4
+/** Seconds the medical bay needs to patch up a downed officer and send them back to their station. */
+export const CREW_RECOVERY_SECONDS = 20
+/** Where each officer stands when battle stations sound. */
+export const CREW_STATIONS: Record<CrewId, EnemyRoomKey> = { mori: 'helm', cross: 'weapons', morozova: 'shields', kerr: 'engines' }
 export interface ShipWeapon { kind: ShipWeaponKind; name: string; cost: number; charge: number; period: number; damage: number; shots: number; mode: 'off' | 'hold' | 'auto'; target: EnemyRoomKey }
 export interface BattleUpgrades { fireControl: boolean; ion: boolean; beam: boolean; layered: boolean; adaptive: boolean; translated: boolean; contextual: boolean; countermeasures: boolean }
 export type ShipBattleResult = 'victory' | 'negotiated' | 'evaded' | 'yielded' | 'fled' | 'disabled' | 'cancelled'
@@ -54,6 +68,8 @@ export interface ShipBattle {
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
   /** Present from rules 2; absent means the frozen rules 1. */
   rules?: BattleRules; inFlight?: Projectile[]
+  /** Rules 2: the officers at stations, who man rooms, repair them and fight fires. */
+  crew?: BattleCrew[]
   /** An interception on arrival from a jump (rules 2 only); absent means a station escort. */
   kind?: 'interception'
   events?: BattleEvent[]; eventSeq?: number
@@ -66,6 +82,7 @@ export type ShipOrder =
   | { type: 'target'; index: number; room: EnemyRoomKey }
   | { type: 'fire'; index: number }
   | { type: 'repair'; room: EnemyRoomKey }
+  | { type: 'crew'; id: CrewId; room: EnemyRoomKey }
   | { type: 'retreat'; active: boolean }
   | { type: 'accept-surrender' }
 const room = (hp: number): BattleRoom => ({ hp, max: hp, ionUntil: 0 })
@@ -118,6 +135,7 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     // choosing the right compartment is the captain's first decision.
     b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
     for (const w of b.weapons) w.target = 'shields'
+    b.crew = (Object.keys(CREW_STATIONS) as CrewId[]).map((id) => ({ id, room: CREW_STATIONS[id], moving: 0, hp: CREW_HP, work: 0 }))
     if (kind) { b.kind = kind; b.log = [TEXT[kind].open] }
     for (const r of [...Object.values(b.rooms), ...Object.values(b.enemy.rooms)]) r.fire = 0
   }
@@ -132,13 +150,16 @@ export const weaponPower = (b: ShipBattle) => b.weapons.reduce((n, w) => n + (w.
 export const shieldCapacity = (b: ShipBattle) => Math.min(b.upgrades.layered ? 2 : 1, Math.floor(Math.min(b.power.shields, effectiveRoom(b, 'player', 'shields')) / 2))
 export const enemyShieldCapacity = (b: ShipBattle) => Math.min(SHIP_BY_ID[b.classId]!.shields, Math.floor(effectiveRoom(b, 'enemy', 'shields') / 2))
 export const evadeChance = (b: ShipBattle) => b.upgrades.countermeasures ? 85 : 65
-/** The chance, in percent, that a shot at the Lodestar misses right now. */
-export const playerEvasion = (b: ShipBattle) => effectiveRoom(b, 'player', 'helm') ? 10 + Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) * 7 + (b.upgrades.countermeasures ? 10 : 0) : 0
+/** Rules 2: whether a fit officer is standing in the compartment. Rules 1 rooms count as always manned. */
+export const manned = (b: ShipBattle, room: EnemyRoomKey) => !b.crew || b.crew.some((c) => c.room === room && !c.moving && c.hp > 0)
+/** The chance, in percent, that a shot at the Lodestar misses right now. Rules 2 need someone at the helm. */
+export const playerEvasion = (b: ShipBattle) => effectiveRoom(b, 'player', 'helm') && manned(b, 'helm')
+  ? 10 + Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) * 7 + (b.upgrades.countermeasures ? 10 : 0) + (b.crew && manned(b, 'engines') ? 5 : 0) : 0
 /** The chance, in percent, that our shot at the hostile misses right now. */
 export const enemyEvasion = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'helm') && effectiveRoom(b, 'enemy', 'engines') ? SHIP_BY_ID[b.classId]!.evade : 0
 export const burning = (r: BattleRoom) => (r.fire ?? 0) > 0
 /** Charge gained per second by each powered player weapon. */
-export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
+export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1 : 1) * (b.crew && manned(b, 'weapons') ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
 /** Charge gained per second by each hostile gun. */
 export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
 export const surrenderAvailable = (b: ShipBattle) => b.phase === 'battle' && b.upgrades.contextual && b.enemy.hull <= b.enemy.maxHull * 0.3
@@ -177,7 +198,13 @@ export function shipOrderLock(b: ShipBattle, a: ShipOrder): string | null {
     }
     case 'target': return b.weapons[a.index] && Number.isInteger(a.index) && SHIP_ROOMS.includes(a.room) ? null : 'Select an enemy compartment'
     case 'fire': return fireLock(b, a.index)
-    case 'repair': return SHIP_ROOMS.includes(a.room) ? null : 'Unknown repair compartment'
+    case 'repair': return b.crew ? 'Send a crew member to the compartment' : SHIP_ROOMS.includes(a.room) ? null : 'Unknown repair compartment'
+    case 'crew': {
+      const c = b.crew?.find((m) => m.id === a.id)
+      if (!c || !SHIP_ROOMS.includes(a.room)) return 'Unknown crew order'
+      if (c.hp <= 0) return 'In the medical bay'
+      return c.room === a.room ? 'Already there' : null
+    }
     case 'retreat': return typeof a.active === 'boolean' ? null : 'Invalid retreat order'
     case 'accept-surrender': return surrenderAvailable(b) ? null : 'Requires Contextual Translation and enemy hull at or below 30%'
     default: return 'Order unavailable in battle'
@@ -214,6 +241,7 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   if (to === 'player' && b.rules === 2) damage = Math.round(damage * INCOMING_DAMAGE[kind])
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
+  if (to === 'player') wound(b, target)
   b.volley.damage = damage
   log(b, b.rules === 2 ? to === 'player' ? `They hit our ${target}: ${damage} hull damage.` : `We hit their ${target}: ${damage} hull damage.` : `${to === 'player' ? 'Lodestar' : 'Hostile'} ${target} hit: ${damage} hull damage.`)
   impact('hit', damage)
@@ -251,7 +279,10 @@ function burn(b: ShipBattle, side: 'player' | 'enemy') {
     const r = rooms[key]
     if (!burning(r)) continue
     r.fire!--
-    if (r.fire! % 5 === 0 && r.hp > 0) { r.hp--; log(b, `Fire damages the ${side === 'player' ? 'Lodestar' : 'hostile'} ${key}.`) }
+    if (r.fire! % 5 === 0) {
+      if (r.hp > 0) { r.hp--; log(b, `Fire damages the ${side === 'player' ? 'Lodestar' : 'hostile'} ${key}.`) }
+      if (side === 'player') wound(b, key)
+    }
     if (!r.fire) emit(b, { type: 'extinguished', side, target: key })
   }
 }
@@ -265,6 +296,29 @@ export function enemyGunEta(b: ShipBattle, i: number): number | null {
   const g = SHIP_BY_ID[b.classId]!.guns[i], rate = enemyChargeRate(b)
   return g && rate > 0 ? Math.ceil((g.time - b.enemy.charges[i]!) / rate) : null
 }
+/** Rules 2: a hit or a fire hurts everyone standing in the compartment. */
+function wound(b: ShipBattle, room: EnemyRoomKey) {
+  for (const c of b.crew ?? []) {
+    if (c.room !== room || c.moving || c.hp <= 0) continue
+    c.hp--
+    emit(b, { type: c.hp ? 'wounded' : 'down', side: 'player', target: room, crew: c.id })
+    if (!c.hp) { c.moving = CREW_RECOVERY_SECONDS; c.work = 0; log(b, `Crew down in the ${room}. They are carried to the medical bay.`) }
+  }
+}
+/** Rules 2: officers fight fires, then patch their compartment. The engineer works half again as fast. */
+function crewWork(b: ShipBattle) {
+  for (const c of b.crew!) {
+    // A downed officer's `moving` counts down their time in the medical bay.
+    if (c.hp <= 0) { if (--c.moving <= 0) { c.hp = 1; c.moving = 0; c.room = CREW_STATIONS[c.id]; emit(b, { type: 'returned', side: 'player', target: c.room, crew: c.id }) } continue }
+    if (c.moving) { c.moving--; continue }
+    const r = b.rooms[c.room]
+    if (c.hp < CREW_HP && !burning(r) && b.time % 10 === 0) c.hp++
+    if (!burning(r) && r.hp >= r.max) { c.work = 0; continue }
+    c.work += c.id === 'kerr' ? 1.5 : 1
+    if (burning(r) && c.work >= CREW_FIRE_WORK) { r.fire = 0; c.work = 0; log(b, `Fire out in the ${c.room}.`); emit(b, { type: 'extinguished', side: 'player', target: c.room }) }
+    else if (!burning(r) && c.work >= CREW_REPAIR_WORK) { r.hp++; c.work = 0; emit(b, { type: 'repaired', side: 'player', target: c.room }) }
+  }
+}
 function tick(b: ShipBattle) {
   b.time++
   if (b.events) b.events = []
@@ -273,16 +327,13 @@ function tick(b: ShipBattle) {
     if (b.escapeWork >= 10) { finish(b, 'fled', text(b).fled); return }
   }
   b.shield = Math.min(b.shield, shieldCapacity(b)); b.enemy.shield = Math.min(b.enemy.shield, enemyShieldCapacity(b))
-  b.shieldWork += b.upgrades.adaptive ? 1.2 : 1
+  b.shieldWork += (b.upgrades.adaptive ? 1.2 : 1) + (b.crew && manned(b, 'shields') ? 0.25 : 0)
   if (b.shieldWork >= 4) { if (b.shield < shieldCapacity(b)) b.shield++; b.shieldWork -= 4 }
   b.enemy.shieldWork++
   if (b.enemy.shieldWork >= 5) { if (b.enemy.shield < enemyShieldCapacity(b)) b.enemy.shield++; b.enemy.shieldWork = 0 }
   if (b.rules === 2) {
     burn(b, 'player'); burn(b, 'enemy')
-    const r = b.rooms[b.repair]
-    // Damage control fights a fire before it patches the compartment.
-    if (burning(r)) { if (++b.repairWork >= 3) { r.fire = 0; b.repairWork = 0; log(b, `Damage control puts out the ${b.repair} fire.`); emit(b, { type: 'extinguished', side: 'player', target: b.repair }) } }
-    else if (++b.repairWork >= 6) { if (r.hp < r.max) { r.hp++; emit(b, { type: 'repaired', side: 'player', target: b.repair }) } b.repairWork = 0 }
+    crewWork(b)
     const fire = SHIP_ROOMS.find((k) => burning(b.enemy.rooms[k]))
     if (++b.enemy.repairWork >= 5 && fire) { b.enemy.rooms[fire].fire = 0; b.enemy.repairWork = 0; emit(b, { type: 'extinguished', side: 'enemy', target: fire }) }
     else if (b.enemy.repairWork >= 12) {
@@ -346,7 +397,8 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
     case 'target': b.weapons[a.index]!.target = a.room; break
     case 'fire': fire(b, a.index); break
     // Rules 2 keep the team's progress when the same compartment is chosen again.
-    case 'repair': if (b.rules !== 2 || b.repair !== a.room) b.repairWork = 0; b.repair = a.room; break
+    case 'repair': b.repairWork = 0; b.repair = a.room; break
+    case 'crew': { const c = b.crew!.find((m) => m.id === a.id)!; c.room = a.room; c.moving = CREW_MOVE_SECONDS; c.work = 0; break }
     case 'retreat': b.escape = a.active; if (!a.active) b.escapeWork = 0; break
     case 'accept-surrender': finish(b, 'yielded', text(b).yielded); break
   }

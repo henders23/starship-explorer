@@ -2,13 +2,13 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock, INTERCEPTION_SPOILS } from '../engine/exploration/campaign.js'
-import { assignedPower, BATTLE_RULES, burning, enemyGunEta, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, REACTOR_POWER, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
-import type { BattleEvent, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
+import { assignedPower, BATTLE_RULES, burning, CREW_HP, enemyGunEta, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, REACTOR_POWER, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
+import type { BattleCrew, BattleEvent, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
 import type { EnemyRoomKey } from '../engine/combat/ships.js'
 import './ship-battle.css'
-import { CrewLine } from './crew-presence.js'
+import { CREW, CrewLine } from './crew-presence.js'
 import { MuteButton } from './sound.js'
 import { playCombatSound, unlockCombatAudio } from './combat-sfx.js'
 import type { CombatSound } from './combat-sfx.js'
@@ -143,7 +143,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const live = b.phase === 'battle' && !outro
   const [running, setRunning] = useState(false)
   const [selectedWeapon, setWeapon] = useState(0)
-  const [repairing, setRepairing] = useState<{ origin: Point; cursor: Point } | null>(null)
+  /** The order being given: a line runs from its origin (Repair button, or an officer) to the cursor. */
+  const [repairing, setRepairing] = useState<{ origin: Point; cursor: Point; crew?: CrewId } | null>(null)
   const [fx, setFx] = useState<Fx[]>([])
   const [shake, setShake] = useState<{ side: 'player' | 'enemy'; n: number } | null>(null)
   const shakes = useRef(0)
@@ -258,6 +259,11 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     const at = centre(`${e.side}:${e.target}`)
     if (e.type === 'fire') { playCombatSound('fire', { pan: pan(e.side) }); return at ? [{ key: `${key}-t`, type: 'float', x: at.x, y: at.y - 40, text: 'FIRE', colour: '#ffb454' }] : [] }
     if (e.type === 'extinguished') { playCombatSound('extinguish', { pan: pan(e.side), volume: 0.7 }); return [] }
+    if (e.type === 'wounded' || e.type === 'down' || e.type === 'returned') {
+      const who = CREW[e.crew].name.split(' ')[1]
+      if (e.type === 'down') playCombatSound('alarm', { volume: 0.5 })
+      return at ? [{ key: `${key}-t`, type: 'float', x: at.x, y: at.y + 24, text: e.type === 'down' ? `${who} down` : e.type === 'returned' ? `${who} back` : `${who} hurt`, colour: e.type === 'returned' ? '#8ef0b5' : '#ffb3a8' }] : []
+    }
     if (e.side === 'player') playCombatSound('repair', { pan: -0.55 })
     return at ? [{ key: `${key}-t`, type: 'float', x: at.x, y: at.y - 34, text: '+1', colour: '#8ef0b5' }] : []
   }
@@ -302,12 +308,25 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     return <button className="space-pw" disabled={!!lock} title={lock ?? undefined} aria-label={`${step < 0 ? 'Decrease' : 'Increase'} ${system} power`} onClick={() => { playCombatSound('click'); order(a) }}>{step < 0 ? '−' : '+'}</button>
   }
   const activeWeapon = b.weapons[selectedWeapon] ?? b.weapons[0]!
-  const startRepair = () => {
-    if (repairing) { setRepairing(null); return }
-    const r = repairButton.current?.getBoundingClientRect(), a = friendly.current?.getBoundingClientRect()
+  const startRepair = (from: HTMLElement | null = repairButton.current, crew?: CrewId) => {
+    if (repairing && (!crew || repairing.crew === crew)) { setRepairing(null); return }
+    const r = from?.getBoundingClientRect(), a = friendly.current?.getBoundingClientRect()
     if (!r || !a) return
     const origin = { x: r.left + r.width / 2 - a.left, y: r.top - a.top }
-    setRepairing({ origin, cursor: { x: origin.x, y: origin.y - 80 } })
+    playCombatSound('click')
+    setRepairing({ origin, cursor: { x: origin.x, y: origin.y - 80 }, crew })
+  }
+  /** Rules 2: a click on our compartment sends the chosen officer there, or picks up whoever is in it. */
+  const roomClick = (key: EnemyRoomKey) => {
+    if (!live) return
+    if (!b.crew) { order({ type: 'repair', room: key }); setRepairing(null); playCombatSound('click'); return }
+    if (repairing?.crew) {
+      const a: ShipOrder = { type: 'crew', id: repairing.crew, room: key }
+      if (!actionLock(state, { type: 'ship-order', order: a })) { order(a); playCombatSound('click') }
+      setRepairing(null); return
+    }
+    const here = b.crew.find((c) => c.room === key && c.hp > 0 && !c.moving)
+    if (here) startRepair(rooms.current[`player:${key}`] ?? null, here.id)
   }
   const track = (event: MouseEvent<HTMLElement>) => {
     if (!repairing) return
@@ -346,17 +365,29 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
             <div ref={(el) => { shields.current.player = el }} className={`space-shield layers-${b.shield}`} aria-hidden="true" />
             {SHIP_ROOMS.map((key) => <Room key={key} b={b} side="player" room={key} selected={b.repair === key} register={(el) => { rooms.current[`player:${key}`] = el }}
               threats={live ? cls.guns.flatMap((g, i) => b.enemy.aim?.[i] === key ? [{ label: g.label, eta: enemyGunEta(b, i) }] : []) : []}
-              onClick={() => { if (!live) return; order({ type: 'repair', room: key }); setRepairing(null); playCombatSound('click') }} />)}
+              crew={(b.crew ?? []).filter((c) => c.room === key && c.hp > 0).map((c) => ({ ...c, chosen: repairing?.crew === c.id }))}
+              onClick={() => roomClick(key)} />)}
             {legacyVolley?.side === 'enemy' && <Impact key={b.shots} volley={legacyVolley} box={OWN_ROOMS[legacyVolley.target]} />}
           </div>
         </div>
-        <div className="space-repair">
-          <button ref={repairButton} className="exp-button space-repair-button" aria-pressed={!!repairing} disabled={!live} onClick={startRepair}>
+        {b.crew ? <div className="space-crew" role="group" aria-label="Crew at battle stations">
+          {b.crew.map((c) => {
+            const person = CREW[c.id], r = b.rooms[c.room]
+            const doing = c.hp <= 0 ? `Medical bay · ${c.moving}s` : c.moving ? `Moving to ${c.room}` : burning(r) ? `Fighting the ${c.room} fire` : r.hp < r.max ? `Repairing ${c.room}` : `Manning ${c.room}`
+            return <button key={c.id} className={`space-crew-card${repairing?.crew === c.id ? ' chosen' : ''}${c.hp <= 0 ? ' down' : ''}`} disabled={!live || c.hp <= 0} aria-pressed={repairing?.crew === c.id}
+              aria-label={`${person.name}, ${doing}`} onClick={(e) => startRepair(e.currentTarget, c.id)}>
+              <img src={person.portrait} alt="" /><span><strong>{person.name.split(' ')[1]}</strong><small>{doing}</small>
+                <i className="space-crew-hp" aria-hidden="true">{Array.from({ length: CREW_HP }, (_, n) => <b key={n} className={n < c.hp ? 'ok' : ''} />)}</i></span>
+            </button>
+          })}
+          <small role="status" className="space-crew-hint">{repairing?.crew ? `Select a compartment for ${CREW[repairing.crew].name.split(' ')[1]}` : 'Crew repair and fight fire where they stand. The helm needs an officer for evasion.'}</small>
+        </div> : <div className="space-repair">
+          <button ref={repairButton} className="exp-button space-repair-button" aria-pressed={!!repairing} disabled={!live} onClick={() => startRepair()}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" aria-hidden="true"><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L4 17l3 3 5.3-5.3a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.4-.6-.6-2.4z" /></svg>
             <span>{repairing ? 'Cancel repair' : 'Repair'}</span></button>
           <small role="status">{repairing ? 'Select a compartment to repair' : burning(b.rooms[b.repair]) ? `Crew fighting the ${b.repair} fire` : `Crew repairing ${b.repair}`}</small>
-          <span className="space-repair-progress" aria-hidden="true"><i style={{ width: `${Math.min(1, b.repairWork / (burning(b.rooms[b.repair]) ? 3 : 6)) * 100}%` }} /></span>
-        </div>
+          <span className="space-repair-progress" aria-hidden="true"><i style={{ width: `${Math.min(1, b.repairWork / 6) * 100}%` }} /></span>
+        </div>}
         <ol className="space-log" aria-label="Combat log">{b.log.slice(-4).map((line, i, all) => <li key={b.log.length - all.length + i}>{line}</li>)}</ol>
         {repairing && <svg className="space-repair-line" aria-hidden="true"><line x1={repairing.origin.x} y1={repairing.origin.y} x2={repairing.cursor.x} y2={repairing.cursor.y} /><circle cx={repairing.origin.x} cy={repairing.origin.y} r={3} className="dot" /><circle cx={repairing.cursor.x} cy={repairing.cursor.y} r={7} /></svg>}
       </article>
@@ -476,17 +507,18 @@ function ShipReadout({ name, hull, max, shields, capacity, evasion, critical = f
     <div className="space-readout-sub"><span className="space-shield-pips" aria-label={`Shields ${shields} of ${capacity}`}>SHIELDS {Array.from({ length: Math.max(capacity, shields) }, (_, i) => <i key={i} className={i < shields ? 'up' : ''} />)}{offline ? <em className="offline">offline · {offline}</em> : capacity === 0 ? <em>none</em> : ` ${shields}/${capacity}`}</span>
       <span>EVASION <b>{evasion}%</b></span></div></div>
 }
-function Room({ b, side, room, selected, onClick, register, markers = [], threats = [] }: { b: ShipBattle; side: 'player' | 'enemy'; room: EnemyRoomKey; selected: boolean; onClick: () => void; register: (el: HTMLElement | null) => void; markers?: { w: ShipBattle['weapons'][number]; i: number }[]; threats?: { label: string; eta: number | null }[] }) {
+function Room({ b, side, room, selected, onClick, register, markers = [], threats = [], crew = [] }: { b: ShipBattle; side: 'player' | 'enemy'; room: EnemyRoomKey; selected: boolean; onClick: () => void; register: (el: HTMLElement | null) => void; markers?: { w: ShipBattle['weapons'][number]; i: number }[]; threats?: { label: string; eta: number | null }[]; crew?: (BattleCrew & { chosen: boolean })[] }) {
   const box = side === 'player' ? OWN_ROOMS[room] : ENEMY_LAYOUTS[SHIP_BY_ID[b.classId]!.layout][room]
   const r = side === 'player' ? b.rooms[room] : b.enemy.rooms[room]
   const ion = r.ionUntil > b.time, fire = burning(r)
-  return <button ref={register} className={`space-room ${selected ? 'selected' : ''} ${threats.length ? 'targeted' : ''} ${r.hp === 0 ? 'disabled-room' : r.hp < r.max ? 'damaged' : ''} ${ion ? 'ionised' : ''} ${fire ? 'burning' : ''}`} style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
-    aria-label={`${side === 'player' ? 'Repair' : 'Target'} ${room}`} aria-pressed={selected} title={ROOM_EFFECT[room]} onClick={onClick}>
+  return <button ref={register} className={`space-room ${selected && !b.crew ? 'selected' : ''} ${threats.length ? 'targeted' : ''} ${r.hp === 0 ? 'disabled-room' : r.hp < r.max ? 'damaged' : ''} ${ion ? 'ionised' : ''} ${fire ? 'burning' : ''}`} style={{ left: `${box.x}%`, top: `${box.y}%`, width: `${box.w}%`, height: `${box.h}%` }}
+    aria-label={`${side === 'enemy' ? 'Target' : b.crew ? 'Order crew to' : 'Repair'} ${room}`} aria-pressed={selected} title={ROOM_EFFECT[room]} onClick={onClick}>
     {fire && <span className="space-flames" aria-hidden="true"><i /><i /><i /></span>}
     <SystemIcon room={room} />
     <strong>{room}</strong><span className="space-room-pips" aria-hidden="true">{Array.from({ length: r.max }, (_, i) => <i key={i} className={i < r.hp ? 'ok' : ''} />)}</span>
     <span>{ion ? `ION ${r.ionUntil - b.time}s` : fire ? `FIRE ${r.hp}/${r.max}` : `${r.hp}/${r.max}`}</span>
     {threats.length > 0 && <span className="space-threat" aria-label={`Hostile ${threats.map((t) => t.label.toLowerCase()).join(' and ')} locked on`}><i aria-hidden="true" />{threats.map((t, i) => <b key={i}>{t.label} {t.eta ?? '—'}s</b>)}</span>}
+    {crew.length > 0 && <span className="space-room-crew" aria-hidden="true">{crew.map((c) => <img key={c.id} src={CREW[c.id].portrait} alt="" className={`${c.moving ? 'moving' : ''}${c.chosen ? ' chosen' : ''}${c.hp < CREW_HP ? ' hurt' : ''}`} />)}</span>}
     {markers.length > 0 && <span className="space-markers" aria-hidden="true">{markers.map(({ w, i }) => <i key={i} style={{ background: WEAPON_COLOUR[w.kind] }}>{i + 1}</i>)}</span>}
   </button>
 }

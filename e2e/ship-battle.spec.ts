@@ -44,12 +44,12 @@ test('real-time battle pauses, targets rooms, saves and completes a combat escor
   await expect(page.getByRole('button', { name: 'Resume battle', exact: true })).toBeVisible()
   await page.getByRole('button', { name: 'Target engines', exact: true }).click()
   await expect(page.getByRole('article', { name: 'Pulse laser', exact: true })).toContainText('→ engines')
-  // Repair: the button draws a line to the cursor; the next compartment clicked is repaired.
-  await page.getByRole('button', { name: 'Repair', exact: true }).click()
+  // Crew orders: choosing an officer draws a line to the cursor; the next compartment clicked is where they go.
+  await page.getByRole('button', { name: /^Gabriel Cross, Manning weapons/ }).click()
   await expect(page.locator('.space-repair-line')).toBeVisible()
-  await page.getByRole('button', { name: 'Repair shields', exact: true }).click()
+  await page.getByRole('button', { name: 'Order crew to shields', exact: true }).click()
   await expect(page.locator('.space-repair-line')).toHaveCount(0)
-  await expect(page.getByRole('status').filter({ hasText: 'Crew repairing shields' })).toBeVisible()
+  await expect(page.getByRole('button', { name: /^Gabriel Cross, Moving to shields/ })).toBeVisible()
   const arena = (await page.locator('.space-arena').boundingBox())!
   expect(arena.height).toBeGreaterThan(400)
   expect((await page.locator('.space-console').boundingBox())!.y).toBeGreaterThanOrEqual(arena.y + arena.height - 1)
