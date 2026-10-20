@@ -25,7 +25,7 @@ export const FLIGHT_SECONDS: Record<ShipWeaponKind, number> = { laser: 1, ion: 1
 export const FIRE_CHANCE: Record<ShipWeaponKind, number> = { laser: 10, ion: 0, missile: 35, beam: 25 }
 /** A fire burns this long unless damage control puts it out, costing a compartment point every five seconds. */
 export const FIRE_SECONDS = 10
-/** Rules 2: hostile damage control patches a point this often, in this order of priority. */
+/** Rules 2: the order in which hostile crews run to unattended damage. */
 export const ENEMY_REPAIR_ORDER: EnemyRoomKey[] = ['weapons', 'shields', 'helm', 'engines']
 /** Rules 2: a hostile crew member. They have no medical bay: at zero they are dead. */
 export interface EnemyCrew { room: EnemyRoomKey; home: EnemyRoomKey; moving: number; hp: number; work: number }

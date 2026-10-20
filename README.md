@@ -86,21 +86,26 @@ paused.
   shields and engines. Choose an officer, then a compartment. Officers repair and
   fight fires where they stand. The helm needs one for evasion. Hits and fires
   wound them; a downed officer returns from the medical bay after 20 seconds.
+- **Their crew:** hostile hands repair, fight fires and man the helm. Pips
+  under each enemy compartment show who is there; hit it to kill them, and kill
+  them all to take the ship intact.
 - **Reactor:** power shields (two per layer), engines (evasion and retreat) and
   weapons. Charge a retreat with working engines to jump away.
 
 First arrivals in a new system often pick up a **signal**: a distress call that
 may be bait, a hulk to strip, a trader, refugees short of fuel, a trapped weapons
 cache and more. Each offers choices with their costs and risks shown, and always a
-way to walk away.
+way to walk away. Kindness can come back: some of those you help find the
+Lodestar again later.
 
 The **rift** that brought the Lodestar here keeps widening from the arrival
 system: after a 15-day grace it swallows one jump-ring every six days. Rift-touched
 space swarms with heavy interceptors and its stations evacuate. The resource bar
-counts the days until it reaches you, and the chart shows it in violet.
+counts the days until it reaches you, and the chart shows it in violet. Known
+stations are marked on the chart, greyed once evacuated.
 
-Each station's **armoury** stocks one weapon (Burst laser II, Heavy laser or Twin
-Hellion) for two spare hardpoints. Missiles are a finite magazine, sold at
+Each station's **armoury** stocks two of five weapons (Burst laser II, Heavy
+laser, Twin Hellion, Ion blast II, Breach missile) for two spare hardpoints. Missiles are a finite magazine, sold at
 stations. More weapons than the reactor can power is the point.
 
 **Hardcore** (a checkbox on the title screen): losing the ship in battle ends the
