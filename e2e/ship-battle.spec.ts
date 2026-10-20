@@ -42,6 +42,13 @@ test('real-time battle pauses, targets rooms, saves and completes a combat escor
   await page.goto('/')
   await page.getByRole('button', { name: 'Resume expedition', exact: true }).click()
   await expect(page.getByRole('button', { name: 'Resume battle', exact: true })).toBeVisible()
+  // The voyage's first fight opens with Cross's four-step briefing.
+  const briefing = page.getByRole('complementary', { name: 'Tactical briefing' })
+  await expect(briefing).toContainText('We start paused.')
+  for (let i = 0; i < 3; i++) await briefing.getByRole('button', { name: 'Next', exact: true }).click()
+  await expect(briefing).toContainText('Move the crew.')
+  await briefing.getByRole('button', { name: 'Battle stations', exact: true }).click()
+  await expect(briefing).toHaveCount(0)
   await page.getByRole('button', { name: 'Target engines', exact: true }).click()
   await expect(page.getByRole('article', { name: 'Pulse laser', exact: true })).toContainText('→ engines')
   // Crew orders: choosing an officer draws a line to the cursor; the next compartment clicked is where they go.

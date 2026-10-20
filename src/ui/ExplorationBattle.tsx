@@ -37,6 +37,13 @@ const OUTRO: Record<ShipBattleResult, { title: string; tone: 'win' | 'loss' | 'c
   fled: { title: 'Jump complete', tone: 'calm', sound: 'jump' }, disabled: { title: 'Main power lost', tone: 'loss', sound: 'defeat' },
   negotiated: { title: 'Lane open', tone: 'calm', sound: null }, evaded: { title: 'Clear of them', tone: 'calm', sound: null }, cancelled: { title: '', tone: 'calm', sound: null },
 }
+/** The first-fight briefing: each step lights up the part of the screen it describes. */
+const COACH: { title: string; text: string; focus: string }[] = [
+  { title: 'We start paused.', text: 'Nothing moves until you say so. Space pauses and resumes at any moment; give orders while the clock is stopped.', focus: 'clock' },
+  { title: 'Pick their compartment.', text: 'Our guns open on their shields. Select a weapon (1–4), then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns go quiet until they repair it.', focus: 'enemy' },
+  { title: 'Watch for the red reticle.', text: 'When one of their guns is about to fire, the room it has locked shows a reticle and a countdown. That is where the next hit lands.', focus: 'threat' },
+  { title: 'Move the crew.', text: 'Click an officer, then one of our rooms. They repair and fight fires where they stand, and Mori must be at the helm for us to dodge anything. Power shields, engines and weapons with the reactor below.', focus: 'crew' },
+]
 const reducedMotion = () => typeof window !== 'undefined' && !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
 
 export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: Campaign; dispatch: (a: CampaignAction) => void; saved: boolean; onExit: () => void }) {
@@ -342,10 +349,13 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   const critical = b.hull <= b.hullMax * 0.3
   const legacyVolley = !b.rules && b.volley ? b.volley : null
   const outroInfo = outro ? OUTRO[outro] : null
+  // Cross briefs the captain through the voyage's first rules-2 fight; the header reopens it.
+  const [coach, setCoach] = useState<number | null>(() => b.rules === 2 && b.phase === 'battle' && b.time === 0 && !state.lastShipBattle?.rules ? 0 : null)
+  const step = coach === null ? null : COACH[coach]
   // Two identical animations, alternated, restart the shake without remounting the ship.
   const shakeClass = (side: 'player' | 'enemy') => shake?.side === side ? ` shake-${shake.n % 2 ? 'a' : 'b'}` : ''
 
-  return <main className={`exp-deck space-battle${running && live ? '' : ' halted'}${critical ? ' critical' : ''}`} onPointerDown={unlockCombatAudio}>
+  return <main className={`exp-deck space-battle${running && live ? '' : ' halted'}${critical ? ' critical' : ''}`} data-coach={live && step ? step.focus : undefined} onPointerDown={unlockCombatAudio}>
     <header className="space-header">
       <span className={`space-clock-state ${running && live ? 'live' : ''}`} role="status">{!live ? 'ENGAGEMENT OVER' : running ? 'LIVE' : 'PAUSED'} <small>{b.time}s</small></span>
       {live && <>
@@ -354,6 +364,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         {button({ type: 'retreat', active: !b.escape }, b.escape ? `Cancel retreat · ${Math.floor(b.escapeWork * 10)}% charged` : 'Charge retreat · engines required')}
       </>}
       <span className="space-hint" aria-hidden="true">Space pause · 1–{b.weapons.length} weapon · F fire · V volley</span>
+      {live && b.rules === 2 && <button className="exp-button" aria-pressed={coach !== null} onClick={() => { setRunning(false); setCoach(coach === null ? 0 : null) }}>Briefing</button>}
       <button className="exp-button space-title" onClick={() => { setRunning(false); onExit() }}>Save & title</button>
       <MuteButton icon />
     </header>
@@ -417,6 +428,12 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
       </article>
       <ProjectileLayer b={b} now={now} live={live} gun={gun} centre={centre} jitterFor={jitterFor} />
       <div className="space-fx" aria-hidden="true">{fx.map((f) => <FxNode key={f.key} f={f} done={() => dropFx(f.key)} />)}</div>
+      {live && step && <aside className="space-coach" aria-label="Tactical briefing">
+        <CrewLine person="cross" compact><strong>{step.title}</strong> {step.text}</CrewLine>
+        <div className="space-coach-nav"><small>{coach! + 1} / {COACH.length}</small>
+          <button className="exp-button" onClick={() => setCoach(null)}>Skip briefing</button>
+          <button className="exp-button primary" onClick={() => setCoach(coach! + 1 < COACH.length ? coach! + 1 : null)}>{coach! + 1 < COACH.length ? 'Next' : 'Battle stations'}</button></div>
+      </aside>}
       {outroInfo && <div className={`space-outro ${outroInfo.tone}`} role="status"><strong>{outroInfo.title}</strong><button className="exp-button" onClick={onSkipOutro}>Continue to report</button></div>}
     </section>
     <div className="space-console">
