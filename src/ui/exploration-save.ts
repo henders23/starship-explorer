@@ -5,9 +5,9 @@ import type { CampaignAction as PreviewAction } from '../engine/exploration/lega
 import type { StorageLike } from './save.js'
 
 export const EXPLORATION_SAVE_KEY = 'starship-explorer-exploration-v2'
-export const EXPLORATION_SAVE_VERSION = 13
+export const EXPLORATION_SAVE_VERSION = 14
 /** Versions only ever written by pre-release builds whose battle and rift rules kept changing; their journals cannot be replayed faithfully. */
-const PRE_RELEASE_VERSIONS = [11, 12]
+const PRE_RELEASE_VERSIONS = [11, 12, 13]
 /**
  * The longest journal the loader accepts, about 3.5 MB of storage. Saving
  * refuses anything longer so the voyage reports an autosave failure instead
@@ -56,7 +56,7 @@ export function loadExploration(storage: StorageLike): ExplorationSave {
       if (envelope.version < 8 && ['start-arc', 'arc-choice'].includes(action?.type)) throw new Error('Invalid pre-relay action')
       if(envelope.version<9 && (['accept-survivor','deploy-recorder','close-survivor'].includes(action?.type)||(action?.type==='deploy-operation'&&action.rememberSurvivors!==undefined)||(action?.type==='tactical'&&action.order?.type==='drop-recorder')))throw new Error('Invalid pre-survivor action')
       if (envelope.version < 10 && action?.type === 'auto-research') throw new Error('Invalid pre-automation action')
-      if (envelope.version < 13 && ((action?.type === 'escort' && action.rules !== undefined) || (action?.type === 'travel' && action.hazards !== undefined) || (action?.type === 'service' && action.service === 'ordnance') || action?.type === 'signal' || action?.type === 'buy-weapon' || ['hardcore', 'begin', 'sell-weapon', 'upgrade-reactor'].includes(action?.type) || (action?.type === 'return-home' && action.finale !== undefined))) throw new Error('Invalid pre-projectile action')
+      if (envelope.version < 14 && ((action?.type === 'escort' && action.rules !== undefined) || (action?.type === 'travel' && action.hazards !== undefined) || (action?.type === 'service' && action.service === 'ordnance') || action?.type === 'signal' || action?.type === 'buy-weapon' || ['hardcore', 'begin', 'sell-weapon', 'upgrade-reactor', 'field-repair'].includes(action?.type) || (action?.type === 'return-home' && action.finale !== undefined))) throw new Error('Invalid pre-projectile action')
       const step = { ...campaign, actions: journal.slice(-1) }
       const next = reduceCampaign(step, action)
       if (next === step) throw new Error('Invalid action journal')

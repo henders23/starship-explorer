@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, createCampaign, reduceCampaign } from '../src/engine/exploration/campaign.js'
+import { actionLock, createCampaign, FINALE_RECOVERY_HULL, reduceCampaign } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { escapeWorkNeeded, FINALE_HULL } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
@@ -34,7 +34,7 @@ describe('the way home', () => {
   it('leaves a beaten Lodestar adrift to try again, or lost on a hardcore voyage', () => {
     const beaten = (s: Campaign): Campaign => ({ ...s, shipBattle: { ...s.shipBattle!, phase: 'report', result: 'disabled', hull: 0 } })
     const normal = reduceCampaign(beaten(order(reduceCampaign(ready('finale-c'), { type: 'return-home', finale: 1 }), { type: 'engage' })), { type: 'ship-debrief' })
-    expect(normal.outcome).toBe('exploring'); expect(normal.hull).toBe(1); expect(actionLock(normal, { type: 'return-home', finale: 1 })).toBeNull()
+    expect(normal.outcome).toBe('exploring'); expect(normal.hull).toBe(FINALE_RECOVERY_HULL); expect(actionLock(normal, { type: 'return-home', finale: 1 })).toBeNull()
     const hard = reduceCampaign(beaten(order(reduceCampaign(ready('finale-d', true), { type: 'return-home', finale: 1 }), { type: 'engage' })), { type: 'ship-debrief' })
     expect(hard.outcome).toBe('lost')
   })

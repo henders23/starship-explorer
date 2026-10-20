@@ -84,3 +84,23 @@ describe('the rift toll', () => {
     expect(t.day).toBe(RIFT_GRACE + 1); expect(t.hull).toBe(s.hull - 2 * RIFT_HULL_TOLL)
   })
 })
+
+describe('round-five review fixes', () => {
+  it('lets the crew patch the hull anywhere, slowly, from the stores', () => {
+    const s = reduceCampaign(createCampaign('patch'), { type: 'begin' })
+    const hurt = { ...s, hull: 50, exploration: { ...s.exploration, materials: 20 } }
+    const patched = reduceCampaign(hurt, { type: 'field-repair' })
+    expect(patched.hull).toBe(62); expect(patched.exploration.materials).toBe(14); expect(patched.day).toBe(s.day + 2)
+    expect(actionLock(s, { type: 'field-repair' })).toMatch(/intact/)
+    expect(actionLock({ ...hurt, exploration: { ...hurt.exploration, materials: 2 } }, { type: 'field-repair' })).toMatch(/materials/)
+  })
+  it('keeps the Return Drive spun up when the captain pauses it', () => {
+    let b = reduceShipBattle(createShipBattle('pause', 'sys', SHIP_BY_ID['sovereign']!, 100, 100, base, 2, 'finale'), { type: 'engage' })
+    b = reduceShipBattle(b, { type: 'retreat', active: true })
+    b = reduceShipBattle(b, { type: 'advance', seconds: 4 })
+    const spun = b.escapeWork
+    expect(spun).toBeGreaterThan(0)
+    b = reduceShipBattle(b, { type: 'retreat', active: false })
+    expect(b.escapeWork).toBe(spun)
+  })
+})

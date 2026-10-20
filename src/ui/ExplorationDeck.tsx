@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react'
 import type { ReactNode } from 'react'
 import {
   actionLock, reduceCampaign, travelCost, fuelCapacity, hullCapacity, recoveryDamage, carefulDays, stationPrice, salePrice, hasTech, fitted,
-  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches, reactorUpgradeCost, REACTOR_UPGRADES, contractPay, RIFT_HULL_TOLL, RIFT_PACE,
+  travelOrder, interceptionRisk, ORDNANCE_PRICE, MAGAZINE_CAPACITY, armouryStock, rifted, riftReaches, reactorUpgradeCost, REACTOR_UPGRADES, contractPay, RIFT_HULL_TOLL, RIFT_PACE, FIELD_REPAIR,
 } from '../engine/exploration/campaign.js'
 import { REGIONAL_THREAT } from '../engine/exploration/v2.js'
 import { courseFinder, followCourse } from '../engine/exploration/navigation.js'
@@ -244,6 +244,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
             {command({ type: 'scan', tier: 'survey' }, 'Survey system · 1 day', true)}
             {command({ type: 'scan', tier: 'deep' }, 'Deep scan · 1 day')}
             {fitted(state, 'fuel-recycling') && command({ type: 'recycle-fuel' }, 'Recycle fuel · 3 materials · 1 day')}
+            {state.hull < hullCapacity(state) && command({ type: 'field-repair' }, `Field repairs · ${FIELD_REPAIR.materials} materials · ${FIELD_REPAIR.days} days · +${FIELD_REPAIR.hull} hull`)}
             {!actionLock(state, { type: 'emergency-fuel' }) && command({ type: 'emergency-fuel' }, 'Emergency fuel · 3 days')}
           </div>
           {!state.deepArray && <small>Deep scans require a researched and installed survey array.</small>}

@@ -105,6 +105,8 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
+  /** Save version 14: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
   | { type: 'pause-research' }
@@ -113,7 +115,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 13): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 14): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -418,6 +420,9 @@ export function actionLock(state: Campaign, action: CampaignAction): string | nu
     }
     case 'emergency-fuel':
       return state.galaxy.adjacency[state.at]!.some((id) => travelCost(state, id)! <= state.fuel) ? 'A jump is still affordable' : null
+    case 'field-repair':
+      if (state.hull >= hullCapacity(state)) return 'The hull is intact'
+      return state.exploration.materials < FIELD_REPAIR.materials ? `Requires ${FIELD_REPAIR.materials} materials` : null
     case 'recycle-fuel':
       if (!fitted(state, 'fuel-recycling')) return 'Fit an Emergency Fuel Recycler first'
       if (state.fuel >= fuelCapacity(state)) return 'Fuel tanks full'
@@ -535,7 +540,8 @@ export function interceptionSpoils(battle: ShipBattle): { materials: number; cre
 export function interceptor(state: Campaign): ShipClass | null {
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
   const threat = REGIONAL_THREAT[system.region], torn = rifted(state, system.id)
-  if ((state.at === state.galaxy.start && !torn) || (state.hull <= WRECK_HULL && !state.hardcore)) return null
+  // Nothing is too broken to hunt inside the rift.
+  if ((state.at === state.galaxy.start && !torn) || (state.hull <= WRECK_HULL && !state.hardcore && !torn)) return null
   const chance = (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[threat]) - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
@@ -565,6 +571,18 @@ export const RIFT_GRACE = 15
 export const RIFT_PACE = 5
 /** Hull the rift tears away for each day the Lodestar spends inside it. */
 export const RIFT_HULL_TOLL = 3
+/** Patching the hull without a station: slow, costly, possible anywhere. */
+export const FIELD_REPAIR = { materials: 6, hull: 12, days: 2 }
+/** After a lost finale the crew patch the hull at least this far while the ship drifts. */
+export const FINALE_RECOVERY_HULL = 30
+/** Hull the rift tears away for the days in (from, to] that the ship spends inside it; never below 1. */
+function riftTear(next: Campaign, from: number, to: number): number {
+  if (next.outcome !== 'exploring' || next.hull <= 1) return 0
+  let inside = 0
+  for (let d = from + 1; d <= to; d++) if (riftDistance(next, next.at) <= riftDepth(next, d)) inside++
+  const torn = Math.min(next.hull - 1, RIFT_HULL_TOLL * inside); next.hull -= torn
+  return torn
+}
 export const RIFT_INTERCEPTION_CHANCE = 55
 const EVACUATED = 'The station has evacuated ahead of the rift'
 /** How many jump-rings from the arrival system the rift has swallowed; -1 before it opens. */
@@ -734,7 +752,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         next.lastShipBattle = battle; next.shipBattle = null
         if (['victory', 'fled', 'yielded'].includes(battle.result!)) {
           next.hull = battle.hull; next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'
-        } else { next.hull = Math.max(1, battle.hull); days = 3; message = 'Three days adrift before main power returns. The Return Drive is intact; it can be tried again.' }
+        } else { next.hull = Math.max(FINALE_RECOVERY_HULL, battle.hull); days = 3; message = `Three days adrift before main power returns. Kerr's crews patch the hull to ${next.hull}; the Return Drive is intact and can be tried again.` }
         break
       }
       if (battle.kind === 'interception') {
@@ -828,6 +846,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = `Arrived at ${system.name}. Passive sensors have catalogued the obvious contacts.`
       // The first hazard-aware jump starts the rift front's clock.
       if (action.hazards && !state.rift) next.rift = { from: state.day }
+      // The arrival day's rift toll lands first, so an interception starts from the torn hull.
+      const torn = riftTear(next, state.day, state.day + 1)
       // Interception odds and the rift are judged on the arrival day.
       const hostile = action.hazards ? interceptor({ ...next, day: state.day + 1 }) : null
       const signal = action.hazards && !state.visited.includes(system.id) && system.id !== state.galaxy.start ? signalAt(state.seed, system.id, state.signalsSeen) : null
@@ -845,6 +865,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         next.echoes = state.echoes.slice(1); next.signal = { id: echo, systemId: system.id }
         message = `Arrived at ${system.name}. Signal: ${SIGNAL_BY_ID[echo]!.title.toLowerCase()}.`
       } else if (action.hazards) message = `Arrived at ${system.name}. ${createRng(`${state.seed}:quiet:${system.id}:${state.day}`).pick(QUIET_ARRIVALS)}`
+      if (torn) message += ` The rift tears at the hull: −${torn}.`
       break
     }
     case 'sell-weapon': {
@@ -965,6 +986,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       message = 'Three days collecting trace hydrogen. The ship can reach a neighbouring system again.'
       break
     }
+    case 'field-repair':
+      next.exploration.materials -= FIELD_REPAIR.materials; next.hull = Math.min(hullCapacity(state), state.hull + FIELD_REPAIR.hull); days = FIELD_REPAIR.days
+      message = `Kerr's crews spend ${FIELD_REPAIR.days} days patching the hull from our own stores: +${next.hull - state.hull} hull.`; break
     case 'recycle-fuel':
       next.exploration.materials -= 3; next.fuel = Math.min(fuelCapacity(state), state.fuel + 15); days = 1
       message = `Recycled 3 materials into ${next.fuel - state.fuel} fuel.`; break
@@ -1021,12 +1045,9 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   }
   next.day += days
   // Every day spent inside the rift tears at the hull. It weakens; it never finishes the ship by itself.
-  if (days && next.outcome === 'exploring' && rifted(next, next.at) && next.hull > 1) {
-    let inside = 0
-    for (let d = state.day + 1; d <= next.day; d++) if (riftDistance(next, next.at) <= riftDepth(next, d)) inside++
-    const torn = Math.min(next.hull - 1, RIFT_HULL_TOLL * inside); next.hull -= torn
-    message += ` The rift tears at the hull: −${torn}.`
-  }
+  // A jump pays its arrival day's toll before anyone can open fire (see travel).
+  const torn = days && action.type !== 'travel' ? riftTear(next, state.day, next.day) : 0
+  if (torn) message += ` The rift tears at the hull: −${torn}.`
   if (days) {
     const advanced = advanceResearch(next, days * researchRate(state), state); next = advanced.state
     if (advanced.messages.length) message += ` ${advanced.messages.join(' ')}`

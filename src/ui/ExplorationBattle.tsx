@@ -74,9 +74,9 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
 
 function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: (a: CampaignAction) => void; saved: boolean }) {
   const b = state.shipBattle!, cls = SHIP_BY_ID[b.classId]!
-  const button = (a: ShipOrder, label: string, primary = false) => {
+  const button = (a: ShipOrder, label: string, primary = false, focus = false) => {
     const lock = actionLock(state, { type: 'ship-order', order: a })
-    return <button className={`exp-button ${primary ? 'primary' : ''}`} disabled={!!lock} title={lock ?? undefined} onClick={() => { unlockCombatAudio(); dispatch({ type: 'ship-order', order: a }) }}>{label}</button>
+    return <button className={`exp-button ${primary ? 'primary' : ''}`} autoFocus={focus} disabled={!!lock} title={lock ?? undefined} onClick={() => { unlockCombatAudio(); dispatch({ type: 'ship-order', order: a }) }}>{label}</button>
   }
   const intercept = b.kind === 'interception'
   const place = state.galaxy.systems.find((s) => s.id === b.locationId)?.name
@@ -87,7 +87,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
       <div className="ship-contact-stats"><span><b>{b.enemy.maxHull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{b.enemy.crew?.length ?? 0}</b>crew</span><span><b>{cls.evade}%</b>evasion</span></div>
       <p className="ship-contact-response">{b.log[0]}</p>
       <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull and {b.missiles} {b.missiles === 1 ? 'missile' : 'missiles'}. Spinning up the Return Drive takes {Math.ceil(escapeWorkNeeded(b) / 1.5)} seconds at full engines, and once it starts, they will go for our engines.</p>
-      <div className="ship-contact-options">{button({ type: 'engage' }, 'Battle stations · enter battle paused', true)}</div><small>{saved ? 'Contact saved' : 'Autosave unavailable — keep this tab open'}</small>
+      <div className="ship-contact-options">{button({ type: 'engage' }, 'Battle stations · enter battle paused', true, true)}</div><small>{saved ? 'Contact saved' : 'Autosave unavailable — keep this tab open'}</small>
     </div>
   </section></main>
   return <main className="exp-deck ship-contact"><section className="ship-contact-frame">
@@ -121,7 +121,7 @@ function ReportScreen({ b, dispatch, saved, hardcore }: { b: ShipBattle; dispatc
     return <main className="exp-deck ship-report"><section className="exp-modal exp-ending"><span className="exp-eyebrow">The way home / {b.time} combat seconds</span><h2>{b.result === 'victory' ? 'The Sovereign is broken.' : home ? 'The drive takes hold.' : 'Adrift at the edge.'}</h2>
       <p>{b.log.at(-1)}</p><div className="exp-ending-stats"><span><b>{b.hull}</b>hull remaining</span><span><b>{b.enemy.hull}</b>Sovereign hull</span><span><b>{b.missiles}</b>missiles aboard</span></div>
       <p>{home ? 'Acknowledge to make the last jump.' : 'Three days pass before main power returns. The Return Drive can be tried again.'}</p>
-      <button className="exp-button primary" onClick={() => dispatch({ type: 'ship-debrief' })}>{home ? 'Make the last jump' : 'Acknowledge'}</button><small>{saved ? 'Report saved' : 'Autosave unavailable'}</small>
+      <button className="exp-button primary" autoFocus onClick={() => dispatch({ type: 'ship-debrief' })}>{home ? 'Make the last jump' : 'Acknowledge'}</button><small>{saved ? 'Report saved' : 'Autosave unavailable'}</small>
     </section></main>
   }
   const title = intercept
@@ -406,11 +406,12 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   return <main className={`exp-deck space-battle${running && live ? '' : ' halted'}${critical ? ' critical' : ''}`} data-coach={live && step ? step.focus : undefined} onPointerDown={unlockCombatAudio}>
     <header className="space-header">
       <span className={`space-clock-state ${running && live ? 'live' : ''}`} role="status">{!live ? 'ENGAGEMENT OVER' : running ? 'LIVE' : 'PAUSED'} <small>{b.time}s</small></span>
+      {live && b.enemy.jump !== undefined && <span className="space-ftl-alert" role="status">THEY ARE JUMPING · {Math.floor(b.enemy.jump * 100 / ENEMY_JUMP_WORK)}%</span>}
       {live && <>
         <button className="exp-button primary" onClick={toggleRunning} title="Space">{running ? 'Pause battle' : 'Resume battle'}</button>
         <button className="exp-button" disabled={running} onClick={() => { reset(); order({ type: 'advance', seconds: 1 }) }}>Advance 1 second</button>
         {b.kind === 'finale'
-          ? button({ type: 'retreat', active: !b.escape }, b.escape ? `Hold the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : 'Spin up the Return Drive · engines required')
+          ? button({ type: 'retreat', active: !b.escape }, b.escape ? `Pause the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : b.escapeWork ? `Resume the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : 'Spin up the Return Drive · engines required')
           : button({ type: 'retreat', active: !b.escape }, b.escape ? `Cancel retreat · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% charged` : 'Charge retreat · engines required')}
       </>}
       <span className="space-hint" aria-hidden="true">Space pause · 1–{b.weapons.length} weapon · F fire · V volley</span>
@@ -477,7 +478,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
             <small>{!live ? 'silent' : aim ? `→ ${aim} · ${eta}s` : eta === null ? 'weapons offline' : 'charging'}</small></label>
         })}
           {b.enemy.jump !== undefined && <label className="space-enemy-ftl"><span className="space-gun-name">FTL</span><span className="space-meter enemy" role="progressbar" aria-label="Enemy FTL charge" aria-valuemin={0} aria-valuemax={ENEMY_JUMP_WORK} aria-valuenow={Math.floor(b.enemy.jump)}><i style={{ width: `${Math.min(100, (b.enemy.jump + (live ? enemyJumpRate(b) * frac : 0)) * 100 / ENEMY_JUMP_WORK)}%` }} /></span>
-            <small>{enemyJumpRate(b) ? 'jumping · hit engines or helm' : 'drive stalled'}</small></label>}
+            <small>{!live ? 'silent' : enemyJumpRate(b) ? 'jumping · hit engines or helm' : 'drive stalled'}</small></label>}
         </div>
       </article>
       <ProjectileLayer b={b} now={now} live={live} gun={gun} centre={centre} jitterFor={jitterFor} />

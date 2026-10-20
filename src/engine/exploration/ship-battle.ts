@@ -515,7 +515,8 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
     // Rules 2 keep the team's progress when the same compartment is chosen again.
     case 'repair': b.repairWork = 0; b.repair = a.room; break
     case 'crew': { const c = b.crew!.find((m) => m.id === a.id)!; c.room = a.room; c.moving = CREW_MOVE_SECONDS; c.work = 0; break }
-    case 'retreat': b.escape = a.active; if (!a.active) b.escapeWork = 0; break
+    // An ordinary retreat starts over; the Return Drive keeps what it has spun up.
+    case 'retreat': b.escape = a.active; if (!a.active && b.kind !== 'finale') b.escapeWork = 0; break
     case 'accept-surrender': finish(b, 'yielded', text(b).yielded); break
   }
   return b

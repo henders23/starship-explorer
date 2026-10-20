@@ -170,6 +170,7 @@ export function ReturnHomeScene({ state, dispatch, onClose }: { state: Campaign;
     <span className="exp-eyebrow">ISS LODESTAR / DEPARTURE</span><h2>Set a course for home?</h2><p>The drive is ready. Spinning it up will tear at the rift, and the rift will answer. Survive long enough for the drive to take hold, or destroy what comes, and the voyage ends at home. You can also stay and continue exploring.</p>
     {state.survivorArc&&state.survivorArc.stage!=='complete'&&<p>Someone left behind remains unfinished. You may return home without completing this request.</p>}
     {state.relayArc && state.relayArc.stage!=='complete' && <p>The Long Relay remains unfinished. Returning home leaves Edda or Tarek waiting for a reply; this optional mission does not block departure.</p>}
+    {state.hull < 50 && <p className="exp-warning">The hull is at {state.hull}. Repair before spinning up the drive: what waits at the rift's edge will go for our engines.</p>}
     <ResearchAction state={state} dispatch={dispatch} action={{ type: 'return-home', finale: 1 }} primary>Activate Return Drive</ResearchAction>
     <button className="exp-button" onClick={onClose}>Keep exploring</button>
   </section></div>
