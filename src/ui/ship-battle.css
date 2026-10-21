@@ -363,3 +363,4 @@
 .space-drive-meter i { position:absolute; left:0; right:0; bottom:0; background:linear-gradient(0deg,#6a3fd0,#c9a6ff); box-shadow:0 0 10px #b48cff; }
 .space-drive.spinning .space-drive-meter { animation:space-ftl-pulse .7s ease-in-out infinite alternate; }
 @media (prefers-reduced-motion: reduce) { .space-drive.spinning .space-drive-meter { animation:none; } }
+.sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }

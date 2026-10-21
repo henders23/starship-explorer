@@ -413,6 +413,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   return <main className={`exp-deck space-battle${running && live ? '' : ' halted'}${critical ? ' critical' : ''}`} data-coach={live && step ? step.focus : undefined} onPointerDown={unlockCombatAudio}>
     <header className="space-header">
       <span className={`space-clock-state ${running && live ? 'live' : ''}`} role="status">{!live ? 'ENGAGEMENT OVER' : running ? 'LIVE' : 'PAUSED'} <small>{b.time}s</small></span>
+      {/* Announced once when it starts; the visible alert's percentage is not re-read every second. */}
+      <span className="sr-only" role="status">{live && b.enemy.jump !== undefined ? 'The hostile is spinning up its FTL drive. Hit its engines or helm.' : ''}</span>
       {live && b.enemy.jump !== undefined && <span className="space-ftl-alert" aria-hidden="true">THEY ARE JUMPING · {Math.floor(b.enemy.jump * 100 / ENEMY_JUMP_WORK)}%</span>}
       {live && <>
         <button className="exp-button primary" onClick={toggleRunning} title="Space">{running ? 'Pause battle' : 'Resume battle'}</button>

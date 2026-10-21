@@ -114,7 +114,8 @@ function applyScore() {
   const now = out.context.currentTime
   score.bus.gain.setTargetAtTime(mode === 'tension' ? 0.35 : mode === 'fight' ? 0.55 : 0.7, now, 0.6)
   score.filter.frequency.setTargetAtTime(mode === 'tension' ? 220 : mode === 'fight' ? 420 : 650, now, 0.8)
-  if (mode !== 'finale') score.pad.gain.setTargetAtTime(0, now, 0.5)
+  // Clear any swell already scheduled for the next bar, or it outlasts the pause.
+  if (mode !== 'finale') { score.pad.gain.cancelScheduledValues(now); score.pad.gain.setTargetAtTime(0, now, 0.5) }
 }
 
 function applyAmbience() {

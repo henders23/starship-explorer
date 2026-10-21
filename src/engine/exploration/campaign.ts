@@ -65,6 +65,8 @@ export interface Campaign {
   outcome: 'exploring' | 'home' | 'lost'
   /** Hardcore voyages end when the ship is lost in battle: no tow home, and no mercy for a wreck. */
   hardcore?: true
+  /** Quiet hazard-aware arrivals so far, so their flavour lines do not repeat. */
+  quietArrivals?: number
   /** A hardcore voyage the rift itself tore apart. */
   lostToRift?: true
   /** Survey contracts taken at each station while the rift runs; each pays less than the last. */
@@ -107,7 +109,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 17: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 18: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -117,7 +119,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 17): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 18): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -564,7 +566,8 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
   // As the voyage wears on, the unshielded skiffs give way to hulls that need breaking open.
   const shielded = state.day >= SHIELDED_DAY ? pool.filter((c) => c.shields > 0) : []
   // Only heavy hulls survive in rift-touched space, and the last hull we fought looks for easier prey.
-  const choices = torn && heavy.length ? heavy : shielded.length ? shielded : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
+  // Seven in ten, anyway: the odd skiff still turns up, so the same hull is not met every time.
+  const choices = torn && heavy.length ? heavy : shielded.length && rng.int(100) < 70 ? shielded : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
   return rng.pick(fresh.length ? fresh : choices)
 }
 /**
@@ -906,7 +909,10 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         next.echoes = state.echoes.slice(1); next.signal = { id: echo, systemId: system.id }
         message = `Arrived at ${system.name}. Signal: ${SIGNAL_BY_ID[echo]!.title.toLowerCase()}.`
       // Quiet arrivals walk the pool from a seeded start, so no line repeats until all have been heard.
-      } else if (action.hazards) message = `Arrived at ${system.name}. ${QUIET_ARRIVALS[(createRng(`${state.seed}:quiet`).int(QUIET_ARRIVALS.length) + state.visited.length) % QUIET_ARRIVALS.length]}`
+      } else if (action.hazards) {
+        next.quietArrivals = (state.quietArrivals ?? 0) + 1
+        message = `Arrived at ${system.name}. ${QUIET_ARRIVALS[(createRng(`${state.seed}:quiet`).int(QUIET_ARRIVALS.length) + next.quietArrivals) % QUIET_ARRIVALS.length]}`
+      }
       if (torn) message += ` The rift tears at the hull: −${torn}.`
       break
     }
