@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import type { MouseEvent } from 'react'
 import type { Campaign, CampaignAction } from '../engine/exploration/campaign.js'
 import { actionLock, ESCORT_MISSILES, EVADE_FUEL, INTERCEPTION_SPOILS, interceptionSpoils } from '../engine/exploration/campaign.js'
-import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
+import { assignedPower, reactorPower, BATTLE_RULES, burning, CREW_HP, ENEMY_CREW_HP, enemyShieldCapacity, ENEMY_JUMP_WORK, enemyGunEta, enemyJumpRate, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, DOCTRINE, doctrineOf, enemyCloaked, fireLock, effectiveRoom, enemyChargeRate, enemyEvasion, escortClass, evadeChance, playerChargeRate, playerEvasion, SHIP_ROOMS, shieldCapacity, surrenderAvailable, weaponPower } from '../engine/exploration/ship-battle.js'
 import type { BattleCrew, BattleEvent, EnemyCrew, CrewId, Projectile, ShipBattle, ShipBattleResult, ShipOrder, ShipWeaponKind } from '../engine/exploration/ship-battle.js'
 import { ENEMY_LAYOUTS, SHIP_BY_ID } from '../engine/combat/ships.js'
 import { contactArtForClass } from './ship-contact-art.js'
@@ -84,6 +84,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
   }
   const intercept = b.kind === 'interception'
   const place = state.galaxy.systems.find((s) => s.id === b.locationId)?.name
+  const layout = doctrineOf(b), doctrine = layout ? DOCTRINE[layout] : undefined
   if (b.kind === 'finale') return <main className="exp-deck ship-contact finale"><section className="ship-contact-frame">
     <div className="ship-contact-art"><img className="reconstructed" data-testid="contact-recon-art" src={contactArtForClass(cls.id, cls.sprite)} alt={'Top-down sensor reconstruction of ' + cls.name} /><span>SENSOR RECONSTRUCTION / {cls.layout.toUpperCase()} HULL</span></div>
     <div className="ship-contact-copy"><span className="exp-eyebrow">The way home / {place}</span><h1>The rift will not let us go.</h1><h2>{cls.name}</h2>
@@ -99,6 +100,7 @@ function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: 
     <div className="ship-contact-copy"><span className="exp-eyebrow">{intercept ? `Hostile interception / ${place}` : 'Survey escort / interception'}</span><h1>{intercept ? 'Weapons lock on arrival.' : 'A ship across our bow.'}</h1><h2>{cls.name}</h2>
       <CrewLine person="cross" compact>{intercept ? 'They were waiting at the jump point. We can pay them, run for it, or fight.' : 'We can talk, slip past, or fight. Their systems tell us what a fight would cost.'}</CrewLine>
       <div className="ship-contact-stats"><span><b>{cls.hull}</b>hull</span><span><b>{cls.shields}</b>shield layers</span><span><b>{cls.evade}%</b>evasion</span></div>
+      {doctrine && <p className="ship-contact-doctrine"><b>Known doctrine · {doctrine.name}.</b> {doctrine.tell}</p>}
       {intercept && !b.hailed && <p className="ship-contact-response">{b.log[0]}</p>}
       {!intercept && <p>The tender’s captain keeps her voice level. “We can wait at the station. But if you’re taking us out, I need to know you can get us through.”</p>}
       <p>Weapons identified: {cls.guns.map((g) => g.label.toLowerCase()).join(', ')}. The Lodestar has {b.hull}/{b.hullMax} hull. {!b.rules ? 'The station supplies four missiles for this escort; unused ordnance is returned afterward.' : `${intercept ? 'The magazine holds' : `The station adds ${ESCORT_MISSILES} Hellions to our magazine:`} ${b.missiles} ${b.missiles === 1 ? 'missile' : 'missiles'}. Missiles fired are gone for good.`}</p>
@@ -185,6 +187,11 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   }, [])
   const live = b.phase === 'battle' && !outro
   const [running, setRunning] = useState(false)
+  // Nothing aboard can get through their shields: say so, rather than let the fight grind on.
+  const outgunned = b.rules === 2 && enemyShieldCapacity(b) >= 2 && !b.weapons.some((w) => (w.kind === 'missile' && b.missiles >= w.shots) || w.kind === 'ion' || w.shots >= 3)
+  // The first time the hull falls under 30%, the klaxon says so.
+  const lowHull = b.hull < b.hullMax * 0.3
+  useEffect(() => { if (lowHull && b.phase === 'battle') playCombatSound('alarm', { volume: 0.6 }) }, [lowHull])
   // The score follows the clock: a drone while paused, the full cue while shots fly, the run home its own.
   useEffect(() => { setScore(!live ? 'off' : !running ? 'tension' : b.kind === 'finale' ? 'finale' : 'fight') }, [live, running, b.kind])
   useEffect(() => () => setScore('off'), [])
@@ -271,6 +278,11 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   }, [b])
   function effectsFor(e: BattleEvent): Fx[] {
     const key = `${e.id}`, pan = (side: 'player' | 'enemy') => side === 'player' ? -0.55 : 0.55
+    if (e.type === 'doctrine') {
+      playCombatSound('alarm', { pan: 0.55, volume: 0.5 })
+      const at = centre(`enemy:${e.target}`)
+      return at ? [{ key: `${key}-t`, type: 'float', x: at.x, y: at.y - 40, text: e.target === 'shields' ? 'SHIELD BURST' : 'SALVO', colour: '#ffcf8a' }] : []
+    }
     if (e.type === 'enemy-ftl') {
       playCombatSound('alarm', { pan: 0.55, volume: 0.6 })
       const at = centre(`enemy:${e.target}`)
@@ -348,8 +360,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
   keys.current = (e: KeyboardEvent) => {
     const target = e.target as HTMLElement | null
     if (!live || e.repeat || e.ctrlKey || e.metaKey || e.altKey || target?.closest('input,textarea,select')) return
-    // A focused button keeps Space for itself, as keyboard users expect.
-    if (e.code === 'Space') { if (target?.closest('button')) return; e.preventDefault(); toggleRunning() }
+    // A button the keyboard has focused keeps Space for itself; one merely clicked does not.
+    if (e.code === 'Space') { const button = target?.closest('button'); if (button?.matches(':focus-visible')) return; e.preventDefault(); toggleRunning() }
     else if (/^Digit[1-6]$/.test(e.code)) { const i = Number(e.code.slice(5)) - 1; if (b.weapons[i]) { setWeapon(i); playCombatSound('click') } }
     else if (e.key === 'f' || e.key === 'F') { if (!actionLock(state, { type: 'ship-order', order: { type: 'fire', index: selectedWeapon } })) order({ type: 'fire', index: selectedWeapon }) }
     else if (e.key === 'v' || e.key === 'V') volley()
@@ -455,6 +467,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
                 <i className="space-crew-hp" aria-hidden="true">{Array.from({ length: CREW_HP }, (_, n) => <b key={n} className={n < c.hp ? 'ok' : ''} />)}</i></span>
             </button>
           })}
+          {live && outgunned && <small role="status" className="space-outgunned">Their shields outmatch our lasers. Power a missile or the ion projector, or charge a retreat.</small>}
           <small role="status" className={`space-crew-hint${repairing?.crew ? '' : ' idle'}`}>{repairing?.crew ? `Select a compartment for ${CREW[repairing.crew].name.split(' ')[1]}` : 'Crew repair and fight fire where they stand. The helm needs an officer for evasion.'}</small>
         </div> : <div className="space-repair">
           <button ref={repairButton} className="exp-button space-repair-button" aria-pressed={!!repairing} disabled={!live} onClick={() => startRepair()}>
@@ -469,7 +482,8 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
       <div className="space-versus" aria-hidden="true"><span>{b.kind === 'interception' ? <>JUMP<br />POINT</> : b.kind === 'finale' ? <>RIFT<br />EDGE</> : <>ESCORT<br />CORRIDOR</>}</span>
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b5a880" strokeWidth="1"><path d="M12 3l9 9-9 9-9-9z" /></svg><small>{!live ? 'CEASEFIRE' : running ? 'LIVE FIRE' : 'TACTICAL PAUSE'}</small>
         {b.kind === 'finale' && <div className={`space-drive${b.escape ? ' spinning' : ''}`}><span>RETURN<br />DRIVE</span><div className="space-drive-meter"><i style={{ height: `${Math.min(100, (b.escapeWork + (live && b.escape ? Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2 * frac : 0)) * 100 / escapeWorkNeeded(b))}%` }} /></div><b>{Math.min(100, Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b)))}%</b></div>}</div>
-      <article className={`space-ship hostile${outro === 'victory' ? ' destroyed' : ''}${outro === 'yielded' ? ' yielded' : ''}`}>
+      <article className={`space-ship hostile${outro === 'victory' ? ' destroyed' : ''}${outro === 'yielded' ? ' yielded' : ''}${live && enemyCloaked(b) ? ' cloaked' : ''}`}>
+        {live && enemyCloaked(b) && <span className="space-cloak-tag" role="status">PHASED OUT · shots will miss</span>}
         <ShipReadout name={cls.name} hull={b.enemy.hull} max={b.enemy.maxHull} shields={b.enemy.shield} capacity={cls.shields} evasion={enemyEvasion(b)} segments={b.enemy.maxHull} />
         <div className={`space-hull enemy${shakeClass('enemy')}`}>
           <div className="space-bob slow"><img src={cls.sprite} alt={cls.name} />

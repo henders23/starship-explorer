@@ -11,7 +11,7 @@ import type { PendingSignal } from './signals.js'
 import type { StoryRecord } from './stories.js'
 import { ARMOURY, ARMOURY_SLOTS, BASE_REACTOR, BATTLE_RULES, KNOWN_BATTLE_RULES, MAX_ADVANCE_SECONDS, createShipBattle, escortClass, reduceShipBattle, shipOrderLock } from './ship-battle.js'
 import type { ArmouryWeaponId, BattleUpgrades, ShipBattle, ShipOrder } from './ship-battle.js'
-import { classPool, SHIP_BY_ID } from '../combat/ships.js'
+import { classPool, SHIP_BY_ID, SHIP_CLASSES } from '../combat/ships.js'
 import type { ShipClass } from '../combat/ships.js'
 import { createMission, createRecorderMission, createOperation, operationReward, initialRoster, recruitOperative, reduceMission, tacticalLock } from '../tactical/mission.js'
 import type { Mission, Operative, OperativeLoadout, TacticalAction } from '../tactical/mission.js'
@@ -109,7 +109,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 20: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 21: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -119,7 +119,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 20): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 21): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -569,9 +569,10 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
   const pool = classPool(archetype, tier).filter((c) => c.tier <= tier), heavy = pool.filter((c) => c.tier === 2)
   // As the voyage wears on, the unshielded skiffs give way to hulls that need breaking open.
   const shielded = state.day >= SHIELDED_DAY ? pool.filter((c) => c.shields > 0) : []
-  // Only heavy hulls survive in rift-touched space, and the last hull we fought looks for easier prey.
-  // Seven in ten, anyway: the odd skiff still turns up, so the same hull is not met every time.
-  const choices = torn && heavy.length ? heavy : shielded.length && rng.int(100) < 70 ? shielded : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
+  // Only heavy hulls survive in rift-touched space, and every faction's are drawn there; the last hull we fought
+  // looks for easier prey. Shields are seven in ten, anyway: the odd skiff still turns up.
+  const riftHeavies = torn ? SHIP_CLASSES.filter((c) => c.tier === 2) : []
+  const choices = riftHeavies.length ? riftHeavies : torn && heavy.length ? heavy : shielded.length && rng.int(100) < 70 ? shielded : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
   return rng.pick(fresh.length ? fresh : choices)
 }
 /**

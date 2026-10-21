@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { actionLock, contractPay, createCampaign, FINALE_RECOVERY_HULL, interceptionRisk, interceptor, reduceCampaign, FIRST_RAIDER_DAY, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
-import { BASE_REACTOR, createShipBattle, ENEMY_EMERGENCY_CHARGE, ENEMY_JUMP_WORK, enemyChargeRate, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
+import { BASE_REACTOR, createShipBattle, DISENGAGE_SECONDS, ENEMY_EMERGENCY_CHARGE, ENEMY_JUMP_WORK, enemyChargeRate, enemyCloaked, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
 import type { BattleUpgrades, ShipBattle } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import { loadExploration, saveExploration } from '../src/ui/exploration-save.js'
@@ -63,7 +63,7 @@ describe('a beaten interceptor runs', () => {
   it('asks a toll scaled to its hull, and opens on guns when they carry no shields', () => {
     const light = reduceShipBattle(createShipBattle('toll', 'sys', SHIP_BY_ID['rust-queen']!, 100, 100, base, 2, 'interception'), { type: 'hail' })
     const heavy = reduceShipBattle(createShipBattle('toll', 'sys', SHIP_BY_ID['reaver']!, 100, 100, base, 2, 'interception'), { type: 'hail' })
-    expect(light.toll).toBe(42); expect(heavy.toll).toBe(58)
+    expect(light.toll).toBe(22); expect(heavy.toll).toBe(30)
     expect(light.weapons.every((w) => w.target === 'weapons')).toBe(true)
     expect(heavy.weapons.every((w) => w.target === 'shields')).toBe(true)
   })
@@ -230,5 +230,46 @@ describe('round-ten review fixes', () => {
     const towed = reduceCampaign({ ...s, shipBattle: b }, { type: 'ship-debrief' })
     const station = towed.world.locations.find((l) => l.kind === 'station' && l.systemId === towed.at)!
     expect(towed.exploration.statuses[station.id]).toBeDefined()
+  })
+})
+
+describe('doctrines', () => {
+  const fight = (cls: string) => reduceShipBattle(createShipBattle(`doc-${cls}`, 'sys', SHIP_BY_ID[cls]!, 100, 100, base, 2, 'interception', 6), { type: 'engage' })
+  it('makes a hauler yield once its weapons room is shot out and it is hurt', () => {
+    let b = fight('toll-barque')
+    b = { ...b, enemy: { ...b.enemy, hull: Math.floor(b.enemy.maxHull * 0.5), rooms: { ...b.enemy.rooms, weapons: { ...b.enemy.rooms.weapons, hp: 0 } } } }
+    b = reduceShipBattle(b, { type: 'advance', seconds: 1 })
+    expect(b.result).toBe('yielded')
+  })
+  it('phases the polity out of sight four seconds in eighteen, when shots miss and their guns pause', () => {
+    let b = fight('silent-blade')
+    b = { ...b, time: 10 }
+    expect(enemyCloaked(b)).toBe(true); expect(enemyChargeRate(b)).toBe(0)
+    expect(enemyCloaked({ ...b, time: 14 })).toBe(false); expect(enemyCloaked({ ...b, time: 28 })).toBe(true)
+  })
+  it('gives the spine one shield burst and the clans one salvo at half hull', () => {
+    let spine = fight('lance-cutter')
+    spine = { ...spine, enemy: { ...spine.enemy, hull: 5, shield: 0, rooms: { ...spine.enemy.rooms, shields: { ...spine.enemy.rooms.shields, hp: 0 } } } }
+    spine = reduceShipBattle(spine, { type: 'advance', seconds: 1 })
+    expect(spine.enemy.doctrineSpent).toBe(true); expect(spine.enemy.rooms.shields.hp).toBe(spine.enemy.rooms.shields.max)
+    let clan = fight('magpie')
+    clan = { ...clan, enemy: { ...clan.enemy, hull: 5, charges: clan.enemy.charges.map(() => 0) } }
+    clan = reduceShipBattle(clan, { type: 'advance', seconds: 1 })
+    expect(clan.enemy.doctrineSpent).toBe(true)
+    expect(clan.log.some((l) => /everything they have left/.test(l))).toBe(true)
+  })
+  it('asks half the toll of a hauler', () => {
+    const hauler = reduceShipBattle(createShipBattle('t', 'sys', SHIP_BY_ID['toll-barque']!, 100, 100, base, 2, 'interception'), { type: 'hail' })
+    expect(hauler.toll).toBe(Math.round((6 + SHIP_BY_ID['toll-barque']!.hull) * 0.5))
+  })
+})
+
+describe('stalemates', () => {
+  it('ends a fight neither ship can finish with the hostile breaking off', () => {
+    // Neither side can hurt the other: our guns are off and theirs are ionised dark for the whole fight.
+    let b = reduceShipBattle(createShipBattle('stale', 'sys', SHIP_BY_ID['umbra']!, 100, 100, base, 2, 'interception', 0), { type: 'engage' })
+    b = { ...b, weapons: b.weapons.map((w) => ({ ...w, mode: 'off' as const })), enemy: { ...b.enemy, rooms: { ...b.enemy.rooms, weapons: { ...b.enemy.rooms.weapons, ionUntil: 10_000 } } } }
+    for (let i = 0; i < 400 && b.phase === 'battle'; i++) b = reduceShipBattle(b, { type: 'advance', seconds: 1 })
+    expect(b.phase).toBe('report'); expect(b.time).toBe(DISENGAGE_SECONDS)
   })
 })

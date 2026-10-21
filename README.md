@@ -59,7 +59,7 @@ longer a player-selectable game. Its separate browser save is not erased.
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
 | Ship encounters | FTL-style real-time combat with pause: projectiles in flight, telegraphed enemy targeting, crew at battle stations, fires, reactor power, compartment targeting, volleys, synthesised battle sound and a synthesised score (a drone while paused, a driving cue while shots fly, its own cue for the finale, and the rift's wind aboard). Station escorts, and hostile interceptions on jumps into hostile space, with negotiation, evasion, salvage and tow-home failure |
 | Presentation | Interactive galaxy atlas; four illustrated ship rooms with original crew portraits and contextual dialogue; cinematic site art; directional boarding animation; laptop controls |
-| Persistence | Version-20 expedition journals; versions 1–10 supported (their battles and jumps replay under the rules they were played with); explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
+| Persistence | Version-21 expedition journals; versions 1–10 supported (their battles and jumps replay under the rules they were played with); explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
 This is a playable game under active development. Long faction arcs, a developed
@@ -89,6 +89,9 @@ paused.
 - **Their crew:** hostile hands repair, fight fires and man the helm. Pips
   beside each enemy compartment show who is there; hit it to kill them, and kill
   them all to take the ship intact.
+- **Doctrines:** every faction fights its own way: haulers yield when their
+  guns are shot out, spines burst their shields, clans throw a last salvo,
+  orders repair fast, and polity hulls phase out of sight.
 - **They run:** a badly hurt interceptor spins up its FTL drive. Hit its
   engines or helm before the violet meter fills, or the prize gets away.
 - **Reactor:** power shields (two per layer), engines (evasion and retreat) and

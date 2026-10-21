@@ -168,7 +168,9 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
   useEffect(() => { setAmbience(riftAmbience ? 'rift' : 'off'); if (!state.shipBattle) useSoundscape.getState().set(riftAmbience ? 'rift' : 'voyage') }, [riftAmbience])
   useEffect(() => () => { setAmbience('off'); if (useSoundscape.getState().scene === 'rift') useSoundscape.getState().set('voyage') }, [])
   const riftHere = rifted(state, state.at), riftEta = riftReaches(state, state.at), riftDays = riftEta === null ? null : riftEta - state.day
-  const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 || rifted(state, id)).length
+  // Each stop is judged on the day the Lodestar would get there.
+  const riftStops = (path: SystemId[]) => path.slice(1).filter((id, i) => rifted({ ...state, day: state.day + i + 1 }, id)).length
+  const hostileStops = (path: SystemId[]) => path.slice(1).filter((id, i) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 && !rifted({ ...state, day: state.day + i + 1 }, id)).length
   /** The chart's floating card: where a system is and how to get there. */
   const leadSystems = new Set(scienceLeads(state, courses).map((l) => l.site.systemId))
   const systemCard = (id: SystemId) => {
@@ -187,7 +189,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         : state.visited.includes(id) ? `${places} known ${plural(places, 'location')}. Your progress here is preserved.`
         : 'Unvisited. Local opportunities will appear on arrival and after scanning.'}</p>
       {!current && (plan && jumps > 0
-        ? <p className="exp-card-route"><strong>{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'} · {plan.fuel} FUEL</strong> · arrives day {state.day + jumps}{hostileStops(plan.path) ? ` · ${hostileStops(plan.path)} ${plural(hostileStops(plan.path), 'stop')} in hostile space` : ''}</p>
+        ? <p className="exp-card-route"><strong>{jumps} {jumps === 1 ? 'JUMP' : 'JUMPS'} · {plan.fuel} FUEL</strong> · arrives day {state.day + jumps}{hostileStops(plan.path) ? ` · ${hostileStops(plan.path)} ${plural(hostileStops(plan.path), 'stop')} in hostile space` : ''}{riftStops(plan.path) ? <b className="exp-route-rift"> · {riftStops(plan.path)} {plural(riftStops(plan.path), 'stop')} inside the rift by then</b> : ''}</p>
         : <p className="exp-card-route">No course reaches {target.name} with the current drive.</p>)}
       {neighbour ? <div className="exp-course-actions">
         {command(travelOrder(id), `Travel · ${travelCost(state, id)} fuel · 1 day`, true)}

@@ -114,8 +114,9 @@
 .space-threat i { position:absolute; left:50%; top:50%; width:46px; height:46px; margin:-23px 0 0 -23px; border:2px solid #ff6b5e; border-radius:50%; opacity:.85; animation:space-reticle 1.1s ease-in-out infinite;
   background:linear-gradient(#ff6b5e,#ff6b5e) 50% 0/2px 8px no-repeat,linear-gradient(#ff6b5e,#ff6b5e) 50% 100%/2px 8px no-repeat,linear-gradient(#ff6b5e,#ff6b5e) 0 50%/8px 2px no-repeat,linear-gradient(#ff6b5e,#ff6b5e) 100% 50%/8px 2px no-repeat; }
 @keyframes space-reticle { 50% { transform:scale(.8) rotate(45deg); opacity:1; } }
-.space-markers { position:absolute; top:-1px; right:-1px; display:flex; gap:2px; }
-.space-markers i { display:grid; place-items:center; width:15px; height:15px; color:#111; font-style:normal; font-size:9px; font-weight:700; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); }
+/* Bottom-left, clear of the room label and the crew pips on the right. */
+.space-markers { position:absolute; bottom:1px; left:1px; display:flex; gap:1px; }
+.space-markers i { display:grid; place-items:center; width:13px; height:13px; color:#111; font-style:normal; font-size:9px; font-weight:700; clip-path:polygon(50% 0,100% 50%,50% 100%,0 50%); }
 .friendly.repairing .space-room { border-style:dashed; border-color:#f8d799; cursor:crosshair; }
 .space-crew { display:flex; flex-wrap:wrap; align-items:center; gap:6px 8px; margin-top:10px; }
 .space-crew-card { display:flex; align-items:center; gap:8px; min-width:150px; padding:4px 10px 4px 4px; border:1px solid #2f5462; background:rgba(9,27,36,.85); color:#c9dbe1; text-align:left; cursor:pointer; transition:border-color .15s,background .15s; }
@@ -367,3 +368,8 @@
 .space-battery.crowded { grid-template-columns:repeat(auto-fill,minmax(168px,1fr)); }
 .space-battery.crowded>article { padding:4px 6px 8px; }
 .space-battery.crowded>article .exp-button { padding:5px 7px; font-size:10px; }
+.ship-contact-doctrine { padding:8px 12px; border-left:3px solid #d9c494; background:rgba(60,50,20,.35); font-size:13px; }
+.space-ship.hostile.cloaked .space-ship-art, .space-ship.hostile.cloaked img { opacity:.25; filter:blur(1px) hue-rotate(160deg); transition:opacity .3s, filter .3s; }
+.space-cloak-tag { position:absolute; top:40%; left:50%; transform:translateX(-50%); z-index:6; padding:4px 10px; border:1px solid #7fe3c4; background:rgba(4,30,30,.8); color:#bff6e6; font-size:11px; letter-spacing:.1em; pointer-events:none; }
+.exp-route-rift { color:#c8a6ff; font-weight:500; }
+.space-outgunned { display:block; margin:2px 0; color:#ffcf8a; font-size:11px; }

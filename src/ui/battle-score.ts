@@ -112,7 +112,8 @@ function applyScore() {
   if (score?.stopping !== undefined) { window.clearTimeout(score.stopping); score.stopping = undefined }
   if (!score) { startScore(); return }
   const now = out.context.currentTime
-  score.bus.gain.setTargetAtTime(mode === 'tension' ? 0.35 : mode === 'fight' ? 0.55 : 0.7, now, 0.6)
+  // Battle sits a touch above the voyage's theme, not below it.
+  score.bus.gain.setTargetAtTime(mode === 'tension' ? 0.5 : mode === 'fight' ? 0.95 : 1.15, now, 0.6)
   score.filter.frequency.setTargetAtTime(mode === 'tension' ? 220 : mode === 'fight' ? 420 : 650, now, 0.8)
   // Clear any swell already scheduled for the next bar, or it outlasts the pause.
   if (mode !== 'finale') { score.pad.gain.cancelScheduledValues(now); score.pad.gain.setTargetAtTime(0, now, 0.5) }

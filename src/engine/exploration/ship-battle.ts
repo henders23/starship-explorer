@@ -51,6 +51,7 @@ export type BattleEvent =
   | { id: number; type: 'wounded' | 'down' | 'returned'; side: 'player'; target: EnemyRoomKey; crew: CrewId }
   | { id: number; type: 'enemy-crew'; side: 'enemy'; target: EnemyRoomKey; dead: boolean }
   | { id: number; type: 'enemy-ftl'; side: 'enemy'; target: EnemyRoomKey }
+  | { id: number; type: 'doctrine'; side: 'enemy'; target: EnemyRoomKey }
 /** The Lodestar's bridge crew at battle stations (rules 2). */
 export type CrewId = 'mori' | 'cross' | 'morozova' | 'kerr'
 /** `moving`: seconds still crossing the ship. `recovery`: seconds left in the medical bay. `rest`: seconds healing. */
@@ -81,9 +82,13 @@ export interface ShipBattle {
     crew?: EnemyCrew[]
     /** Rules 2: set when the battle was won by killing every one of them. */
     crewKilled?: true
+    /** Rules 2: their doctrine's one-off move (shield burst, salvo) has been used. */
+    doctrineSpent?: true
     /** Rules-2 interceptions: their FTL charge, begun once their hull is badly hurt; at ENEMY_JUMP_WORK they are gone. */
     jump?: number }
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
+  /** Rules 2: the second either hull last took damage, for breaking off a fight going nowhere. */
+  lastHit?: number
   /** Finale: a bit for each rift surge that has already struck. */
   surged?: number
   /** Present from rules 2; absent means the frozen rules 1. */
@@ -228,6 +233,7 @@ export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1
 export const enemyChargeRate = (b: ShipBattle) => {
   const r = b.enemy.rooms.weapons
   // Rules 2: a shot-out weapons room falls back on emergency capacitors; an ionised one is truly dark.
+  if (enemyCloaked(b)) return 0
   // The Sovereign's capacitors drink from the rift itself.
   if (b.rules === 2 && r.hp === 0 && r.ionUntil <= b.time) return b.kind === 'finale' ? FINALE_EMERGENCY_CHARGE : ENEMY_EMERGENCY_CHARGE
   return effectiveRoom(b, 'enemy', 'weapons') / r.max
@@ -235,6 +241,47 @@ export const enemyChargeRate = (b: ShipBattle) => {
 /** Rules 2: the charge rate hostile guns keep on emergency power with their weapons room destroyed. */
 export const ENEMY_EMERGENCY_CHARGE = 0.2
 export const FINALE_EMERGENCY_CHARGE = 0.6
+/**
+ * Rules 2: each hull plan fights to a doctrine, so different enemies ask for different answers.
+ * Raiders run when beaten (the FTL tell); haulers would rather be paid; the militant spine dumps
+ * everything into its shields once; clans throw a desperate salvo; orders repair at double speed;
+ * the polity's hulls phase out of sight for a few seconds at a time.
+ */
+export const DOCTRINE: Partial<Record<EnemyLayoutId, { name: string; tell: string }>> = {
+  raider: { name: 'Cutthroats', tell: 'Badly hurt, they spin up their FTL drive and run with their hold.' },
+  hauler: { name: 'Would rather be paid', tell: 'Shoot out their weapons room once they are hurt and they power down and yield, with a smaller hold.' },
+  spine: { name: 'Shield discipline', tell: 'At half hull they dump everything into their shields once: save a missile volley for after.' },
+  clan: { name: 'Desperate salvo', tell: 'At half hull every gun they have is thrown at us at once: brace or break their weapons first.' },
+  order: { name: 'Damage control', tell: 'Their crews repair and fight fires twice as fast: kill the crew or keep the pressure on.' },
+  alien: { name: 'Phase cloak', tell: 'Every eighteen seconds they phase out for four: shots miss and their guns pause. Hold fire for when they return.' },
+}
+/** Rules 2: seconds without hull damage to either ship after which a hostile breaks off. */
+export const DISENGAGE_SECONDS = 60
+/** Rules 2: after this long, a hostile losing on proportion of hull breaks off; at half as long again, any does. */
+export const LONG_FIGHT_SECONDS = 240
+export const doctrineOf = (b: ShipBattle): EnemyLayoutId | null => b.rules === 2 && b.kind !== 'finale' ? SHIP_BY_ID[b.classId]!.layout : null
+/** The polity's phase cloak: four seconds in every eighteen, from the tenth. */
+export const enemyCloaked = (b: ShipBattle) => doctrineOf(b) === 'alien' && b.time >= 10 && (b.time - 10) % 18 < 4
+/** One-off doctrine moves, once the hull falls to half. */
+function doctrineMoves(b: ShipBattle) {
+  const d = doctrineOf(b), hurt = b.enemy.hull <= b.enemy.maxHull / 2
+  // No captain grinds forever: when neither hull has been touched for a minute, or a long fight is going
+  // slowly against them, they break off.
+  const losing = (b.time >= LONG_FIGHT_SECONDS && b.enemy.hull / b.enemy.maxHull < b.hull / b.hullMax) || b.time >= LONG_FIGHT_SECONDS * 1.5
+  if (d && (b.time - (b.lastHit ?? 0) >= DISENGAGE_SECONDS || losing)) { finish(b, b.kind === 'interception' ? 'escaped' : 'evaded', 'Neither ship can break the other. They break off and jump away.'); return }
+  if (d === 'hauler' && b.enemy.rooms.weapons.hp === 0 && b.enemy.hull <= b.enemy.maxHull * 0.6) { finish(b, 'yielded', 'Their guns dark, the hauler\'s captain hails: they would rather pay than die. We take what they offer.'); return }
+  if (!hurt || b.enemy.doctrineSpent) return
+  if (d === 'spine') {
+    b.enemy.doctrineSpent = true
+    const r = b.enemy.rooms.shields; r.hp = r.max; r.fire = 0; b.enemy.shield = enemyShieldCapacity(b)
+    log(b, 'They reroute everything into the shield array. Their shields snap back to full.'); emit(b, { type: 'doctrine', side: 'enemy', target: 'shields' })
+  }
+  if (d === 'clan') {
+    b.enemy.doctrineSpent = true
+    SHIP_BY_ID[b.classId]!.guns.forEach((g, i) => { b.enemy.charges[i] = Math.max(b.enemy.charges[i]!, Math.floor(g.time * 0.85)) })
+    log(b, 'They throw everything they have left at us. Brace!'); emit(b, { type: 'doctrine', side: 'enemy', target: 'weapons' })
+  }
+}
 /** Escape work a retreat needs; the finale's retreat is the Return Drive itself, far more work. */
 export const escapeWorkNeeded = (b: ShipBattle) => b.kind === 'finale' ? FINALE_DRIVE_WORK : b.kind === 'interception' ? INTERCEPTION_ESCAPE_WORK : 10
 /** An interceptor holds a jump lock: breaking it takes twice an escort's retreat. */
@@ -317,7 +364,8 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   const rooms = to === 'player' ? b.rooms : b.enemy.rooms
   const shield = to === 'player' ? b.shield : b.enemy.shield
   const evade = to === 'player' ? playerEvasion(b) : enemyEvasion(b)
-  const hit = kind === 'beam' || !roll(b, evade)
+  // A phased-out hull cannot be hit at all.
+  const hit = to === 'enemy' && enemyCloaked(b) ? false : kind === 'beam' || !roll(b, evade)
   const impact = (outcome: ImpactOutcome, dealt = 0) => emit(b, { type: 'impact', side, kind, target, shot, outcome, damage: dealt })
   b.volley = { side, kind, target, hit, damage: 0, id: ++b.shots }
   if (!hit) { log(b, `${side === 'player' ? 'Our' : 'Hostile'} ${kind} misses.`); impact('miss'); return }
@@ -330,6 +378,7 @@ function attack(b: ShipBattle, side: 'player' | 'enemy', kind: ShipWeaponKind, t
   if (kind === 'ion') { rooms[target].ionUntil = b.time + 6; log(b, `${to === 'player' ? 'Our' : 'Enemy'} ${target} ionised for six seconds.`); impact('ion'); return }
   if (to === 'player' && b.rules === 2) damage = Math.round(damage * INCOMING_DAMAGE[kind])
   if (to === 'player') b.hull = Math.max(1, b.hull - damage); else b.enemy.hull = Math.max(0, b.enemy.hull - damage)
+  if (damage > 0) b.lastHit = b.time
   rooms[target].hp = Math.max(0, rooms[target].hp - (kind === 'beam' ? 2 : 1))
   if (to === 'enemy' && b.rules === 2) rooms[target].hitAt = b.time
   b.volley.damage = damage
@@ -415,7 +464,7 @@ function woundEnemy(b: ShipBattle, room: EnemyRoomKey) {
 }
 /** Rules 2: their crew fight fires and patch rooms where they stand, and run to the most important damage. */
 function enemyCrewWork(b: ShipBattle) {
-  const crew = b.enemy.crew!, rooms = b.enemy.rooms
+  const crew = b.enemy.crew!, rooms = b.enemy.rooms, drill = doctrineOf(b) === 'order' ? 2 : 1
   const needs = (k: EnemyRoomKey) => burning(rooms[k]) || rooms[k].hp < rooms[k].max
   // Nobody walks into a room our guns struck in the last few seconds.
   const underFire = (k: EnemyRoomKey) => (rooms[k].hitAt ?? -Infinity) > b.time - ENEMY_CREW_CAUTION
@@ -439,8 +488,8 @@ function enemyCrewWork(b: ShipBattle) {
       continue
     }
     c.work++
-    if (burning(r) && c.work >= CREW_FIRE_WORK) { r.fire = 0; c.work = 0; emit(b, { type: 'extinguished', side: 'enemy', target: c.room }) }
-    else if (!burning(r) && c.work >= CREW_REPAIR_WORK) { r.hp++; c.work = 0; emit(b, { type: 'repaired', side: 'enemy', target: c.room }) }
+    if (burning(r) && c.work * drill >= CREW_FIRE_WORK) { r.fire = 0; c.work = 0; emit(b, { type: 'extinguished', side: 'enemy', target: c.room }) }
+    else if (!burning(r) && c.work * drill >= CREW_REPAIR_WORK) { r.hp++; c.work = 0; emit(b, { type: 'repaired', side: 'enemy', target: c.room }) }
   }
 }
 /** Rules-2 interceptions: a badly hurt hostile runs. Breaking its engines or emptying its helm keeps it here. */
@@ -480,11 +529,12 @@ function tick(b: ShipBattle) {
     const surge = b.kind === 'finale' ? FINALE_SURGES.findIndex((t, i) => crossed(t) && !((b.surged ?? 0) & (1 << i))) : -1
     if (surge >= 0) {
       b.surged = (b.surged ?? 0) | (1 << surge)
-      const engines = b.rooms.engines
-      if (burning(engines)) engines.hp = Math.max(0, engines.hp - 1); else { engines.fire = FIRE_SECONDS; emit(b, { type: 'fire', side: 'player', target: 'engines' }) }
+      // The surge strikes wherever the field is weakest that second: no post can be held against it in advance.
+      const struck = createRng(`${b.seed}:surge:${surge}`).pick(SHIP_ROOMS), room = b.rooms[struck]
+      if (burning(room)) room.hp = Math.max(0, room.hp - 1); else { room.fire = FIRE_SECONDS; emit(b, { type: 'fire', side: 'player', target: struck }) }
       const held = manned(b, 'engines')
       if (!held) b.escapeWork = Math.max(0, b.escapeWork - FINALE_SURGE_DRAIN * FINALE_DRIVE_WORK)
-      log(b, `A rift surge rolls back down the drive field. Fire in the engine room!${held ? '' : ' With no one on the field, the drive loses ground.'}`)
+      log(b, `A rift surge rolls back down the drive field. Fire in the ${struck}!${held ? '' : ' With no one on the engine room\'s field, the drive loses ground.'}`)
     }
     // Halfway, the Sovereign stops holding anything back: every gun is brought to bear at once.
     if (b.kind === 'finale' && crossed(0.5)) {
@@ -501,7 +551,7 @@ function tick(b: ShipBattle) {
   if (b.rules === 2) {
     burn(b, 'player'); burn(b, 'enemy')
     if (b.phase !== 'battle') { b.inFlight = []; return }
-    crewWork(b); enemyCrewWork(b); enemyJump(b)
+    crewWork(b); enemyCrewWork(b); enemyJump(b); doctrineMoves(b)
     if (b.phase !== 'battle') { b.inFlight = []; return }
     const arriving = b.inFlight!.filter((p) => p.lands <= b.time)
     b.inFlight = b.inFlight!.filter((p) => p.lands > b.time)
@@ -540,7 +590,8 @@ export function reduceShipBattle(state: ShipBattle, a: ShipOrder): ShipBattle {
   if (shipOrderLock(state, a)) return state
   const b = structuredClone(state)
   switch (a.type) {
-    case 'hail': b.hailed = true; b.toll = b.kind === 'interception' ? Math.round((10 + 2 * b.enemy.maxHull) * (b.upgrades.translated ? 0.6 : 1)) : b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to ${b.kind === 'interception' ? 'let us leave the jump point' : 'clear the tender\'s route'}.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
+    // Rules-2 tolls sit near the value of a fight; haulers would rather be paid and ask half.
+    case 'hail': b.hailed = true; b.toll = b.kind === 'interception' ? Math.round((6 + b.enemy.maxHull) * (b.upgrades.translated ? 0.6 : 1) * (doctrineOf(b) === 'hauler' ? 0.5 : 1)) : b.upgrades.translated ? 8 : 15; log(b, `Their captain asks for ${b.toll} credits to ${b.kind === 'interception' ? 'let us leave the jump point' : 'clear the tender\'s route'}.${b.upgrades.contextual ? ' Our translator identifies a face-saving way to refuse.' : ''}`); break
     case 'pay': finish(b, 'negotiated', text(b).paid); break
     case 'negotiate': finish(b, 'negotiated', b.kind === 'interception' ? 'We share our survey charts of the lanes behind us. Their captain calls it a fair trade and powers down weapons.' : 'We offer a public navigation advisory. Their captain calls it sufficient courtesy and opens the lane.'); break
     case 'evade':
