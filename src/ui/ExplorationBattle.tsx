@@ -44,7 +44,7 @@ const OUTRO: Record<ShipBattleResult, { title: string; tone: 'win' | 'loss' | 'c
 /** The first-fight briefing: each step lights up the part of the screen it describes. */
 const COACH: { title: string; text: string; focus: string }[] = [
   { title: 'We start paused.', text: 'Nothing moves until you say so. Space pauses and resumes at any moment; give orders while the clock is stopped.', focus: 'clock' },
-  { title: 'Pick their compartment.', text: 'Our guns open on their shields (on their weapons, if they carry none). Select a weapon with its number key, then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns go quiet until they repair it.', focus: 'enemy' },
+  { title: 'Pick their compartment.', text: 'Our guns open on their shields (on their weapons, if they carry none). Select a weapon with its number key, then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns slow to a crawl on emergency power until they repair it.', focus: 'enemy' },
   { title: 'Watch for the red reticle.', text: 'When one of their guns is about to fire, the room it has locked shows a reticle and a countdown. That is where the next hit lands.', focus: 'threat' },
   { title: 'Move the crew.', text: 'Click an officer, then one of our rooms. They repair and fight fires where they stand, and Mori must be at the helm for us to dodge anything. Power shields, engines and weapons with the reactor below.', focus: 'crew' },
 ]
@@ -414,7 +414,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
     <header className="space-header">
       <span className={`space-clock-state ${running && live ? 'live' : ''}`} role="status">{!live ? 'ENGAGEMENT OVER' : running ? 'LIVE' : 'PAUSED'} <small>{b.time}s</small></span>
       {/* Announced once when it starts; the visible alert's percentage is not re-read every second. */}
-      <span className="sr-only" role="status">{live && b.enemy.jump !== undefined ? 'The hostile is spinning up its FTL drive. Hit its engines or helm.' : ''}</span>
+      <span className="exp-sr" role="status">{live && b.enemy.jump !== undefined ? 'The hostile is spinning up its FTL drive. Hit its engines or helm.' : ''}</span>
       {live && b.enemy.jump !== undefined && <span className="space-ftl-alert" aria-hidden="true">THEY ARE JUMPING · {Math.floor(b.enemy.jump * 100 / ENEMY_JUMP_WORK)}%</span>}
       {live && <>
         <button className="exp-button primary" onClick={toggleRunning} title="Space">{running ? 'Pause battle' : 'Resume battle'}</button>
@@ -515,7 +515,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
           </div>
         })}
       </section>
-      <section className="space-battery" aria-label="Weapon control">
+      <section className={`space-battery${b.weapons.length > 4 ? ' crowded' : ''}`} aria-label="Weapon control">
         <div className="space-console-label"><span className="exp-eyebrow">Weapons</span><strong>{b.missiles} {b.missiles === 1 ? 'missile' : 'missiles'}</strong>
           <button className="exp-button space-volley" disabled={!live || ready.length < 2} title="V · fire every charged weapon together" onClick={volley}>Volley · {ready.length} ready</button></div>
         {b.weapons.map((w, i) => {

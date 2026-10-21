@@ -209,3 +209,26 @@ describe('round-nine recovery', () => {
     expect(towed.world.locations.some((l) => l.kind === 'station' && l.systemId === towed.at)).toBe(true)
   })
 })
+
+describe('round-ten review fixes', () => {
+  it('strikes each finale surge once, however far a drain sets the drive back', () => {
+    let b = reduceShipBattle(createShipBattle('once', 'sys', SHIP_BY_ID['sovereign']!, 100, 100, base, 2, 'finale'), { type: 'engage' })
+    b = reduceShipBattle(b, { type: 'power', system: 'engines', amount: 3 })
+    b = reduceShipBattle(b, { type: 'crew', id: 'kerr', room: 'weapons' })
+    b = reduceShipBattle(b, { type: 'retreat', active: true })
+    for (let i = 0; i < 300 && b.phase === 'battle'; i++) b = reduceShipBattle(b, { type: 'advance', seconds: 1 })
+    expect(b.log.filter((l) => /rift surge/.test(l)).length).toBeLessThanOrEqual(2)
+  })
+  it('warns on the chart when the first raider is waiting at the next arrival', () => {
+    const s = reduceCampaign(createCampaign('raider-warn'), { type: 'begin' })
+    const away = s.galaxy.adjacency[s.galaxy.start]![0]!
+    expect(interceptionRisk({ ...s, day: FIRST_RAIDER_DAY - 1 }, away)).toMatch(/raider has been shadowing us/)
+  })
+  it('lets the hauler log the station it tows the ship to', () => {
+    const s = { ...reduceCampaign(createCampaign('tow'), { type: 'begin' }), day: 60 }
+    const b = { ...createShipBattle('tow', s.at, SHIP_BY_ID['reaver']!, 1, 100, base, 2, 'interception'), phase: 'report' as const, result: 'disabled' as const, hull: 1 }
+    const towed = reduceCampaign({ ...s, shipBattle: b }, { type: 'ship-debrief' })
+    const station = towed.world.locations.find((l) => l.kind === 'station' && l.systemId === towed.at)!
+    expect(towed.exploration.statuses[station.id]).toBeDefined()
+  })
+})

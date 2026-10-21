@@ -109,7 +109,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 19: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 20: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -119,7 +119,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 19): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 20): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -552,8 +552,7 @@ export function interceptor(state: Campaign): ShipClass | null {
   // Nothing is too broken to hunt inside the rift.
   if ((state.at === state.galaxy.start && !torn) || (state.hull <= WRECK_HULL && !state.hardcore && !torn)) return null
   if (!torn && threat === 0 && state.day < SHALLOWS_GRACE_DAYS) return null
-  // Every voyage meets its first raider early: a light skiff, at the first hazard-aware arrival from day six.
-  if (state.rift && !torn && !state.lastShipBattle && !state.fought && state.day >= FIRST_RAIDER_DAY)
+  if (firstRaiderDue(state, state.day))
     return createRng(`${state.seed}:first-raider`).pick(['rust-queen', 'magpie'].map((id) => SHIP_BY_ID[id]!))
   const chance = (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[threat]) - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
@@ -592,6 +591,11 @@ export const RIFT_HULL_TOLL = 3
 export const FIELD_REPAIR = { materials: 6, hull: 12, days: 2 }
 /** After a lost finale the crew patch the hull at least this far while the ship drifts. */
 export const FINALE_RECOVERY_HULL = 50
+/** Every voyage meets its first raider early: a light skiff, at the first hazard-aware arrival from day six. */
+function firstRaiderDue(state: Campaign, day: number, systemId = state.at) {
+  return !!state.rift && !rifted({ ...state, day }, systemId) && systemId !== state.galaxy.start && !state.lastShipBattle && !state.fought && day >= FIRST_RAIDER_DAY
+    && !(state.hull <= WRECK_HULL && !state.hardcore)
+}
 /** The system of the nearest station the rift will not have reached by `day`: where a tow takes a disabled ship. */
 function towHaven(state: Campaign, day: number): SystemId | null {
   const index = new GalaxyIndex(state.galaxy), later = { ...state, day }
@@ -683,6 +687,7 @@ export function interceptionRisk(state: Campaign, systemId: SystemId): string {
   const torn = rifted(state, systemId), reaches = riftReaches(state, systemId)
   const front = !torn && reaches !== null ? ` The rift reaches it on day ${reaches}.` : ''
   const chance = Math.max(0, (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[REGIONAL_THREAT[system.region]]) - (fitted(state, 'countermeasures') ? 8 : 0))
+  if (firstRaiderDue(state, state.day + 1, systemId)) return 'A raider has been shadowing us since the Shallows. It will be waiting there.' + front
   if (torn) return `Rift-touched: interception risk ${chance}% from heavy hulls, wreck or not. Stations have evacuated.`
   if (state.hull <= WRECK_HULL && chance && !state.hardcore) return 'Hostile space, but our hull is too damaged to be worth attacking.' + front
   if (REGIONAL_THREAT[system.region] === 0 && chance && state.day + 1 < SHALLOWS_GRACE_DAYS && systemId !== state.galaxy.start) return `Quiet for now: raiders reach the Shallows from day ${SHALLOWS_GRACE_DAYS}.` + front
@@ -823,7 +828,11 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           next.exploration.materials -= materials; next.exploration.credits -= credits
           // The hauler drops the Lodestar at the nearest station the rift has not reached.
           const haven = towHaven(state, state.day + 3)
-          if (haven && haven !== state.at) { next.at = haven; if (!next.visited.includes(haven)) next.visited = [...next.visited, haven] }
+          // The hauler's sensors log what is there, as an arrival would; the old system's signal is left behind.
+          if (haven && haven !== state.at) {
+            next.at = haven; if (!next.visited.includes(haven)) next.visited = [...next.visited, haven]
+            next.exploration = reduceExploration(next.exploration, state.world, { type: 'scan', systemId: haven, tier: 'passive' }, haven)
+          }
           const where = haven && haven !== state.at ? ` at ${state.galaxy.systems.find((s) => s.id === haven)!.name}` : ''
           message = `Emergency tow completed${where}. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
         } else if (battle.result === 'fled') {
@@ -832,7 +841,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
           message = `Interception over. The emergency jump burned ${state.fuel - next.fuel} fuel; hull damage persists.`
         } else message = battle.result === 'escaped' ? 'They jumped away with their hold. We continue the voyage; hull damage persists.' : 'Interception over. We continue the voyage; hull damage persists.'
         next.hull = battle.hull; next.lastShipBattle = battle; next.shipBattle = null
-        if (state.signalAfterBattle) { next.signal = state.signalAfterBattle; next.signalAfterBattle = undefined }
+        if (state.signalAfterBattle) { if (next.at === state.signalAfterBattle.systemId) next.signal = state.signalAfterBattle; next.signalAfterBattle = undefined }
         break
       }
       const success = ['victory', 'negotiated', 'evaded', 'yielded'].includes(battle.result!)

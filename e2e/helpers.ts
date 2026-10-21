@@ -19,11 +19,11 @@ export async function chartTo(page: Page, name: string) {
 export async function travelTo(page: Page, name: string) {
   await chartTo(page, name)
   await page.getByRole('button', { name: /^Travel ·/ }).click()
-  await payOff(page)
+  await fightThrough(page)
   await walkAway(page)
 }
 /** Settles an interception on arrival, if one is waiting, by fighting it out a second at a time on default orders. */
-export async function payOff(page: Page) {
+export async function fightThrough(page: Page) {
   const engage = page.getByRole('button', { name: 'Engage · enter battle paused', exact: true })
   if (!(await engage.waitFor({ timeout: 700 }).then(() => true, () => false))) return
   await engage.click()

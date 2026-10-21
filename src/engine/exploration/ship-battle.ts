@@ -84,6 +84,8 @@ export interface ShipBattle {
     /** Rules-2 interceptions: their FTL charge, begun once their hull is badly hurt; at ENEMY_JUMP_WORK they are gone. */
     jump?: number }
   log: string[]; volley: { side: 'player' | 'enemy'; kind: ShipWeaponKind; target: EnemyRoomKey; hit: boolean; damage: number; id: number } | null; shots: number
+  /** Finale: a bit for each rift surge that has already struck. */
+  surged?: number
   /** Present from rules 2; absent means the frozen rules 1. */
   rules?: BattleRules; inFlight?: Projectile[]
   /** Rules 2: the officers at stations, who man rooms, repair them and fight fires. */
@@ -474,7 +476,10 @@ function tick(b: ShipBattle) {
     const crossed = (t: number) => before < t * FINALE_DRIVE_WORK && b.escapeWork >= t * FINALE_DRIVE_WORK
     // The rift fights the Return Drive: at a third and two thirds, a surge sets the engine room burning (or
     // tears at it if it already is), and with no one there to hold the field it bleeds away drive progress.
-    if (b.kind === 'finale' && FINALE_SURGES.some(crossed)) {
+    // Each surge comes once, however far a drain sets the drive back.
+    const surge = b.kind === 'finale' ? FINALE_SURGES.findIndex((t, i) => crossed(t) && !((b.surged ?? 0) & (1 << i))) : -1
+    if (surge >= 0) {
+      b.surged = (b.surged ?? 0) | (1 << surge)
       const engines = b.rooms.engines
       if (burning(engines)) engines.hp = Math.max(0, engines.hp - 1); else { engines.fire = FIRE_SECONDS; emit(b, { type: 'fire', side: 'player', target: 'engines' }) }
       const held = manned(b, 'engines')
