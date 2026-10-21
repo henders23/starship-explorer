@@ -499,7 +499,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         <div className="space-enemy-guns" aria-label="Hostile weapons">{cls.guns.map((g, i) => {
           const value = smooth(b.enemy.charges[i]!, g.time, enemyRate, true), eta = enemyGunEta(b, i), aim = live && eta !== null ? b.enemy.aim?.[i] : null
           return <label key={i} className={aim ? 'imminent' : ''}><span className="space-gun-name">{g.label}</span><span className="space-meter enemy" role="progressbar" aria-label={`Enemy ${g.label} charge`} aria-valuemin={0} aria-valuemax={g.time} aria-valuenow={Math.floor(b.enemy.charges[i]!)}><i style={{ width: `${value * 100 / g.time}%` }} /></span>
-            <small>{!live ? 'silent' : aim ? `→ ${aim} · ${eta}s` : eta === null ? 'weapons offline' : 'charging'}</small></label>
+            <small>{!live ? 'silent' : enemyCloaked(b) ? 'phased · paused' : aim ? `→ ${aim} · ${eta}s` : eta === null ? 'weapons offline' : 'charging'}</small></label>
         })}
           {b.enemy.jump !== undefined && <label className="space-enemy-ftl"><span className="space-gun-name">FTL</span><span className="space-meter enemy" role="progressbar" aria-label="Enemy FTL charge" aria-valuemin={0} aria-valuemax={ENEMY_JUMP_WORK} aria-valuenow={Math.floor(b.enemy.jump)}><i style={{ width: `${Math.min(100, (b.enemy.jump + (live ? enemyJumpRate(b) * frac : 0)) * 100 / ENEMY_JUMP_WORK)}%` }} /></span>
             <small>{!live ? 'silent' : enemyJumpRate(b) ? 'jumping · hit engines or helm' : 'drive stalled'}</small></label>}
