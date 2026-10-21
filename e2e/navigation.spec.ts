@@ -18,6 +18,8 @@ function quiet(s: Campaign, id: string) {
   for (let leg = 0; leg < 10; leg++) {
     const r = followCourse(s, id)
     if (r.stop === 'arrived') return true
+    // Every voyage's first raider waits from day six; these tests never fly that far.
+    if (r.stop === 'contact' && r.state.day >= 6) return true
     if (r.stop !== 'research') return false
     s = r.state
   }

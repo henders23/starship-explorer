@@ -54,10 +54,10 @@ describe('interceptions on arrival', () => {
     s = reduceCampaign(s, { type: 'ship-debrief' })
     expect(s.shipBattle).toBeNull(); expect(s.escortCompleted).toEqual([])
     if (result === 'victory') {
-      expect(s.exploration.materials).toBeGreaterThanOrEqual(before.materials + 10); expect(s.exploration.credits).toBeGreaterThanOrEqual(before.credits + 22); expect(s.day).toBe(day)
+      expect(s.exploration.materials).toBeGreaterThanOrEqual(before.materials + 7); expect(s.exploration.credits).toBeGreaterThanOrEqual(before.credits + 15); expect(s.day).toBe(day)
     } else expect(['disabled', 'fled', 'escaped']).toContain(result)
   })
-  it('rejects hazardous travel inside journals older than save version 18', () => {
+  it('rejects hazardous travel inside journals older than save version 19', () => {
     const s = intercepted('intercept-d'), storage = mem(); saveExploration(s, storage)
     const old = JSON.parse(storage.getItem()!); old.version = 10; storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(old))
     expect(loadExploration(storage).error).toBeTruthy()

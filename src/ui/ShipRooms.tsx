@@ -13,6 +13,7 @@ const ROOMS: Record<RoomId, { title: string; image: string; crew: CrewId; action
   security: { title: 'Shuttle bay', image: '/assets/rooms/barracks.png', crew: 'cross', action: 'Review away team' },
 }
 export const bridgeMessage = (state: Campaign) => {
+  if (state.built.includes('return-drive') && state.outcome === 'exploring') return 'The Return Drive is built. Whatever waits at the rift\'s edge, we can go home when you give the word.'
   if (!state.research.active && !state.research.completed.includes('drive-diagnostics'))
     return 'We need a way home. Morozova has a first research plan; start it, then examine the local signals.'
   if (!state.scans[state.at]) return 'We have a sky full of unanswered questions. Survey this system and see what it holds.'

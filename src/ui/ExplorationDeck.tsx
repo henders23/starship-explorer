@@ -220,7 +220,7 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
         <span>MATERIALS <b data-testid="exp-materials">{state.exploration.materials}</b></span>
         <span>CREDITS <b>{state.exploration.credits}</b></span>
       </div>
-      {driveReady && <button className="exp-button primary" onClick={() => setReturnConfirm(true)}>Return home</button>}
+      {driveReady && state.outcome === 'exploring' && <button className="exp-button primary" onClick={() => setReturnConfirm(true)}>Return home</button>}
       <button className="exp-button" onClick={() => { setDeploySite(null); setTeamOpen(true) }}>Away team</button>
       <button className="exp-button" onClick={exit}>Title screen</button>
       <MuteButton icon />

@@ -330,8 +330,9 @@
 .space-power>span { min-width:56px; }
 .space-pw { width:24px; height:24px; font-size:15px; }
 .space-pips i { width:12px; height:4px; }
-.space-battery { display:grid; grid-template-columns:repeat(auto-fill,minmax(250px,1fr)); gap:6px; align-items:stretch; }
-.space-battery>.space-console-label { display:flex; flex-direction:column; gap:2px; }
+.space-battery { display:grid; grid-template-columns:repeat(auto-fill,minmax(220px,1fr)); gap:6px; align-items:stretch; }
+/* The label runs along the top, so four guns fit one row and the console never grows over the log. */
+.space-battery>.space-console-label { grid-column:1/-1; display:flex; flex-direction:row; align-items:center; gap:14px; }
 .space-battery>article { padding:5px 8px 9px; }
 .space-volley.exp-button { margin-top:3px; padding:4px 8px; }
 @media(max-width:760px) { .space-console { grid-template-columns:1fr; } .space-battery { grid-template-columns:1fr; } }

@@ -40,7 +40,7 @@ export const PROJECTS: Record<ProjectId, ResearchProject> = {
   'fuel-recycling': { name: 'Emergency Fuel Recycling', branch: 'Propulsion', days: 6, requires: [],
     effect: 'Fit a recycler to convert 3 materials into 15 fuel in one day, anywhere.', blueprint: { materials: 10, credits: 25, slot: 'utility' } },
   'fire-control': { name: 'Fire Control Algorithms', branch: 'Weapons', days: 4, requires: [],
-    effect: 'Ship weapons charge 10% faster during escort battles.' },
+    effect: 'Ship weapons charge 10% faster in every battle.' },
   'ion-projector': { name: 'Ion Projector', branch: 'Weapons', days: 6, requires: ['fire-control'],
     effect: 'Strip shields and temporarily disable enemy systems.', blueprint: { materials: 18, credits: 50, slot: 'utility' } },
   'focus-beam': { name: 'Focus Beam', branch: 'Weapons', days: 7, requires: ['fire-control'],

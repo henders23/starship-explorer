@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, contractPay, createCampaign, FINALE_RECOVERY_HULL, interceptionRisk, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
+import { actionLock, contractPay, createCampaign, FINALE_RECOVERY_HULL, interceptionRisk, interceptor, reduceCampaign, FIRST_RAIDER_DAY, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
-import { BASE_REACTOR, createShipBattle, ENEMY_JUMP_WORK, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
+import { BASE_REACTOR, createShipBattle, ENEMY_EMERGENCY_CHARGE, ENEMY_JUMP_WORK, enemyChargeRate, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
 import type { BattleUpgrades, ShipBattle } from '../src/engine/exploration/ship-battle.js'
 import { SHIP_BY_ID } from '../src/engine/combat/ships.js'
 import { loadExploration, saveExploration } from '../src/ui/exploration-save.js'
@@ -67,9 +67,9 @@ describe('a beaten interceptor runs', () => {
     expect(light.weapons.every((w) => w.target === 'weapons')).toBe(true)
     expect(heavy.weapons.every((w) => w.target === 'shields')).toBe(true)
   })
-  it('spends yard power on the guns and switches on bought guns it can power', () => {
+  it('spends yard power on the guns, switches on bought guns it can power, and gives the engines what no gun can use', () => {
     const b = intercept('rust-queen', BASE_REACTOR + 2)
-    expect(b.power.weapons).toBe(4)
+    expect(b.power.weapons).toBe(3); expect(b.power.engines).toBe(3)
     expect(b.weapons.find((w) => w.name === 'Heavy laser')!.mode).toBe('auto')
   })
 })
@@ -171,5 +171,41 @@ describe('round-seven pacing', () => {
     s = reduceCampaign(s, { type: 'return-home', finale: 1 })
     s = { ...s, shipBattle: { ...s.shipBattle!, phase: 'report', result: 'disabled', hull: 0 } }
     expect(reduceCampaign(s, { type: 'ship-debrief' }).hull).toBe(FINALE_RECOVERY_HULL)
+  })
+})
+
+describe('round-nine combat', () => {
+  it('sends every new voyage a first light raider soon after the Shallows grace', () => {
+    const s = reduceCampaign(createCampaign('first-raider'), { type: 'begin' })
+    const away = s.galaxy.adjacency[s.galaxy.start]![0]!
+    const hostile = interceptor({ ...s, at: away, day: FIRST_RAIDER_DAY })
+    expect(['rust-queen', 'magpie']).toContain(hostile?.id)
+  })
+  it('keeps a shot-out weapons room charging on emergency power, but not an ionised one', () => {
+    let b = reduceShipBattle(createShipBattle('backup', 'sys', SHIP_BY_ID['rust-queen']!, 100, 100, base, 2, 'interception'), { type: 'engage' })
+    b = { ...b, enemy: { ...b.enemy, rooms: { ...b.enemy.rooms, weapons: { ...b.enemy.rooms.weapons, hp: 0 } } } }
+    expect(enemyChargeRate(b)).toBe(ENEMY_EMERGENCY_CHARGE)
+    expect(enemyChargeRate({ ...b, enemy: { ...b.enemy, rooms: { ...b.enemy.rooms, weapons: { ...b.enemy.rooms.weapons, hp: 0, ionUntil: b.time + 5 } } } })).toBe(0)
+  })
+  it('bleeds drive progress at a surge when no one holds the engine room', () => {
+    let b = reduceShipBattle(createShipBattle('drain', 'sys', SHIP_BY_ID['sovereign']!, 100, 100, base, 2, 'finale'), { type: 'engage' })
+    b = reduceShipBattle(b, { type: 'power', system: 'engines', amount: 3 })
+    b = reduceShipBattle(b, { type: 'crew', id: 'kerr', room: 'weapons' })
+    b = reduceShipBattle(b, { type: 'retreat', active: true })
+    for (let i = 0; i < 30 && !b.log.some((l) => /loses ground/.test(l)) && b.phase === 'battle'; i++) b = reduceShipBattle(b, { type: 'advance', seconds: 1 })
+    expect(b.log.some((l) => /loses ground/.test(l))).toBe(true)
+  })
+})
+
+describe('round-nine recovery', () => {
+  it('tows a ship disabled in the rift to the nearest station the rift has not reached', () => {
+    const s0 = reduceCampaign(createCampaign('tow'), { type: 'begin' })
+    const s = { ...s0, day: 60 }
+    expect(rifted(s, s.galaxy.start)).toBe(true)
+    const b = { ...createShipBattle('tow', s.at, SHIP_BY_ID['reaver']!, 1, 100, base, 2, 'interception'), phase: 'report' as const, result: 'disabled' as const, hull: 1 }
+    const towed = reduceCampaign({ ...s, shipBattle: b }, { type: 'ship-debrief' })
+    expect(towed.at).not.toBe(s.at)
+    expect(rifted(towed, towed.at)).toBe(false)
+    expect(towed.world.locations.some((l) => l.kind === 'station' && l.systemId === towed.at)).toBe(true)
   })
 })

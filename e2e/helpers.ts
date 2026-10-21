@@ -19,7 +19,22 @@ export async function chartTo(page: Page, name: string) {
 export async function travelTo(page: Page, name: string) {
   await chartTo(page, name)
   await page.getByRole('button', { name: /^Travel ·/ }).click()
+  await payOff(page)
   await walkAway(page)
+}
+/** Settles an interception on arrival, if one is waiting, by fighting it out a second at a time on default orders. */
+export async function payOff(page: Page) {
+  const engage = page.getByRole('button', { name: 'Engage · enter battle paused', exact: true })
+  if (!(await engage.waitFor({ timeout: 700 }).then(() => true, () => false))) return
+  await engage.click()
+  const skip = page.getByRole('button', { name: 'Skip briefing' })
+  if (await skip.isVisible()) await skip.click()
+  const report = page.getByRole('button', { name: 'Acknowledge interception report', exact: true })
+  for (let i = 0; i < 400 && !(await report.isVisible()); i++) {
+    const step = page.getByRole('button', { name: 'Advance 1 second', exact: true })
+    if (await step.isVisible()) await step.click(); else await page.waitForTimeout(200)
+  }
+  await report.click()
 }
 /** Answers an arrival signal, if one is up, with its no-effect choice. */
 export async function walkAway(page: Page) {

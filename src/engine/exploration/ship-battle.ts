@@ -31,7 +31,7 @@ export const ENEMY_REPAIR_ORDER: EnemyRoomKey[] = ['weapons', 'shields', 'helm',
 export interface EnemyCrew { room: EnemyRoomKey; home: EnemyRoomKey; moving: number; hp: number; work: number }
 export const ENEMY_CREW_HP = 4
 /** Seconds a struck hostile room stays off-limits to their crew. */
-export const ENEMY_CREW_CAUTION = 3
+export const ENEMY_CREW_CAUTION = 8
 /** Fraction of charge at which a hostile gun locks its target, giving the crew warning (rules 2). */
 export const AIM_AT = 0.6
 /** Each hull plan's gunnery doctrine: the compartment its gunners favour three to one (rules 2). */
@@ -178,6 +178,9 @@ export function createShipBattle(seed: string, locationId: string, cls: ShipClas
     let spare = reactor - BASE_REACTOR
     for (const sys of ['weapons', 'engines'] as const) while (spare > 0 && b.power[sys] < (sys === 'weapons' ? 4 : 3)) { b.power[sys]++; spare-- }
     for (const w of b.weapons.slice(2)) if (w.kind !== 'missile' && weaponPower(b) + w.cost <= b.power.weapons) w.mode = 'auto'
+    // Power no gun can use goes back to the engines.
+    const idle = Math.min(b.power.weapons - Math.max(2, weaponPower(b)), 3 - b.power.engines)
+    if (idle > 0) { b.power.weapons -= idle; b.power.engines += idle }
     // They were waiting with guns half charged, and our guns open on their shields (on their guns, if they have
     // no shields): choosing the right compartment is the captain's first decision.
     b.enemy.charges = cls.guns.map((g) => Math.floor(g.time / 2))
@@ -220,7 +223,16 @@ export const burning = (r: BattleRoom) => (r.fire ?? 0) > 0
 /** Charge gained per second by each powered player weapon. */
 export const playerChargeRate = (b: ShipBattle) => (b.upgrades.fireControl ? 1.1 : 1) * (b.crew && manned(b, 'weapons') ? 1.1 : 1) * effectiveRoom(b, 'player', 'weapons') / b.rooms.weapons.max
 /** Charge gained per second by each hostile gun. */
-export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'weapons') / b.enemy.rooms.weapons.max
+export const enemyChargeRate = (b: ShipBattle) => {
+  const r = b.enemy.rooms.weapons
+  // Rules 2: a shot-out weapons room falls back on emergency capacitors; an ionised one is truly dark.
+  // The Sovereign's capacitors drink from the rift itself.
+  if (b.rules === 2 && r.hp === 0 && r.ionUntil <= b.time) return b.kind === 'finale' ? FINALE_EMERGENCY_CHARGE : ENEMY_EMERGENCY_CHARGE
+  return effectiveRoom(b, 'enemy', 'weapons') / r.max
+}
+/** Rules 2: the charge rate hostile guns keep on emergency power with their weapons room destroyed. */
+export const ENEMY_EMERGENCY_CHARGE = 0.2
+export const FINALE_EMERGENCY_CHARGE = 0.6
 /** Escape work a retreat needs; the finale's retreat is the Return Drive itself, far more work. */
 export const escapeWorkNeeded = (b: ShipBattle) => b.kind === 'finale' ? FINALE_DRIVE_WORK : b.kind === 'interception' ? INTERCEPTION_ESCAPE_WORK : 10
 /** An interceptor holds a jump lock: breaking it takes twice an escort's retreat. */
@@ -228,6 +240,8 @@ export const INTERCEPTION_ESCAPE_WORK = 20
 export const FINALE_HULL = 1.3
 /** Fractions of the Return Drive's spin-up at which the rift surges back through the engines. */
 export const FINALE_SURGES = [1 / 3, 2 / 3]
+/** Share of the drive's work a surge bleeds away when no one is in the engine room. */
+export const FINALE_SURGE_DRAIN = 0.15
 export const FINALE_CREW_HP = 6
 export const FINALE_DRIVE_WORK = 60
 /** Rules-2 interceptions: below this share of hull, the hostile spins up its FTL drive. */
@@ -457,10 +471,20 @@ function tick(b: ShipBattle) {
   if (b.escape) {
     const before = b.escapeWork
     b.escapeWork += Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2
-    // The rift fights the Return Drive: at a third and two thirds, a surge sets the engine room burning.
-    if (b.kind === 'finale' && FINALE_SURGES.some((t) => before < t * FINALE_DRIVE_WORK && b.escapeWork >= t * FINALE_DRIVE_WORK) && !burning(b.rooms.engines)) {
-      b.rooms.engines.fire = FIRE_SECONDS; emit(b, { type: 'fire', side: 'player', target: 'engines' })
-      log(b, 'A rift surge rolls back down the drive field. Fire in the engine room!')
+    const crossed = (t: number) => before < t * FINALE_DRIVE_WORK && b.escapeWork >= t * FINALE_DRIVE_WORK
+    // The rift fights the Return Drive: at a third and two thirds, a surge sets the engine room burning (or
+    // tears at it if it already is), and with no one there to hold the field it bleeds away drive progress.
+    if (b.kind === 'finale' && FINALE_SURGES.some(crossed)) {
+      const engines = b.rooms.engines
+      if (burning(engines)) engines.hp = Math.max(0, engines.hp - 1); else { engines.fire = FIRE_SECONDS; emit(b, { type: 'fire', side: 'player', target: 'engines' }) }
+      const held = manned(b, 'engines')
+      if (!held) b.escapeWork = Math.max(0, b.escapeWork - FINALE_SURGE_DRAIN * FINALE_DRIVE_WORK)
+      log(b, `A rift surge rolls back down the drive field. Fire in the engine room!${held ? '' : ' With no one on the field, the drive loses ground.'}`)
+    }
+    // Halfway, the Sovereign stops holding anything back: every gun is brought to bear at once.
+    if (b.kind === 'finale' && crossed(0.5)) {
+      SHIP_BY_ID[b.classId]!.guns.forEach((g, i) => { b.enemy.charges[i] = Math.max(b.enemy.charges[i]!, Math.floor(g.time * 0.8)) })
+      log(b, 'The Sovereign brings every gun to bear. Brace!')
     }
     if (b.escapeWork >= escapeWorkNeeded(b)) { finish(b, 'fled', text(b).fled); return }
   }

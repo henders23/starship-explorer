@@ -83,7 +83,7 @@ describe('station recovery', () => {
 })
 
 describe('pre-release saves', () => {
-  it.each([11, 12, 13, 14, 15, 16, 17])('keeps a version-%i save unchanged and says it cannot be replayed', (version) => {
+  it.each([11, 12, 13, 14, 15, 16, 17, 18])('keeps a version-%i save unchanged and says it cannot be replayed', (version) => {
     const s = createCampaign('pre-release')
     const raw = JSON.stringify({ version, ruleset: s.ruleset, seed: s.seed, legacyActions: null, actions: [] })
     const storage = mem(); storage.setItem(EXPLORATION_SAVE_KEY, raw)

@@ -109,7 +109,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 18: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 19: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -119,7 +119,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 18): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 19): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -506,9 +506,11 @@ function battleUpgrades(state: Campaign): BattleUpgrades {
 export const INTERCEPTION_CHANCE = [8, 18, 28, 38] as const
 /** The shallows stay quiet for the voyage's first days. */
 export const SHALLOWS_GRACE_DAYS = 4
+/** The day from which every voyage's first light raider is waiting at the next hazard-aware arrival. */
+export const FIRST_RAIDER_DAY = 6
 /** What a defeated or surrendering interceptor leaves behind, before the luck of the wreck. */
 export const INTERCEPTION_SPOILS: Partial<Record<NonNullable<ShipBattle['result']>, { materials: number; credits: number; fuel: number; missiles: number }>> = {
-  victory: { materials: 10, credits: 22, fuel: 1, missiles: 0 }, yielded: { materials: 7, credits: 16, fuel: 1, missiles: 0 },
+  victory: { materials: 7, credits: 15, fuel: 1, missiles: 0 }, yielded: { materials: 5, credits: 11, fuel: 1, missiles: 0 },
 }
 export const STARTING_MISSILES = 6
 /** Fuel burnt trying to break an interceptor's lock. */
@@ -550,6 +552,9 @@ export function interceptor(state: Campaign): ShipClass | null {
   // Nothing is too broken to hunt inside the rift.
   if ((state.at === state.galaxy.start && !torn) || (state.hull <= WRECK_HULL && !state.hardcore && !torn)) return null
   if (!torn && threat === 0 && state.day < SHALLOWS_GRACE_DAYS) return null
+  // Every voyage meets its first raider early: a light skiff, at the first hazard-aware arrival from day six.
+  if (state.rift && !torn && !state.lastShipBattle && !state.fought && state.day >= FIRST_RAIDER_DAY)
+    return createRng(`${state.seed}:first-raider`).pick(['rust-queen', 'magpie'].map((id) => SHIP_BY_ID[id]!))
   const chance = (torn ? RIFT_INTERCEPTION_CHANCE : INTERCEPTION_CHANCE[threat]) - (fitted(state, 'countermeasures') ? 8 : 0)
   const rng = createRng(`${state.seed}:intercept:${state.day}:${system.id}`)
   if (rng.int(100) >= chance) return null
@@ -586,7 +591,18 @@ export const RIFT_HULL_TOLL = 3
 /** Patching the hull without a station: slow, costly, possible anywhere. */
 export const FIELD_REPAIR = { materials: 6, hull: 12, days: 2 }
 /** After a lost finale the crew patch the hull at least this far while the ship drifts. */
-export const FINALE_RECOVERY_HULL = 30
+export const FINALE_RECOVERY_HULL = 50
+/** The system of the nearest station the rift will not have reached by `day`: where a tow takes a disabled ship. */
+function towHaven(state: Campaign, day: number): SystemId | null {
+  const index = new GalaxyIndex(state.galaxy), later = { ...state, day }
+  let best: SystemId | null = null, bestJumps = Infinity
+  for (const l of state.world.locations) {
+    if (l.kind !== 'station' || rifted(later, l.systemId)) continue
+    const jumps = index.jumps(state.at, l.systemId)
+    if (jumps < bestJumps || (jumps === bestJumps && best !== null && l.systemId < best)) { best = l.systemId; bestJumps = jumps }
+  }
+  return best
+}
 /** Hull the rift tears away for the days in (from, to] that the ship spends inside it; never below 1. */
 function riftTear(next: Campaign, from: number, to: number): number {
   // On a hardcore voyage the rift can finish what it starts.
@@ -805,7 +821,11 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         } else if (battle.result === 'disabled') {
           const materials = Math.min(8, next.exploration.materials), credits = Math.min(20, next.exploration.credits)
           next.exploration.materials -= materials; next.exploration.credits -= credits
-          message = `Emergency tow completed. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
+          // The hauler drops the Lodestar at the nearest station the rift has not reached.
+          const haven = towHaven(state, state.day + 3)
+          if (haven && haven !== state.at) { next.at = haven; if (!next.visited.includes(haven)) next.visited = [...next.visited, haven] }
+          const where = haven && haven !== state.at ? ` at ${state.galaxy.systems.find((s) => s.id === haven)!.name}` : ''
+          message = `Emergency tow completed${where}. ${materials} materials and ${credits} credits lost in the recovery. Hull remains at 1; station contracts can fund repairs.`
         } else if (battle.result === 'fled') {
           // Breaking an interceptor's lock by jumping burns the same fuel as running from it.
           next.fuel = Math.max(0, state.fuel - EVADE_FUEL)

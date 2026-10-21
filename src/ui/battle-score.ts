@@ -133,12 +133,13 @@ function applyAmbience() {
   if (wind?.stopping !== undefined) { window.clearTimeout(wind.stopping); wind.stopping = undefined }
   if (!wind) {
     const bus = c.createGain(); bus.gain.value = 0.0001; bus.connect(master)
-    const sub = [27.5, 41.2].map((f) => { const o = c.createOscillator(), g = c.createGain(); o.frequency.value = f; g.gain.value = 0.12; o.connect(g); g.connect(bus); o.start(); return o })
+    // Low enough to feel, high enough for laptop and phone speakers to carry; the triangle's harmonics do the rest.
+    const sub = [55, 82.4].map((f) => { const o = c.createOscillator(), g = c.createGain(); o.type = 'triangle'; o.frequency.value = f; g.gain.value = 0.07; o.connect(g); g.connect(bus); o.start(); return o })
     const air = c.createBufferSource(); air.buffer = noise; air.loop = true
     const band = c.createBiquadFilter(); band.type = 'bandpass'; band.Q.value = 3; band.frequency.value = 400
     const sweep = c.createOscillator(), depth = c.createGain(); sweep.frequency.value = 0.05; depth.gain.value = 250
     sweep.connect(depth); depth.connect(band.frequency)
-    const airGain = c.createGain(); airGain.gain.value = 0.18
+    const airGain = c.createGain(); airGain.gain.value = 0.35
     air.connect(band); band.connect(airGain); airGain.connect(bus); air.start(); sweep.start()
     wind = { bus, nodes: [...sub, air, sweep] }
   }

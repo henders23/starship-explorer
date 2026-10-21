@@ -44,7 +44,7 @@ const OUTRO: Record<ShipBattleResult, { title: string; tone: 'win' | 'loss' | 'c
 /** The first-fight briefing: each step lights up the part of the screen it describes. */
 const COACH: { title: string; text: string; focus: string }[] = [
   { title: 'We start paused.', text: 'Nothing moves until you say so. Space pauses and resumes at any moment; give orders while the clock is stopped.', focus: 'clock' },
-  { title: 'Pick their compartment.', text: 'Our guns open on their shields. Select a weapon with its number key, then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns go quiet until they repair it.', focus: 'enemy' },
+  { title: 'Pick their compartment.', text: 'Our guns open on their shields (on their weapons, if they carry none). Select a weapon with its number key, then click one of their rooms. Missiles go straight through shields; lasers have to wear them down. Knock out their weapons room and their guns go quiet until they repair it.', focus: 'enemy' },
   { title: 'Watch for the red reticle.', text: 'When one of their guns is about to fire, the room it has locked shows a reticle and a countdown. That is where the next hit lands.', focus: 'threat' },
   { title: 'Move the crew.', text: 'Click an officer, then one of our rooms. They repair and fight fires where they stand, and Mori must be at the helm for us to dodge anything. Power shields, engines and weapons with the reactor below.', focus: 'crew' },
 ]
