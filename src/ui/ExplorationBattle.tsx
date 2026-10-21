@@ -20,6 +20,7 @@ export function EscortOffer({ state, locationId, dispatch }: { state: Campaign; 
   const cls = escortClass(state.seed, station.id, station.threat, BATTLE_RULES)
   const action: CampaignAction = { type: 'escort', locationId, rules: BATTLE_RULES }
   const lock = actionLock(state, action)
+  if (state.escortCompleted.includes(locationId)) return <div className="escort-offer done"><span className="exp-eyebrow">Survey escort / flown</span><p>The tender made its survey under our guns. The station has no more escort work.</p></div>
   return <div className="escort-offer"><span className="exp-eyebrow">Optional / survey escort</span><h3>A tender needs a clear lane.</h3>
     <p>Reported contact: {cls.name} · {cls.hull} hull · {cls.shields} {plural(cls.shields, 'shield')}. Negotiate, slip past or fight. Your ship’s damage persists.</p>
     <p>One-time payment: 12 materials + 35 credits for victory, or 6 + 18 for a peaceful passage. You can review the contact and decline.</p>
@@ -75,6 +76,8 @@ export function ExplorationBattle({ state, dispatch, saved, onExit }: { state: C
 
 function ContactScreen({ state, dispatch, saved }: { state: Campaign; dispatch: (a: CampaignAction) => void; saved: boolean }) {
   const b = state.shipBattle!, cls = SHIP_BY_ID[b.classId]!
+  // A weapons lock is a held breath: the low drone, before anyone fires.
+  useEffect(() => { setScore('tension'); return () => setScore('off') }, [])
   const button = (a: ShipOrder, label: string, primary = false, focus = false) => {
     const lock = actionLock(state, { type: 'ship-order', order: a })
     return <button className={`exp-button ${primary ? 'primary' : ''}`} autoFocus={focus} disabled={!!lock} title={lock ?? undefined} onClick={() => { unlockCombatAudio(); dispatch({ type: 'ship-order', order: a }) }}>{label}</button>
@@ -415,7 +418,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         <button className="exp-button primary" onClick={toggleRunning} title="Space">{running ? 'Pause battle' : 'Resume battle'}</button>
         <button className="exp-button" disabled={running} onClick={() => { reset(); order({ type: 'advance', seconds: 1 }) }}>Advance 1 second</button>
         {b.kind === 'finale'
-          ? button({ type: 'retreat', active: !b.escape }, b.escape ? `Pause the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : b.escapeWork ? `Resume the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : 'Spin up the Return Drive · engines required')
+          ? button({ type: 'retreat', active: !b.escape }, b.escape ? `Pause the Return Drive · ${Math.min(100, Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b)))}% spun up` : b.escapeWork ? `Resume the Return Drive · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% spun up` : 'Spin up the Return Drive · engines required')
           : button({ type: 'retreat', active: !b.escape }, b.escape ? `Cancel retreat · ${Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}% charged` : 'Charge retreat · engines required')}
       </>}
       <span className="space-hint" aria-hidden="true">Space pause · 1–{b.weapons.length} weapon · F fire · V volley</span>
@@ -463,7 +466,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
       </article>
       <div className="space-versus" aria-hidden="true"><span>{b.kind === 'interception' ? <>JUMP<br />POINT</> : b.kind === 'finale' ? <>RIFT<br />EDGE</> : <>ESCORT<br />CORRIDOR</>}</span>
         <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#b5a880" strokeWidth="1"><path d="M12 3l9 9-9 9-9-9z" /></svg><small>{!live ? 'CEASEFIRE' : running ? 'LIVE FIRE' : 'TACTICAL PAUSE'}</small>
-        {b.kind === 'finale' && <div className={`space-drive${b.escape ? ' spinning' : ''}`}><span>RETURN<br />DRIVE</span><div className="space-drive-meter"><i style={{ height: `${Math.min(100, (b.escapeWork + (live && b.escape ? Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2 * frac : 0)) * 100 / escapeWorkNeeded(b))}%` }} /></div><b>{Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b))}%</b></div>}</div>
+        {b.kind === 'finale' && <div className={`space-drive${b.escape ? ' spinning' : ''}`}><span>RETURN<br />DRIVE</span><div className="space-drive-meter"><i style={{ height: `${Math.min(100, (b.escapeWork + (live && b.escape ? Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2 * frac : 0)) * 100 / escapeWorkNeeded(b))}%` }} /></div><b>{Math.min(100, Math.floor(b.escapeWork * 100 / escapeWorkNeeded(b)))}%</b></div>}</div>
       <article className={`space-ship hostile${outro === 'victory' ? ' destroyed' : ''}${outro === 'yielded' ? ' yielded' : ''}`}>
         <ShipReadout name={cls.name} hull={b.enemy.hull} max={b.enemy.maxHull} shields={b.enemy.shield} capacity={cls.shields} evasion={enemyEvasion(b)} segments={b.enemy.maxHull} />
         <div className={`space-hull enemy${shakeClass('enemy')}`}>
@@ -516,7 +519,7 @@ function BattleScreen({ state, dispatch, onExit, outro, onSkipOutro }: { state: 
         {b.weapons.map((w, i) => {
           const disabled = effectiveRoom(b, 'player', 'weapons') === 0, value = smooth(w.charge, w.period, playerRate, w.mode !== 'off' && !(w.kind === 'missile' && b.missiles < w.shots)), ready = w.charge >= w.period
           return <article key={i} className={`${selectedWeapon === i ? 'selected' : ''}${ready && w.mode !== 'off' ? ' ready' : ''}${w.mode === 'off' ? ' unpowered' : ''}`} aria-label={w.name} title={`${w.name === 'Pulse laser' || w.name === 'Hellion missile' || !b.rules ? WEAPON_NOTES[w.kind] : `${w.shots} × ${w.damage} damage${w.kind === 'missile' ? ' / bypasses shields / uses ammo' : ''}`} · Auto fires at the selected room when charged; hold keeps a full charge`} style={{ ['--gun' as string]: WEAPON_COLOUR[w.kind] }}>
-            <button className="space-weapon-title" aria-pressed={selectedWeapon === i} onClick={() => { setWeapon(i); playCombatSound('click') }}><kbd>{i + 1}</kbd>{w.name}<small><b>{disabled ? 'ROOM DISABLED' : w.kind === 'missile' && b.missiles < w.shots ? `NEEDS ${w.shots} MISSILES` : ready ? 'READY' : `${Math.floor(value * 100 / w.period)}%`}</b> · → {w.target} · {w.cost} power</small></button>
+            <button className="space-weapon-title" aria-pressed={selectedWeapon === i} onClick={() => { setWeapon(i); playCombatSound('click') }}><kbd>{i + 1}</kbd>{w.name}<small><b>{disabled ? 'ROOM DISABLED' : w.kind === 'missile' && b.missiles < w.shots ? `NEEDS ${w.shots} ${w.shots === 1 ? 'MISSILE' : 'MISSILES'}` : ready ? 'READY' : `${Math.floor(value * 100 / w.period)}%`}</b> · → {w.target} · {w.cost} power</small></button>
             <div className="space-charge"><span className="space-meter" role="progressbar" aria-label={`${w.name} charge`} aria-valuemin={0} aria-valuemax={w.period} aria-valuenow={Math.floor(w.charge)}><i style={{ width: `${value * 100 / w.period}%` }} /></span></div>
             <div className="space-modes" role="group" aria-label={`${w.name} mode`}>{(['off', 'hold', 'auto'] as const).map((mode) => <button key={mode} aria-pressed={w.mode === mode} disabled={!!actionLock(state, { type: 'ship-order', order: { type: 'weapon', index: i, mode } })} onClick={() => { playCombatSound('click'); order({ type: 'weapon', index: i, mode }) }}>{mode}</button>)}</div>
             {button({ type: 'fire', index: i }, 'Fire', true)}

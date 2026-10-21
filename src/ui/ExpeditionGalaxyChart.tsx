@@ -31,6 +31,8 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
   const [query, setQuery] = useState('')
   const drag = useRef<{ px: number; py: number; x: number; y: number } | null>(null)
   const hoverTimer = useRef(0), hideTimer = useRef(0), inCard = useRef(false)
+  // After a pick from the search list, the star left under a still pointer must not steal the selection.
+  const hoverHeld = useRef(false)
   useLayoutEffect(() => {
     const element = frame.current
     if (!element) return
@@ -75,6 +77,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     hideTimer.current = window.setTimeout(() => { if (!inCard.current) setHovered(null) }, 350)
   }
   const hoverSoon = (id: string) => {
+    if (hoverHeld.current) return
     window.clearTimeout(hideTimer.current); window.clearTimeout(hoverTimer.current)
     hoverTimer.current = window.setTimeout(() => setHovered(id), 1000)
   }
@@ -88,6 +91,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
     event.currentTarget.setPointerCapture(event.pointerId)
   }
   const pointerMove = (event: PointerEvent<SVGSVGElement>) => {
+    hoverHeld.current = false
     if (!drag.current) return
     const x = drag.current.x + event.clientX - drag.current.px, y = drag.current.y + event.clientY - drag.current.py
     setPan({ x: Math.max(-w / 2, Math.min(w / 2, x)), y: Math.max(-h / 2, Math.min(h / 2, y)) })
@@ -157,7 +161,7 @@ export function ExpeditionGalaxyChart({ state, selected, onSelect, card, status 
         <label className="exp-search"><span className="exp-sr">Find system</span>
           <input value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Find system" aria-label="Find system" /></label>
         {matches.length > 0 && <div className="exp-chart-list">{matches.map((system) => <button key={system.id}
-          onClick={() => { setQuery(''); pick(system.id) }}><strong>{system.name}</strong><small>{REGION_NAMES[system.region]}{visited.has(system.id) ? ' · visited' : ''}</small></button>)}</div>}
+          onClick={() => { setQuery(''); hoverHeld.current = true; pick(system.id) }}><strong>{system.name}</strong><small>{REGION_NAMES[system.region]}{visited.has(system.id) ? ' · visited' : ''}</small></button>)}</div>}
       </div>
       <button onClick={() => setZoom(n => Math.min(2.5, Math.round((n + .2) * 10) / 10))} disabled={zoom >= 2.5} aria-label="Zoom in" title="Zoom in"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M8 2v12M2 8h12"/></svg></button>
       <button onClick={() => setZoom(n => Math.max(.8, Math.round((n - .2) * 10) / 10))} disabled={zoom <= .8} aria-label="Zoom out" title="Zoom out"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" aria-hidden="true"><path d="M2 8h12"/></svg></button>

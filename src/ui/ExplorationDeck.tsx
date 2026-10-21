@@ -19,7 +19,7 @@ import { REGION_NAMES, STAR_NAMES } from '../engine/worldgen/types.js'
 import type { SystemId } from '../engine/worldgen/types.js'
 import { saveExploration } from './exploration-save.js'
 import { browserStorage } from './save.js'
-import { MuteButton } from './sound.js'
+import { MuteButton, useSoundscape } from './sound.js'
 import { plural } from './plural.js'
 import { freshLines } from './fresh-log.js'
 import { DRIVE_SEQUENCE } from '../engine/exploration/research.js'
@@ -165,8 +165,8 @@ export function ExplorationDeck({ initial, onExit }: { initial: Campaign; onExit
 
   // Inside the rift, the wind is always there under the hum.
   const riftAmbience = rifted(state, state.at) && !state.shipBattle && !state.mission && state.outcome === 'exploring'
-  useEffect(() => { setAmbience(riftAmbience ? 'rift' : 'off') }, [riftAmbience])
-  useEffect(() => () => setAmbience('off'), [])
+  useEffect(() => { setAmbience(riftAmbience ? 'rift' : 'off'); if (!state.shipBattle) useSoundscape.getState().set(riftAmbience ? 'rift' : 'voyage') }, [riftAmbience])
+  useEffect(() => () => { setAmbience('off'); if (useSoundscape.getState().scene === 'rift') useSoundscape.getState().set('voyage') }, [])
   const riftHere = rifted(state, state.at), riftEta = riftReaches(state, state.at), riftDays = riftEta === null ? null : riftEta - state.day
   const hostileStops = (path: SystemId[]) => path.slice(1).filter((id) => REGIONAL_THREAT[state.galaxy.systems.find((s) => s.id === id)!.region] > 0 || rifted(state, id)).length
   /** The chart's floating card: where a system is and how to get there. */
@@ -375,13 +375,13 @@ function SiteScene({ state, site, dispatch, command, onBack, onBoard }: {
           {command({ type: 'service', locationId: site.id, service: 'contract' }, `Survey contract · 3 days · earn ${contractPay(state, site.id).materials} materials + ${contractPay(state, site.id).credits} credits`)}
           {state.stories.some((r) => r.storyId === 'last-post' && r.choiceId === 'carry') && !state.lettersDelivered && <section className="exp-relay" aria-label="The last post delivery"><h3>The last post</h3>{command({ type: 'deliver-letters', locationId: site.id }, 'Relay the letters · 1 day · +25 credits', true)}{state.at === state.galaxy.start && <small>These relays cannot reach home. Try a station in another system.</small>}</section>}
           <EscortOffer state={state} locationId={site.id} dispatch={dispatch} />
-          <small>Services remain available after you leave. {state.rift ? 'Each contract here pays less than the last.' : 'Contracts provide renewable supplies.'}</small>
+          <small>{rifted(state, state.at) ? 'The station has evacuated ahead of the rift: nothing here can be bought, sold or repaired.' : <>Services remain available after you leave. {state.rift ? 'Each contract here pays less than the last.' : 'Contracts provide renewable supplies.'}</>}</small>
           {hasTech(state, 'contextual-translation') && <><h3>Scientific records</h3><small>A station supplies one independent spatial source. Seek a second station or an expedition for another.</small>
             {(['exotic-energy', 'spatial-observation', 'alien-propulsion'] as const).map((kind) => <div key={kind}>{command({ type: 'archive', locationId: site.id, kind }, `${DISCOVERY_NAMES[kind]} · 30 credits · 1 day`)}</div>)}
           </>}
         </div> : status === 'resolved' ? <div className="exp-notice">Expedition complete. All findings and resources are aboard; they cannot be collected twice.</div> : <>
           <div className="exp-reward"><span className="exp-eyebrow">Expected recovery</span><p>{site.reward ? `${site.reward.materials} materials · ${site.reward.credits} credits` : 'A completed survey'}{site.discovery ? ` · ${DISCOVERY_NAMES[site.discovery]}` : ''}</p></div>
-          {command({ type: 'recover', locationId: site.id, approach: 'careful' }, `Remote investigation · ${carefulDays(state)} ${carefulDays(state) === 1 ? 'day' : 'days'} · no damage`, true)}
+          {command({ type: 'recover', locationId: site.id, approach: 'careful' }, `Remote investigation · ${carefulDays(state)} ${carefulDays(state) === 1 ? 'day' : 'days'} · ${rifted(state, state.at) ? `the rift tears ${RIFT_HULL_TOLL * carefulDays(state)} hull meanwhile` : 'no damage'}`, true)}
           {command({ type: 'recover', locationId: site.id, approach: 'rapid' }, `Rapid expedition · 1 day · ${recoveryDamage(state, site)} hull damage`)}
           {['derelict', 'ruins'].includes(site.kind) && <button className="exp-button" onClick={onBoard}>Board with away team · tactical mission</button>}
           <small>{['derelict', 'ruins'].includes(site.kind) ? 'Boarding: choose rescue, sabotage or salvage for extra rewards. Injuries and casualties persist; remote investigation remains safe. ' : ''}Both other approaches recover the same science; rapid retrieval uses any fitted engineering tools to recover extra materials.</small>

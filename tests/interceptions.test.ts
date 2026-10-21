@@ -57,7 +57,7 @@ describe('interceptions on arrival', () => {
       expect(s.exploration.materials).toBeGreaterThanOrEqual(before.materials + 10); expect(s.exploration.credits).toBeGreaterThanOrEqual(before.credits + 22); expect(s.day).toBe(day)
     } else expect(['disabled', 'fled', 'escaped']).toContain(result)
   })
-  it('rejects hazardous travel inside journals older than save version 16', () => {
+  it('rejects hazardous travel inside journals older than save version 17', () => {
     const s = intercepted('intercept-d'), storage = mem(); saveExploration(s, storage)
     const old = JSON.parse(storage.getItem()!); old.version = 10; storage.setItem(EXPLORATION_SAVE_KEY, JSON.stringify(old))
     expect(loadExploration(storage).error).toBeTruthy()

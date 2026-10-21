@@ -26,7 +26,8 @@ export const useSound = create<{ muted: boolean; toggle: () => void }>((set, get
 }))
 
 /** Where the soundscape is: the hum and the theme are balanced differently in battle. */
-export const useSoundscape = create<{ scene: 'voyage' | 'battle'; set: (scene: 'voyage' | 'battle') => void }>((set) => ({
+export type Scene = 'voyage' | 'battle' | 'rift'
+export const useSoundscape = create<{ scene: Scene; set: (scene: Scene) => void }>((set) => ({
   scene: 'voyage', set: (scene) => set({ scene }),
 }))
 

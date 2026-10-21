@@ -31,7 +31,8 @@ test('station escort contact, negotiation, one-time reward and saved report', as
   await page.getByRole('button', { name: 'Resume expedition', exact: true }).click()
   await page.getByRole('button', { name: 'Acknowledge escort report', exact: true }).click()
   await page.getByTestId('location-station').first().click()
-  await expect(page.getByRole('button', { name: 'Review escort contact' })).toBeDisabled()
+  await expect(page.getByRole('button', { name: 'Review escort contact' })).toHaveCount(0)
+  await expect(page.getByText('Survey escort / flown')).toBeVisible()
   await expect(page.getByTestId('exp-materials')).toHaveText('26')
 })
 

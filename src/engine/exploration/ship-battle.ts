@@ -225,7 +225,9 @@ export const enemyChargeRate = (b: ShipBattle) => effectiveRoom(b, 'enemy', 'wea
 export const escapeWorkNeeded = (b: ShipBattle) => b.kind === 'finale' ? FINALE_DRIVE_WORK : b.kind === 'interception' ? INTERCEPTION_ESCAPE_WORK : 10
 /** An interceptor holds a jump lock: breaking it takes twice an escort's retreat. */
 export const INTERCEPTION_ESCAPE_WORK = 20
-export const FINALE_HULL = 1.5
+export const FINALE_HULL = 1.3
+/** Fractions of the Return Drive's spin-up at which the rift surges back through the engines. */
+export const FINALE_SURGES = [1 / 3, 2 / 3]
 export const FINALE_CREW_HP = 6
 export const FINALE_DRIVE_WORK = 60
 /** Rules-2 interceptions: below this share of hull, the hostile spins up its FTL drive. */
@@ -453,7 +455,13 @@ function tick(b: ShipBattle) {
   b.time++
   if (b.events) b.events = []
   if (b.escape) {
+    const before = b.escapeWork
     b.escapeWork += Math.min(b.power.engines, effectiveRoom(b, 'player', 'engines')) / 2
+    // The rift fights the Return Drive: at a third and two thirds, a surge sets the engine room burning.
+    if (b.kind === 'finale' && FINALE_SURGES.some((t) => before < t * FINALE_DRIVE_WORK && b.escapeWork >= t * FINALE_DRIVE_WORK) && !burning(b.rooms.engines)) {
+      b.rooms.engines.fire = FIRE_SECONDS; emit(b, { type: 'fire', side: 'player', target: 'engines' })
+      log(b, 'A rift surge rolls back down the drive field. Fire in the engine room!')
+    }
     if (b.escapeWork >= escapeWorkNeeded(b)) { finish(b, 'fled', text(b).fled); return }
   }
   b.shield = Math.min(b.shield, shieldCapacity(b)); b.enemy.shield = Math.min(b.enemy.shield, enemyShieldCapacity(b))

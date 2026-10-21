@@ -4,8 +4,9 @@ import { audioOut, onAudioReady } from './combat-sfx.js'
  * The battle score and the rift's ambience, synthesised like the combat
  * sounds and played through the same mute switch and limiter.
  *
- * - tension: a low drone while the battle is paused or the contact waits.
- * - fight: the drone opens up under a minor arpeggio and a heartbeat kick.
+ * - tension: a low drone and a slow heartbeat while the battle is paused or the contact waits.
+ * - fight: the drone opens up under a minor arpeggio and a kick, turning to a
+ *   second progression every other phrase.
  * - finale: faster, a harmonic-minor progression, a pad a fifth above and a
  *   snare on the backbeat, for the run home.
  * - rift: no music, only a sub drone and slow wind, aboard in rift space.
@@ -16,7 +17,10 @@ export type Ambience = 'off' | 'rift'
 const midi = (n: number) => 440 * 2 ** ((n - 69) / 12)
 // Bars of four chords; each chord is a root and an arpeggio, in MIDI notes.
 const FIGHT = [[45, [57, 60, 64, 69]], [41, [57, 60, 65, 69]], [43, [55, 59, 62, 67]], [40, [55, 59, 64, 67]]] as const
+// Every other phrase the fight turns: Am, C, G, E, ending on the dominant to pull back round.
+const FIGHT_TURN = [[45, [57, 60, 64, 72]], [48, [60, 64, 67, 72]], [43, [55, 59, 62, 71]], [40, [56, 59, 64, 68]]] as const
 const FINALE = [[38, [62, 65, 69, 74]], [46, [62, 65, 70, 74]], [36, [60, 64, 67, 72]], [45, [61, 64, 69, 73]]] as const
+const FINALE_TURN = [[38, [62, 65, 69, 77]], [43, [62, 67, 70, 74]], [45, [61, 64, 69, 76]], [45, [61, 64, 67, 73]]] as const
 
 let mode: ScoreMode = 'off', ambience: Ambience = 'off'
 let score: { bus: GainNode; filter: BiquadFilterNode; drones: OscillatorNode[]; pad: GainNode; timer: number; next: number; step: number; stopping?: number } | null = null
@@ -51,10 +55,22 @@ function schedule() {
   const out = audioOut()
   if (!out || !score) return
   const { context: c, noise } = out
-  if (mode !== 'fight' && mode !== 'finale') { score.next = c.currentTime + 0.1; return }
+  if (mode === 'off') { score.next = c.currentTime + 0.1; return }
   // After a stall (a busy frame, a throttled background tab), skip ahead rather than play every missed note at once.
   score.next = Math.max(score.next, c.currentTime + 0.02)
-  const finale = mode === 'finale', beat = 60 / (finale ? 132 : 108) / 2, bars = finale ? FINALE : FIGHT
+  if (mode === 'tension') {
+    // Paused, the pulse slows to a muffled heartbeat instead of stopping dead.
+    while (score.next < c.currentTime + 0.25) {
+      const at = score.next, k = c.createOscillator(), kg = c.createGain()
+      k.frequency.setValueAtTime(70, at); k.frequency.exponentialRampToValueAtTime(34, at + 0.2)
+      kg.gain.setValueAtTime(score.step % 2 ? 0.06 : 0.1, at); kg.gain.exponentialRampToValueAtTime(0.0001, at + 0.28)
+      k.connect(kg); kg.connect(score.filter); k.start(at); k.stop(at + 0.32)
+      score.next += score.step % 2 ? 0.95 : 0.3; score.step++
+    }
+    return
+  }
+  const finale = mode === 'finale', beat = 60 / (finale ? 132 : 108) / 2
+  const turn = Math.floor(score.step / 32) % 2 === 1, bars = finale ? turn ? FINALE_TURN : FINALE : turn ? FIGHT_TURN : FIGHT
   const note = (f: number, at: number, dur: number, vol: number, type: OscillatorType = 'triangle') => {
     const o = c.createOscillator(), g = c.createGain(); o.type = type; o.frequency.value = f
     g.gain.setValueAtTime(0.0001, at); g.gain.exponentialRampToValueAtTime(vol, at + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, at + dur)

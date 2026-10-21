@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { actionLock, contractPay, createCampaign, interceptionRisk, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
+import { actionLock, contractPay, createCampaign, FINALE_RECOVERY_HULL, interceptionRisk, reduceCampaign, RIFT_GRACE, RIFT_HULL_TOLL, riftDepth, riftDistance, rifted, riftReaches, riftRim } from '../src/engine/exploration/campaign.js'
 import type { Campaign } from '../src/engine/exploration/campaign.js'
 import { BASE_REACTOR, createShipBattle, ENEMY_JUMP_WORK, escapeWorkNeeded, INTERCEPTION_ESCAPE_WORK, reduceShipBattle } from '../src/engine/exploration/ship-battle.js'
 import type { BattleUpgrades, ShipBattle } from '../src/engine/exploration/ship-battle.js'
@@ -147,5 +147,29 @@ describe('round-six review fixes', () => {
   it('warns a wreck that the rift will hunt it', () => {
     const s = reduceCampaign(createCampaign('wreck-warn'), { type: 'begin' })
     expect(interceptionRisk({ ...s, day: RIFT_GRACE + 1, hull: 5 }, s.galaxy.start)).toMatch(/Rift-touched.*wreck or not/)
+  })
+})
+
+describe('round-seven pacing', () => {
+  it('always spares at least two stations from the rift', () => {
+    for (const seed of ['spare-a', 'spare-b', 'spare-c', 'spare-d']) {
+      const s = { ...reduceCampaign(createCampaign(seed), { type: 'begin' }), day: 5000 }
+      const alive = s.world.locations.filter((l) => l.kind === 'station' && Number.isFinite(riftDistance(s, l.systemId)) && !rifted(s, l.systemId))
+      expect(alive.length).toBeGreaterThanOrEqual(2)
+    }
+  })
+  it('surges fire through the engine room as the Return Drive spins up', () => {
+    let b = reduceShipBattle(createShipBattle('surge', 'sys', SHIP_BY_ID['sovereign']!, 100, 100, base, 2, 'finale'), { type: 'engage' })
+    b = reduceShipBattle(b, { type: 'power', system: 'engines', amount: 3 })
+    b = reduceShipBattle(b, { type: 'retreat', active: true })
+    for (let i = 0; i < 20 && b.phase === 'battle'; i++) b = reduceShipBattle(b, { type: 'advance', seconds: 1 })
+    expect(b.log.some((l) => /rift surge/.test(l))).toBe(true)
+  })
+  it('lets a beaten Lodestar drift behind the drive field, untouched by the rift', () => {
+    let s = reduceCampaign(createCampaign('shelter'), { type: 'begin' })
+    s = { ...s, built: [...s.built, 'return-drive'], day: RIFT_GRACE + 1 }
+    s = reduceCampaign(s, { type: 'return-home', finale: 1 })
+    s = { ...s, shipBattle: { ...s.shipBattle!, phase: 'report', result: 'disabled', hull: 0 } }
+    expect(reduceCampaign(s, { type: 'ship-debrief' }).hull).toBe(FINALE_RECOVERY_HULL)
   })
 })

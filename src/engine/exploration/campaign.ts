@@ -107,7 +107,7 @@ export type CampaignAction =
   | { type: 'service'; locationId: string; service: 'refuel' | 'repair' | 'sell' | 'buy' | 'contract' | 'ordnance' }
   | { type: 'archive'; locationId: string; kind: DiscoveryKind }
   | { type: 'emergency-fuel' } | { type: 'recycle-fuel' }
-  /** Save version 16: the crew patch the hull anywhere, slowly, from the ship's own stores. */
+  /** Save version 17: the crew patch the hull anywhere, slowly, from the ship's own stores. */
   | { type: 'field-repair' }
   | { type: 'research' | 'queue' | 'unqueue'; project: ProjectId }
   | { type: 'move-queue'; project: ProjectId; direction: -1 | 1 }
@@ -117,7 +117,7 @@ export type CampaignAction =
   | { type: 'build' | 'equip' | 'unequip'; blueprint: BuildId }
   | { type: 'begin-drive-test' } | { type: 'abort-drive-test' }
   | { type: 'complete-drive-test'; approach: 'remote' | 'shielded' }
-  /** `finale: 1` (save version 16): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
+  /** `finale: 1` (save version 17): the Return Drive draws the Ashen Sovereign, and home must be fought for. */
   | { type: 'return-home'; finale?: 1 }
 
 export function createCampaign(seed: string): Campaign {
@@ -558,10 +558,13 @@ function hostileFor(state: Campaign, rng: ReturnType<typeof createRng>): ShipCla
   const system = state.galaxy.systems.find((s) => s.id === state.at)!
   const threat = REGIONAL_THREAT[system.region]
   const archetype = state.galaxy.factions.find((f) => f.id === system.faction)?.archetype ?? 'raider'
-  const torn = rifted(state, system.id), tier = threat >= 3 || (threat >= 2 && state.day >= HEAVY_THREAT2_DAY) || torn ? 2 : 1
+  const torn = rifted(state, system.id)
+  const tier = threat >= 3 || (threat >= 2 && state.day >= HEAVY_THREAT2_DAY) || (threat >= 1 && state.day >= HEAVY_LATE_DAY) || torn ? 2 : 1
   const pool = classPool(archetype, tier).filter((c) => c.tier <= tier), heavy = pool.filter((c) => c.tier === 2)
+  // As the voyage wears on, the unshielded skiffs give way to hulls that need breaking open.
+  const shielded = state.day >= SHIELDED_DAY ? pool.filter((c) => c.shields > 0) : []
   // Only heavy hulls survive in rift-touched space, and the last hull we fought looks for easier prey.
-  const choices = torn && heavy.length ? heavy : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
+  const choices = torn && heavy.length ? heavy : shielded.length ? shielded : pool, fresh = choices.filter((c) => c.id !== state.lastShipBattle?.classId)
   return rng.pick(fresh.length ? fresh : choices)
 }
 /**
@@ -593,6 +596,9 @@ function riftTear(next: Campaign, from: number, to: number): number {
   return torn
 }
 export const RIFT_INTERCEPTION_CHANCE = 55
+/** From this day, interceptors carry shields; from the later one, heavy hulls hunt any hostile region. */
+export const SHIELDED_DAY = 12
+export const HEAVY_LATE_DAY = 45
 /** Spoils from a ship whose crew we killed, against one we broke. */
 export const CREW_KILL_BONUS = 1.25
 const EVACUATED = 'The station has evacuated ahead of the rift'
@@ -608,6 +614,9 @@ export function riftRim(state: Campaign): number {
   let rim = rimCache.get(state.galaxy)
   if (rim === undefined) {
     rim = Math.max(0, ...state.galaxy.systems.map((s) => riftDistance(state, s.id)).filter(Number.isFinite)) - RIFT_SPARED_RINGS
+    // It also spares at least two stations, so a late voyage always has somewhere to trade and repair.
+    const stations = state.world.locations.filter((l) => l.kind === 'station').map((l) => riftDistance(state, l.systemId)).filter(Number.isFinite).sort((a, b) => b - a)
+    if (stations.length) rim = Math.min(rim, stations[Math.min(1, stations.length - 1)]! - 1)
     rimCache.set(state.galaxy, rim)
   }
   return rim
@@ -687,6 +696,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   // A batched second replaces its entry's log line too, so replay matches live play.
   const batched = next.actions.length === state.actions.length
   let days = 0, message = ''
+  // Days spent where the rift cannot reach the hull (adrift behind the Return Drive's field).
+  let sheltered = false
   switch (action.type) {
     case 'accept-survivor': {
       const person=state.rescuedPeople!.find(p=>p.id===action.personId)!
@@ -777,7 +788,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         next.lastShipBattle = battle; next.shipBattle = null
         if (['victory', 'fled', 'yielded'].includes(battle.result!)) {
           next.hull = battle.hull; next.outcome = 'home'; message = 'The stars settle into familiar positions. The Lodestar has returned home.'
-        } else { next.hull = Math.max(FINALE_RECOVERY_HULL, battle.hull); days = 3; message = `Three days adrift before main power returns. Kerr's crews patch the hull to ${next.hull}; the Return Drive is intact and can be tried again.` }
+        } else { next.hull = Math.max(FINALE_RECOVERY_HULL, battle.hull); days = 3; sheltered = true; message = `Three days adrift before main power returns. Kerr's crews patch the hull to ${next.hull}; the Return Drive is intact and can be tried again.` }
         break
       }
       if (battle.kind === 'interception') {
@@ -894,7 +905,8 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
         const echo = state.echoes[0]!
         next.echoes = state.echoes.slice(1); next.signal = { id: echo, systemId: system.id }
         message = `Arrived at ${system.name}. Signal: ${SIGNAL_BY_ID[echo]!.title.toLowerCase()}.`
-      } else if (action.hazards) message = `Arrived at ${system.name}. ${createRng(`${state.seed}:quiet:${system.id}:${state.day}`).pick(QUIET_ARRIVALS)}`
+      // Quiet arrivals walk the pool from a seeded start, so no line repeats until all have been heard.
+      } else if (action.hazards) message = `Arrived at ${system.name}. ${QUIET_ARRIVALS[(createRng(`${state.seed}:quiet`).int(QUIET_ARRIVALS.length) + state.visited.length) % QUIET_ARRIVALS.length]}`
       if (torn) message += ` The rift tears at the hull: −${torn}.`
       break
     }
@@ -916,7 +928,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
       next.hardcore = true; message = 'Hardcore voyage: if the Lodestar is lost in battle, there is no tow home.'; break
     case 'buy-weapon':
       next.exploration.credits -= ARMOURY[action.weapon].price; next.armoury = [...state.armoury, action.weapon]
-      message = `The armourers mount a ${ARMOURY[action.weapon].weapon.name} on a spare hardpoint. Power it from the weapons system in battle.`; break
+      message = `The armourers mount ${/^[AEIOU]/.test(ARMOURY[action.weapon].weapon.name) ? 'an' : 'a'} ${ARMOURY[action.weapon].weapon.name} on a spare hardpoint. Power it from the weapons system in battle.`; break
     case 'signal': {
       const pending = state.signal!, choice = SIGNAL_BY_ID[pending.id]!.choices.find((c) => c.id === action.choiceId)!
       next.signal = undefined
@@ -1076,7 +1088,7 @@ export function reduceCampaign(state: Campaign, action: CampaignAction): Campaig
   next.day += days
   // Every day spent inside the rift tears at the hull; only on a hardcore voyage can it finish the ship.
   // A jump pays its arrival day's toll before anyone can open fire (see travel).
-  const torn = days && action.type !== 'travel' ? riftTear(next, state.day, next.day) : 0
+  const torn = days && action.type !== 'travel' && !sheltered ? riftTear(next, state.day, next.day) : 0
   if (torn) message += ` The rift tears at the hull: −${torn}.`
   if (next.lostToRift && !state.lostToRift) message = 'The rift tears the last of the hull away. The Lodestar is lost with all hands.'
   else if (days) {
