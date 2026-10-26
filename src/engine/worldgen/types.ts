@@ -38,7 +38,7 @@ export interface StarSystem {
   region: RegionId
   /** The faction claiming this system, if any. */
   faction: FactionId | null
-  /** Notable systems make better landmarks in clue prose. */
+  /** Notable systems that serve as landmarks. */
   landmark: boolean
 }
 
@@ -84,16 +84,4 @@ export const STAR_NAMES: Record<StarType, string> = {
   'white-dwarf': 'a white dwarf',
   neutron: 'a neutron star',
   binary: 'a binary pair',
-}
-
-export const FEATURE_NAMES: Record<SystemFeature, string> = {
-  'gas-giant': 'a gas giant',
-  'asteroid-belt': 'an asteroid belt',
-  'ice-ring': 'a ringed ice world',
-  'habitable-world': 'a habitable world',
-  ruins: 'ruins of some kind',
-  'derelict-beacon': 'a derelict beacon',
-  'nebula-shroud': 'a nebular shroud',
-  pulsar: 'a pulsar',
-  'rift-echo': 'a rift echo',
 }

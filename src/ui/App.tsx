@@ -9,16 +9,13 @@ import { browserStorage } from './save.js'
 import { StartScreen } from './StartScreen.js'
 import { useSound } from './sound.js'
 
-/** Open Expedition is the only playable campaign. Legacy save keys remain untouched. */
+/** Read the expedition autosave, if this browser allows storage. */
 function readExpedition(): ExplorationSave {
   const storage = browserStorage()
   if (!storage) return { campaign: null, error: null }
   try { return loadExploration(storage) }
   catch { return { campaign: null, error: 'Expedition autosave cannot be read in this browser.' } }
 }
-
-/** Archived ship-hub modules retain this type for historical compilation. */
-export type Screen = 'ship' | 'galaxy' | 'loadout' | 'lab'
 
 export function App() {
   const [expedition, setExpedition] = useState<Campaign | null>(null)

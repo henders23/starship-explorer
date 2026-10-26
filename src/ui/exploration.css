@@ -275,7 +275,6 @@
 .start-copy .start-exploration .exp-button { width:100%; margin-top:9px; padding:13px 16px; font-size:13px; line-height:1.5; }
 .start-copy .start-exploration .exp-button:hover { background:#1b4c53; border-color:#69b8bf; }
 .start-copy .start-exploration p[role] { font-size:11px; margin:12px 0 0; color:#e2c98f; }
-.start-classic-label { margin:24px 0 12px; color:#a7b5bd; }
 
 @media(prefers-reduced-motion:reduce) {
   .exp-deck *,.exp-deck *::before,.exp-deck *::after { scroll-behavior:auto!important; animation:none!important; transition:none!important; }

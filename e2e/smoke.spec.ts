@@ -1,11 +1,9 @@
 import { expect, test } from '@playwright/test'
 
-test('one Lodestar expedition, with crew rooms and no Classic Voyage route', async ({ page }) => {
-  await page.goto('/?classic')
+test('one Lodestar expedition, with crew rooms', async ({ page }) => {
+  await page.goto('/')
   await expect(page.getByRole('heading', { name: /starship explorer/i })).toBeVisible()
   await expect(page.getByText('ISS LODESTAR')).toBeVisible()
-  await expect(page.getByRole('button', { name: 'Take command' })).toHaveCount(0)
-  await expect(page.getByText(/Classic voyage/i)).toHaveCount(0)
   await page.getByRole('textbox').fill('first-lodestar-voyage')
   await page.getByRole('button', { name: 'Begin expedition', exact: true }).click()
   await page.getByRole('button', { name: 'Skip briefing' }).click()

@@ -341,8 +341,8 @@ export function generateGalaxy(rng: Rng, options: Partial<GalaxyOptions> = {}): 
     }
   })
 
-  // Rift echoes are rare and cluster toward the Margin. They are the signature
-  // the Gateway shares with the anomaly that stranded the ship.
+  // Rift echoes are rare and cluster toward the Margin, the signature of the
+  // anomaly that stranded the ship.
   const echoCount = rng.range(4, 7)
   const echoPool = rng.shuffle(
     systems.filter((s) => !s.features.includes('rift-echo')),

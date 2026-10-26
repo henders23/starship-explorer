@@ -21,7 +21,6 @@ source modules; update this document when intentionally changing the contract.
 | Presentation | [ExplorationDeck.tsx](../src/ui/ExplorationDeck.tsx), [TacticalMission.tsx](../src/ui/TacticalMission.tsx) | Views, selection, focus and dispatch |
 | Tactical guidance | [tactical-guidance.ts](../src/ui/tactical-guidance.ts), [tactical-scene.ts](../src/ui/tactical-scene.ts) | Read-only previews, state-difference feedback and scene order |
 | Expedition saves | [exploration-save.ts](../src/ui/exploration-save.ts) | Envelope validation, replay and legacy-preview migration |
-| Classic saves/rules | [save.ts](../src/ui/save.ts), [reducer.ts](../src/engine/state/reducer.ts) | Separate legacy campaign; not a V2 implementation shortcut |
 
 The expedition has no server dependency. React owns transient interaction state;
 pure reducers own gameplay. UI timers request validated ship `advance` orders.
@@ -274,7 +273,6 @@ state. Accessibility claims require actual testing, not just ARIA attributes.
 | Mode | Storage | Format |
 | --- | --- | --- |
 | Open Expedition | `starship-explorer-exploration-v2` | Version 7, `ruleset`, seed, `legacyActions`, accepted `actions` |
-| Classic Voyage | `starship-explorer-save` | Separate version-3 state envelope and its own migration/archive policy |
 
 Expedition loading accepts versions 1–7. Version 1 replays the frozen preview
 reducer before migration. Later envelopes replay accepted actions, rejecting
@@ -303,7 +301,7 @@ Compatibility rules for every new mechanic:
 
 | Contract | Existing verification anchors | Required regression focus |
 | --- | --- | --- |
-| C01–C03 | `exploration-campaign`, `rng`, `golden-replay`, tactical/ship suites | Replay, invalid action identity, nonmutation, RNG independence |
+| C01–C03 | `exploration-campaign`, `rng`, `journal`, tactical/ship suites | Replay, invalid action identity, nonmutation, RNG independence |
 | C04–C06 | Campaign/research/tactical/ship suites | Interleaved orders, negative resources, slots, active encounter locks |
 | C07 | Story, operation, tactical and ship suites | Repeated reward/debrief, reload and reopened site attempts |
 | C08 | Exploration world/campaign/research suites and walkthrough pilots | Source distribution, noncombat homecoming, zero-store recovery |
@@ -312,7 +310,7 @@ Compatibility rules for every new mechanic:
 | Readability | `e2e/tactical-guidance.spec.ts`, operations/loadout/ship flows | Actual desktop/phone screens, fog, depth, heat and damage |
 
 Named suites are under [tests](../tests); browser scenarios under [e2e](../e2e).
-See [README](../README.md) for commands. CI currently runs typecheck, unit/golden
+See [README](../README.md) for commands. CI currently runs typecheck, unit
 suites and Playwright; it does not contain a separate production-build step.
 Run `npm run build` as an additional release check for gameplay changes.
 

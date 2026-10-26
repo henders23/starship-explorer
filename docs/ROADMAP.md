@@ -3,8 +3,8 @@
 **11 October 2026 · Open Expedition · development branch of record: main**
 
 [Design](DESIGN.md) defines the experience; [specification](SPECIFICATION.md)
-defines contracts. This roadmap supersedes the old R-series priorities, preserved
-in [CLASSIC-ROADMAP.md](CLASSIC-ROADMAP.md). Dates below mark evidence, not deadlines.
+defines contracts. This roadmap supersedes the old Classic Voyage R-series priorities.
+Dates below mark evidence, not deadlines.
 
 ## Delivered baseline
 
@@ -14,7 +14,7 @@ in [CLASSIC-ROADMAP.md](CLASSIC-ROADMAP.md). Dates below mark evidence, not dead
 - Core recovery, rescue, sabotage and salvage; nine newer operation configurations.
 - Realistic tactical figures, environmental art, mobile navigation, depth sorting,
   AP/exposure/heat previews and actual combat-result feedback.
-- Version-7 journals with earlier expedition support; Classic Voyage preserved.
+- Version-7 journals with earlier expedition support.
 
 Latest gameplay evidence: `babec95`, 11 October 2026 — 277 tests, 28 browser
 scenarios, build and desktop/phone visual review passed. This establishes a
@@ -46,7 +46,7 @@ interrupt this order whenever discovered.
 - **Performance:** profile initial load, React/SVG work, save replay and combat;
   address the current bundle advisory using evidence. Do not add expensive effects
   without a measured budget and reduced-motion fallback.
-- **Saves:** retain old fixtures and separation from Classic Voyage. Consider
+- **Saves:** retain old journal compatibility. Consider
   export/import after replay safety, without making cloud accounts necessary.
 - **Access:** keyboard, focus, contrast, non-colour cues, screen-reader flows,
   narrow-screen controls and touch targets need a dedicated audit.

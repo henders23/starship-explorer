@@ -1,7 +1,7 @@
 import { createRng } from '../rng/prng.js'
 import type { Galaxy, RegionId, StarSystem, SystemId } from '../worldgen/types.js'
 
-/** Isolated v2 foundation: no dependency on the v1 evidence/mystery. */
+/** The kinds of place the expedition can find in a system. */
 export type LocationKind =
   | 'station' | 'world' | 'ruins' | 'derelict' | 'resource-field'
   | 'anomaly' | 'outpost' | 'signal'

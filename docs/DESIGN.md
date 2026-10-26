@@ -5,7 +5,6 @@
 This document describes the intended complete experience and distinguishes it
 from the implemented baseline. [SPECIFICATION.md](SPECIFICATION.md) defines current
 rules and engineering contracts; [ROADMAP.md](ROADMAP.md) defines build order.
-The mystery-led design is preserved in [CLASSIC-DESIGN.md](CLASSIC-DESIGN.md).
 This document supersedes the direction/status summaries in [REDESIGN-V2.md](REDESIGN-V2.md).
 
 ## 1. The game we are making
@@ -40,8 +39,8 @@ choice at least as clearly as a weapon upgrade.
 
 Out of scope: colonies, fleets, grand-strategy diplomacy, salary/rations/morale
 meters, a universal countdown, unlimited procedural dialogue and compulsory
-battles on every jump. Do not reintroduce Classic Voyage's false-account puzzle
-or Rift Surges into Open Expedition. Do not expand the map merely to add volume.
+battles on every jump. Do not reintroduce the retired Classic Voyage's
+false-account puzzle or Rift Surges. Do not expand the map merely to add volume.
 
 ## 3. Baseline and ambition
 
@@ -57,8 +56,7 @@ or Rift Surges into Open Expedition. Do not expand the map merely to add volume.
 | Endings | Voluntary homecoming and voyage acknowledgements | Personal payoffs grounded in connected story records |
 
 The expedition is independently playable, but its content and balance are still
-in development. A system in Classic Voyage is not evidence that its equivalent
-exists in the expedition.
+in development.
 
 ## 4. Loops and pacing
 
@@ -272,7 +270,7 @@ cargo, advance turns or change identity. Reload reproduces equipment, objectives
 encounters and resource totals.
 
 Version-7 expedition journals support earlier versions through explicit rules.
-Classic saves use a separate format/key. New features cannot reinterpret accepted
+New features cannot reinterpret accepted
 old actions. Retain fixtures; introduce changed semantics through explicit actions
 or versioned rules/content. No backend is needed for current scope. Local saves
 are not cross-device backup; export/import is a future option. Measure the bundle

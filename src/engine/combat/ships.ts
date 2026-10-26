@@ -1,4 +1,3 @@
-import type { FactionArchetype } from '../worldgen/types.js'
 
 /**
  * The enemy ship catalog: classes cut from the fleet art, each with its own
@@ -170,21 +169,3 @@ export const SHIP_CLASSES: ShipClass[] = [
 export const SHIP_BY_ID: Record<string, ShipClass> = Object.fromEntries(
   SHIP_CLASSES.map((s) => [s.id, s]),
 )
-
-/** Which classes each archetype flies. Raiders are the null-faction pool;
- * the flagship is the reserve every real navy keeps, raiders excepted. */
-const ARCHETYPE_POOLS: Record<FactionArchetype | 'raider', string[]> = {
-  raider: ['rust-queen', 'carrion-jack', 'reaver'],
-  'militant-patrol': ['lance-cutter', 'warden', 'sovereign'],
-  'mercantile-combine': ['toll-barque', 'ledger', 'sovereign'],
-  'xenophobic-polity': ['silent-blade', 'umbra', 'sovereign'],
-  'scavenger-clan': ['magpie', 'tithe', 'sovereign'],
-  'monastic-order': ['cantor', 'reliquary', 'sovereign'],
-}
-
-/** The classes an archetype can field at the given escalation. */
-export function classPool(archetype: FactionArchetype | 'raider', maxTier: 1 | 2 | 3): ShipClass[] {
-  const pool = ARCHETYPE_POOLS[archetype].map((id) => SHIP_BY_ID[id]!)
-  const eligible = pool.filter((s) => s.tier <= maxTier)
-  return eligible.length > 0 ? eligible : pool
-}

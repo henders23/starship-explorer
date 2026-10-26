@@ -42,11 +42,6 @@ visible without burying them behind portraits.
 **Discoveries** keeps the voyage record: side voyages in progress, the
 captain's decisions, recovered sources and the full captain's log.
 
-**Classic Voyage has been retired from the application.** Visiting `/?classic`
-also opens Open Expedition. The older engine code and legacy test fixtures remain
-in the repository for historical reference and save verification; Classic is no
-longer a player-selectable game. Its separate browser save is not erased.
-
 ## What is playable
 
 | System | Current implementation |
@@ -59,7 +54,7 @@ longer a player-selectable game. Its separate browser save is not erased.
 | Tactical feedback | Route/AP/exposure/heat previews, targeting lines, hit/miss and damage summaries, depth-sorted figures; ordered enemy turns with speed and skip controls |
 | Ship encounters | Station escorts with negotiation, evasion or real-time combat with pause, reactor power, compartment targeting, on-hull damage markers and a guided repair order |
 | Presentation | Interactive galaxy atlas; four illustrated ship rooms with original crew portraits and contextual dialogue; cinematic site art; directional boarding animation; laptop controls |
-| Persistence | Version-10 expedition journals; versions 1–9 supported; explicit survivor identity tracking on new deployments; Classic Voyage kept separate |
+| Persistence | Version-10 expedition journals; versions 1–9 supported; explicit survivor identity tracking on new deployments |
 | Finish | Research, prototype test, Return Drive construction, voluntary return and voyage summary |
 
 This is a playable game under active development. Long faction arcs, a developed
@@ -143,8 +138,8 @@ to an existing compatible Chromium executable. Playwright starts Vite on port 41
 
 Latest implementation: **19 October 2026**. See
 [the animation and survivor milestone](docs/ANIMATED-BOARDING-AND-SURVIVORS.md)
-for exact scope, validation, reproduction and real game captures. Vite still reports
-a JavaScript chunk-size advisory. Human balance and visual-quality playtesting remain open.
+for exact scope, validation, reproduction and real game captures. Human balance and
+visual-quality playtesting remain open.
 
 ## Design and development
 
@@ -154,7 +149,6 @@ a JavaScript chunk-size advisory. Human balance and visual-quality playtesting r
 | [Implementation specification](docs/SPECIFICATION.md) | Current contracts, architecture, compatibility and acceptance criteria |
 | [Roadmap](docs/ROADMAP.md) | Prioritised milestones and completion gates |
 | [Next design milestone](docs/NEXT.md) | A connected-story slice: The Long Relay |
-| [Classic design](docs/CLASSIC-DESIGN.md) | The preserved mystery campaign |
 | [Redesign history](docs/REDESIGN-V2.md) | Original proposal and dated implementation notes |
 | [Latest tactical review](docs/TACTICAL-READABILITY.md) | Movement guidance, damage feedback and depth-order validation |
 
@@ -165,8 +159,10 @@ Features marked **planned** are not implemented by publishing their design.
 ```text
 src/engine/exploration/  Expedition, research, stories and ship battle
 src/engine/tactical/     Boarding rules, operations and deck variants
-src/engine/state/        Classic Voyage state and reducer
-src/engine/mystery/      Classic deduction puzzle
+src/engine/combat/       Enemy ship classes and layouts
+src/engine/worldgen/     Seeded galaxy generation
+src/engine/travel/       Lane costs and route plotting
+src/engine/rng/          Seeded random number generator
 src/ui/                  React views, presentation helpers and persistence
 public/assets/           Shipped static assets
 tests/                  Rules, replay, compatibility and property tests
@@ -177,7 +173,7 @@ docs/                   Design, specification and milestone evidence
 
 React 19 · TypeScript · Vite · Tailwind/CSS · Vitest · Playwright. Expedition rules
 are pure seeded reducers. The UI requests actions and presents outcomes; it does
-not decide combat results. Retired Classic Voyage code is retained only as historical material.
+not decide combat results.
 
 ## Contribution and release rules
 
