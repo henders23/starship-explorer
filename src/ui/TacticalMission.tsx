@@ -1,9 +1,11 @@
+import { operativePortrait, gunName, enemyAppearance } from './tactical-identity.js'
+import { playTacticalCue, cueForTacticalOrder } from './tactical-audio.js'
 import { ReportImage } from './ReportImage.js'
 import { CrewLine } from './crew-presence.js'
 import { TacticalBoard } from './TacticalBoard.js'
+import { TacticalModelInspector } from './TacticalModelInspector.js'
 import { movementPreview, orderFeedback } from './tactical-guidance.js'
 import { DECK_NAMES, DECK_NOTES, siteVariant } from '../engine/tactical/variants.js'
-import { rigAsset } from './TacticalFigure.js'
 import { OPERATION_KINDS, OPERATION_BRIEFINGS, operationArt } from '../engine/tactical/operations.js'
 import type { OperationKind } from '../engine/tactical/operations.js'
 import { useEffect, useRef, useState } from 'react'
@@ -44,7 +46,7 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
       const ready = !o.dead && o.injuredUntil <= state.day
       return <button key={o.id} className={`away-person ${o.dead ? 'lost' : ''}`} aria-pressed={!!site && squad.includes(o.id)} disabled={!site || !ready}
         onClick={() => setSquad(squad.includes(o.id) ? squad.filter((id) => id !== o.id) : squad.length < 4 ? [...squad, o.id] : squad)}>
-        <span className="away-portrait" aria-hidden="true" style={{ backgroundImage: `url(/assets/tactical/${o.role}.webp)` }} /><span><strong><em>{rankOf(o)}</em> {o.name}</strong><small>{o.role} · {o.dead ? 'LOST' : ready ? 'READY' : `${o.injuredUntil - state.day} ${plural(o.injuredUntil - state.day, 'day')} recovery`}</small><small>{ROLE_NOTES[o.role]}</small><small>{o.missions} {plural(o.missions, 'mission')} · {o.xp} service XP</small></span>
+        <span className="away-portrait" aria-hidden="true" style={{ backgroundImage: `url(${operativePortrait(o)})` }} /><span><strong><em>{rankOf(o)}</em> {o.name}</strong><small>{o.role} · {o.dead ? 'LOST' : ready ? 'READY' : `${o.injuredUntil - state.day} ${plural(o.injuredUntil - state.day, 'day')} recovery`}</small><small>{ROLE_NOTES[o.role]}</small><small>{o.missions} {plural(o.missions, 'mission')} · {o.xp} service XP</small></span>
       </button>
     })}</div>
     <section className="away-equipment" aria-label="Field equipment"><details open={hasTech(state, 'plasma-ballistics') || hasTech(state, 'personal-shields')}><summary>Field equipment · weapons & gadgets</summary><p>Standard weapons and medkits are free. Advanced gear costs 2 materials per item each time the team deploys.</p>
@@ -68,7 +70,6 @@ export function AwayTeam({ state, locationId, dispatch, onClose }: { state: Camp
   </section></div>
 }
 const ROLE_LABEL: Record<TacticalUnit['role'], string> = { assault: 'Assault', recon: 'Recon', engineer: 'Engineer', medic: 'Medic', heavy: 'Heavy' }
-const weaponName = (u: TacticalUnit) => `${u.weapon === 'plasma' ? 'Plasma ' : ''}${u.role === 'heavy' ? 'cannon' : 'rifle'}`
 /** A segmented bar: one block per point, so counts read at a glance. */
 function StatBar({ label, name, value, max, color, text }: { label: string; name: string; value: number; max: number; color: string; text: string }) {
   return <div className="tac-stat"><span>{label}</span>
@@ -88,10 +89,25 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
   const [destination, setDestination] = useState<Point | null>(null)
   const [targetId, setTarget] = useState<string | null>(null)
   const [confirmExtract, setConfirmExtract] = useState(false)
+  const [inspected, setInspected] = useState<string|null>(null)
   const [expanded, setExpanded] = useState(false)
   const [objectiveOpen, setObjectiveOpen] = useState(true)
   const [lastOrder, setLastOrder] = useState<{before:Mission;action:TacticalAction}|null>(null)
   const feedback = lastOrder ? orderFeedback(lastOrder.before,m,lastOrder.action) : null
+  const previousShot = useRef(m.rolls)
+  useEffect(() => {
+    if(m.rolls !== previousShot.current && m.lastShot && !playing) {
+      playTacticalCue(m.lastShot.hit ? (m.lastShot.damage === 0 ? 'shield' : 'impact') : 'miss')
+    }
+    previousShot.current = m.rolls
+  }, [m.rolls, m.lastShot, playing])
+  useEffect(() => {
+    if(!playback.frame || playback.frame.kind === 'start')return
+    if(playback.frame.kind === 'shot')playTacticalCue('fire')
+    else if(playback.frame.kind === 'move')playTacticalCue('move')
+    else if(playback.frame.kind === 'reserve' || playback.frame.kind === 'heat')playTacticalCue('alarm')
+    else if(playback.frame.kind === 'reload')playTacticalCue('reload')
+  }, [playback.index, playback.frame?.kind, playback.frame?.mission.rolls])
   const u = crew.find((unit) => unit.id === selected)!
   const rank = (unit: TacticalUnit) => rankOf(state.roster.find((o) => o.id === unit.id))
   // Movement costs follow the distance: a walk for 1 AP, or a sprint for 2 when the walk falls short.
@@ -104,7 +120,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
   const losses = extractionLosses(m)
   const civiliansLeft = m.operation?.survivors.filter((s) => !s.evacuated) ?? []
   const abandoning = losses.length > 0 || civiliansLeft.length > 0
-  const order = (action: TacticalAction) => { if(playback.busy.current || tacticalLock(state.mission!,action))return; if(action.type==='end-turn')playback.start(state.mission!); setLastOrder({before:m,action}); dispatch({ type: 'tactical', order: action }); setDestination(null); setTarget(null) }
+  const order = (action: TacticalAction) => { if(playback.busy.current || tacticalLock(state.mission!,action))return; playTacticalCue(cueForTacticalOrder(action, m.units.find(unit=>unit.id===('unitId' in action?action.unitId:'')))); if(action.type==='end-turn')playback.start(state.mission!); setLastOrder({before:m,action}); dispatch({ type: 'tactical', order: action }); setDestination(null); setTarget(null) }
   const lockOf = (action: TacticalAction) => playing ? 'Hostile turn playing — skip to continue' : tacticalLock(m, action)
   const control = (action: TacticalAction, label: string, primary = false) => {
     const lock = lockOf(action)
@@ -118,7 +134,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
     const lock = lockOf(action)
     return <button key={label} className="tac-menu-item" disabled={!!lock} title={lock ?? undefined} onClick={() => order(action)}><span>{label}</span><small>{note}</small></button>
   }
-  const selectUnit = (id: string) => { setSelected(id); setDestination(null); setTarget(null) }
+  const selectUnit = (id: string) => { if(id!==selected)playTacticalCue('select');setSelected(id); setDestination(null); setTarget(null) }
   const moveTo = (p: Point) => order({ type: 'move', unitId: u.id, ...p, sprint: sprintTo(p) })
   const onTile = (p: Point, immediate: boolean) => { if (immediate || (destination?.x === p.x && destination.y === p.y)) moveTo(p); else { setDestination(p); setTarget(null) } }
   const onTarget = (id: string, immediate: boolean) => { if (immediate || targetId === id) order({ type: 'shoot', unitId: u.id, targetId: id }); else { setTarget(id); setDestination(null) } }
@@ -170,20 +186,21 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
           const open = selected === unit.id
           return <div role="listitem" key={unit.id}>
             <button className="tac-sq" aria-expanded={open} onClick={() => selectUnit(unit.id)}>
+              <img className="tac-sq-face" src={operativePortrait(unit)} alt="" loading="lazy"/>
               <span className="tac-sq-top"><small>0{i + 1} / {ROLE_LABEL[unit.role]}</small><small>{unit.hp > 0 ? `${unit.hp}/${unit.maxHp} HP · ${unit.ap}/2 AP` : 'DOWNED'}</small></span>
               <strong><em>{rank(unit)}</em> {unit.name}</strong>
               <span className="tac-hp" aria-hidden="true"><i style={{ width: `${unit.hp * 100 / unit.maxHp}%` }} /></span>
             </button>
             {open && <section className="tac-sq-detail" aria-label={`${unit.name} details`}>
               <div className="tac-sq-kit">
-                <div className="tac-portrait" role="img" aria-label={`${unit.name}, ${ROLE_LABEL[unit.role].toLowerCase()} operative`} style={{ backgroundImage: `url(${rigAsset(unit)})` }} />
-                <div className="tac-weapon" title={`${weaponName(unit)} · ${unit.damage} damage · ${unit.magazine}-round magazine`}>
+                <div className="tac-portrait" role="img" aria-label={`${unit.name}, ${ROLE_LABEL[unit.role].toLowerCase()} operative`} style={{ backgroundImage: `url(${operativePortrait(unit)})` }} />
+                <div className="tac-weapon" title={`${gunName(unit)} · ${unit.damage} damage · ${unit.magazine}-round magazine`}>
                   <svg width="56" height="16" viewBox="0 0 56 16" fill="none" stroke="currentColor" strokeWidth="1.1" strokeLinejoin="round" aria-hidden="true"><path d="M1 6h29l3-3h9v3h13v3H38l-3 2H23l-3 4h-5l2-4H7l-2 2H1z" /><path d="M25 11l-1 4M42 3V1h4" /></svg>
-                  <small>{weaponName(unit)}</small>
+                  <small>{gunName(unit)}</small>
                 </div>
               </div>
               <div className="tac-sq-stats">
-                <h2><em>{rank(unit)}</em> {unit.name}</h2>
+                <h2><em>{rank(unit)}</em> {unit.name}</h2><small className="tac-active-weapon">Equipped · {gunName(unit)}</small><button className="tac-inspect-button" onClick={() => setInspected(unit.id)}>Inspect equipment in 3D</button>
                 <StatBar label="HEALTH" name="Health" value={unit.hp} max={unit.maxHp} color={unit.hp * 2 < unit.maxHp ? '#f0a77c' : '#71e0d6'} text={`${unit.hp}/${unit.maxHp} health`} />
                 <StatBar label="AP" name="Action points" value={unit.ap} max={2} color="#9fd3e6" text={`${unit.ap}/2 AP`} />
                 <StatBar label="AMMO" name="Ammunition" value={unit.ammo} max={unit.magazine} color="#e2c98f" text={`${unit.ammo}/${unit.magazine} ammunition`} />
@@ -199,6 +216,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
         <small className="tac-saved">{saved ? 'Orders saved' : 'Autosave unavailable'}</small>
       </aside>
       <section className="tac-arena" aria-label="Tactical map" tabIndex={-1}>
+        <div className="tac-deck-label" aria-live="polite">{m.recorder?'Archive vault':m.operation?.kind==='rescue'?'Quarantine and medical':m.operation?.kind==='salvage'?'Salvage and thermal':m.operation?.kind==='sabotage'?'Security relay':'Derelict recovery'} <span>{m.operation?.variant ? 'sector '+m.operation.variant : 'boarding deck'}</span></div>
         {playing&&<section className="tac-playback" role="status" aria-label="Enemy turn playback"><span>HOSTILE TURN · {playback.index}/{playback.total-1}</span><strong>{playback.frame!.label}</strong><button onClick={()=>playback.setSpeed(playback.speed===1?2:1)}>{playback.speed}× speed</button><button onClick={skipPlayback}>Skip playback <kbd>Esc</kbd></button></section>}
         <div className={`tac-scroll ${expanded ? 'expanded' : ''}`} inert={playing}>
           <TacticalBoard key={playback.reset} m={m} unitId={u.id} sprint={sprint} destination={destination} selected={selected} targetId={targetId} loadedRolls={loadedRolls.current} activeActor={playback.frame?.actorId} playbackSpeed={playing?playback.speed:1}
@@ -219,7 +237,10 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
               {preview.heat>0 && <p className="tac-danger">End-turn heat here: −{preview.heat} health. Shields do not protect against heat.</p>}
               {preview.remainingAP===0 && <p>No AP left after this move: you cannot fire or interact until next turn.</p>}
               <small>Click to move. Guards may move. Unseen threats are not included.</small></div>)}
-          {target && shot && <div className="tac-shot"><strong>{shot.possible ? `Fire at ${target.name} · ${shot.chance}%` : `No clear shot at ${target.name}`}</strong>
+          {target && shot && <div className="tac-shot">
+            <span className="tac-enemy-intel">Visual identification · {enemyAppearance(target).name}</span>
+            <button className="tac-inspect-button" onClick={() => setInspected(target.id)}>Inspect identified hostile in 3D</button>
+            <strong>{shot.possible ? `Fire at ${target.name} · ${shot.chance}%` : `No clear shot at ${target.name}`}</strong>
             <small>75 base − {shot.cover} cover − {shot.rangePenalty} range + {shot.aim} aim · {target.hp} HP</small>
             <small>{lockOf({ type: 'shoot', unitId: u.id, targetId: target.id }) ?? 'Click to fire · 1 AP'}</small></div>}
         </div>}
@@ -242,6 +263,7 @@ export function TacticalMission({ state, dispatch, onExit, saved }: { state: Cam
         </nav>
       </section>
     </div>
+    {inspected && m.units.some(unit=>unit.id===inspected) && <TacticalModelInspector key={inspected} unit={m.units.find(unit=>unit.id===inspected)!} onClose={() => setInspected(null)} />}
     {confirmExtract && <div className="exp-modal-backdrop"><EscapeDismisses onDismiss={() => setConfirmExtract(false)} /><section className="exp-modal" role="dialog" aria-modal="true" aria-label="Confirm extraction"><span className="exp-eyebrow">Shuttle / departure</span><h2>{abandoning ? 'Leave them behind?' : 'Bring them home.'}</h2><p>{m.recorder?`${operationStatus(m)} Leaving ends this field visit. No normal site cargo will be paid.`:m.operation ? `${operationStatus(m)} ${m.recovered ? 'This departure closes the site and pays the earned bonus.' : 'No objective secured: no reward. You can return later.'}` : m.recovered ? 'The core is secured.' : 'The core has not been recovered. You can return to this location later.'}</p>{civiliansLeft.length > 0 && <p className="operation-loss">Civilians left behind: {civiliansLeft.map((s) => s.name).join(', ')}. They are not aboard yet.</p>}<p>{losses.length ? `Permanently lost if you leave now: ${losses.map((o) => o.name).join(', ')}.` : 'All four operatives are in the shuttle zone, including anyone downed.'}</p><button className="exp-button primary" onClick={() => { order({ type: 'extract', abandon: abandoning }); setConfirmExtract(false) }}>{abandoning ? 'Confirm extraction and losses' : 'Confirm safe extraction'}</button><button className="exp-button" autoFocus onClick={() => setConfirmExtract(false)}>Keep the shuttle waiting</button></section></div>}
   </main>
 }

@@ -216,3 +216,59 @@
   .away-team .away-briefing-art { aspect-ratio:1.8; }
 }
 @media(max-width:420px) { .away-gear-row { grid-template-columns:1fr; } }
+
+/* Human-first roster: use real face portraits rather than cropped animation frames. */
+.tac-sq{position:relative;min-height:54px;padding-left:60px;overflow:hidden}
+.tac-sq-face{position:absolute;left:7px;top:6px;bottom:6px;width:43px;height:44px;object-fit:cover;object-position:center 18%;border:1px solid rgba(154,196,199,.6);filter:saturate(.8)}
+.tac-sq[aria-expanded=true] .tac-sq-face{border-color:#edcb91;filter:none}
+.tac-portrait{background-size:cover!important;background-position:center 18%!important;background-repeat:no-repeat}
+.away-portrait{background-size:cover!important;background-position:center 18%!important}
+.tac-weapon{color:#d9e3dd}
+.tac-active-weapon{display:block;color:#d9c39b;font-size:10px;line-height:1.4;margin:0 0 8px}
+.tac-visible-weapon{filter:drop-shadow(0 2px 2px #000);opacity:.94}
+.tac-animated-unit[data-pose=fire] .tac-visible-weapon{animation:tac-rifle-recoil 160ms both}
+.tac-animated-unit.type-scout .tac-rig{filter:brightness(1.5) sepia(.4) hue-rotate(22deg) saturate(.7);transform:scale(.92);transform-origin:center}
+.tac-animated-unit.type-enforcer .tac-rig{filter:brightness(1.18) sepia(.7) hue-rotate(-13deg);transform:scale(1.13);transform-origin:center}
+.tac-animated-unit.type-sentinel .tac-rig{filter:brightness(1.32) sepia(.5) hue-rotate(-21deg);transform:scale(1.07);transform-origin:center}
+.tac-animated-unit.type-custodian .tac-rig{filter:brightness(1.55) sepia(.2)}
+.tac-deck-label{position:absolute;left:18px;top:15px;z-index:3;padding:7px 12px;border:1px solid #486779;background:rgba(5,17,26,.9);font-size:11px;letter-spacing:.08em;color:#ebdfc6;text-transform:uppercase;pointer-events:none}
+.tac-deck-label span{display:block;color:#9cb6c4;font-size:9px;margin-top:2px}
+.tac-board.mood-medical .tac-environment{filter:drop-shadow(0 0 7px #4b8582)}
+.tac-board.mood-relay .tac-environment{filter:drop-shadow(0 0 9px #53476c)}
+.tac-board.mood-reactor .tac-environment{filter:drop-shadow(0 0 8px #89593e)}
+.tac-board.mood-archive .tac-environment{filter:drop-shadow(0 0 9px #65709e)}
+@media(max-width:760px){.tac-deck-label{top:6px;left:6px;padding:4px 7px;font-size:9px}}
+@media(prefers-reduced-motion:reduce){.tac-visible-weapon{animation:none!important}}
+
+/* Visual QA: weapons must appear attached to the animation, not as floating icon signs. */
+.tac-visible-weapon{transform:translate(-6px, 8px) scale(.62);transform-box:fill-box;transform-origin:center;opacity:.82}
+.tac-sq{padding-left:54px;min-height:54px}
+.tac-sq-face{width:40px;height:42px}
+.tac-sq-top{gap:4px;align-items:center}
+.tac-sq-top small{font-size:8px;letter-spacing:0;white-space:nowrap}
+.tac-sq-top small+small{font-size:8px;white-space:nowrap}
+
+/* Weapon sight alignment is a scene effect, never a tactical hitbox. */
+.tac-visible-weapon{transform-box:view-box;transform-origin:4px -32px}
+.tac-visible-weapon .tac-weapon-body{filter:drop-shadow(0 1px 2px #000b)}
+.tac-animated-unit[data-pose=fire] .tac-visible-weapon{animation:none}
+.tac-animated-unit[data-pose=fire] .tac-weapon-body{animation:tac-weapon-kick .19s ease-out both}
+.tac-animated-unit[data-pose=aim] .tac-weapon-body{filter:drop-shadow(0 0 3px #cbdfe688)}
+.tac-enemy-equipment{filter:drop-shadow(0 1.5px 3px #000b)}
+.tac-animated-unit.type-scout .tac-enemy-equipment{opacity:.85}
+.tac-animated-unit.type-enforcer .tac-enemy-equipment{opacity:1}
+.tac-enemy-intel{display:block;color:#eac69b;font-size:10px;letter-spacing:.075em;text-transform:uppercase;margin-bottom:5px}
+@keyframes tac-weapon-kick{0%{transform:translateX(0)}28%{transform:translateX(-3px)}100%{transform:translateX(0)}}
+@media(prefers-reduced-motion:reduce){.tac-weapon-body{animation:none!important}}
+
+/* On-demand Three.js model inspection, borrowed in spirit from procedural rigs.
+   It never blocks the tactical action bar until explicitly opened. */
+.tac-inspect-backdrop{z-index:45}
+.tac-inspect{width:min(420px,95vw);max-height:96vh;overflow:auto;text-align:center}
+.tac-inspect h2{font-size:21px;margin:9px 0 5px}
+.tac-inspect>p{font-size:12px;color:#c9dce4}
+.tac-inspect-canvas{width:min(280px,100%);height:280px;display:flex;align-items:center;justify-content:center;margin:12px auto;background:radial-gradient(circle at 50% 32%,#294252,#06141e 74%);border:1px solid #456675;border-radius:8px;overflow:hidden}
+.tac-inspect-note{font-size:10px!important;max-width:36ch;margin:8px auto 18px;color:#9cb8c2!important}
+.tac-inspect .exp-button{width:100%}
+.tac-inspect-button{font-size:10px;color:#b9d9dc;border:1px solid #40636e;padding:5px 8px;margin:7px 0}
+.tac-inspect-button:hover{border-color:#97d8d8;color:#ebffff}

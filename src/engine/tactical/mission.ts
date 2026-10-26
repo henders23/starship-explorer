@@ -1,5 +1,5 @@
 import type { Operation, OperationKind } from './operations.js'
-import { DECK_NAMES, DECK_NOTES, VARIANT_LAYOUTS, survivorNames } from './variants.js'
+import { DECK_NAMES, DECK_NOTES, VARIANT_LAYOUTS, EXTENDED_LAYOUTS, survivorNames } from './variants.js'
 import type { DeckVariant } from './variants.js'
 import { OPERATION_BRIEFINGS } from './operations.js'
 import { createRng } from '../rng/prng.js'
@@ -152,6 +152,19 @@ export function createOperation(seed: string, locationId: string, name: string, 
       if (rearGuard) rearGuard.y = 7
       m.objective = {...layout.objective}
       for (const [i,p] of [...m.operation!.survivors,...m.operation!.crates].entries()) Object.assign(p,layout.targets[i])
+    }
+    if (variant === 4 || variant === 5) {
+      const layout=EXTENDED_LAYOUTS[kind][variant - 4]!
+      m.tiles=Array.from({length:120},()=> 'floor')
+      for(const [x,y] of layout.walls)m.tiles[y!*12+x!]='wall'
+      for(const [x,y] of layout.cover)m.tiles[y!*12+x!]='half'
+      m.objective={...layout.objective}
+      for(const [i,point] of [...m.operation!.survivors,...m.operation!.crates].entries())Object.assign(point,layout.targets[i]!)
+      // All guards occupy floor, not scenery. Do not block the extraction corridor.
+      m.units.filter(u=>u.side==='hostile').forEach((u,i)=>{
+        u.x=[7,10,10,10][i%4]!
+        u.y=[4,6,3,9][i%4]!
+      })
     }
     m.log.push(`${DECK_NAMES[kind][variant - 1]}. ${DECK_NOTES[kind][variant - 1]}`)
     return reveal({...m,seen:[]})
@@ -358,7 +371,7 @@ export function reduceMission(state: Mission, action: TacticalAction, observe?: 
     m.outcome = m.recovered ? 'success' : 'retreat'
     if(m.recorder)m.log.push(operationStatus(m))
     else if (m.operation) m.log.push(`${operationStatus(m)} ${m.recovered ? 'Operation complete.' : 'Withdrawal without a reward.'}`)
-    else m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Ithaca.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
+    else m.log.push(m.recovered ? 'Core secured. Shuttle returning to the Lodestar.' : 'Team withdrawn. The site can be approached again or surveyed remotely.')
   } else {
     const u = m.units.find((unit) => unit.id === action.unitId)!
     u.ap -= action.type === 'move' && action.sprint ? 2 : 1

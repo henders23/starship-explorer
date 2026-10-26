@@ -20,7 +20,7 @@ export function DeckArchitecture({m}:{m:Mission}) {
     {Array.from({length:m.width},(_,i)=>panel({x:i-.5,y:-.52},{x:i+.5,y:-.52},`starboard-${i}`,i))}
     <path d="M 54 212 L 354 372 L 699 188 L 699 206 L 354 390 L 54 230 Z" fill="#071119" opacity=".65"/>
     <g transform="translate(77 190)"><path d="M -25 8 L -25 -13 L 20 -37 L 20 -16" fill="none" stroke="#80979a" strokeWidth="4"/><path d="M -25 -12 L 20 -36" stroke="#9aefd1" strokeWidth="2"/><text x="-39" y="37" fill="#b9e5d9" fontSize="7" letterSpacing="1.3">SHUTTLE DOCK</text></g>
-    <text x="24" y="28" fill="#c5d1cc" fontSize="9" letterSpacing="2">{archive?'MNEMOSYNE / ARCHIVE 04':'ITHACA / BOARDING FEED'}</text>
+    <text x="24" y="28" fill="#c5d1cc" fontSize="9" letterSpacing="2">{archive?'MNEMOSYNE / ARCHIVE 04':'LODESTAR / BOARDING FEED'}</text>
     <text x="24" y="41" fill="#73929e" fontSize="6.5" letterSpacing="1.4">{archive?'ISOLATED STORAGE · EMERGENCY POWER':'CUTAWAY / LOCAL TELEMETRY'}</text>
   </g>
 }

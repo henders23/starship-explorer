@@ -138,7 +138,8 @@ to an existing compatible Chromium executable. Playwright starts Vite on port 41
 
 Latest implementation: **19 October 2026**. See
 [the animation and survivor milestone](docs/ANIMATED-BOARDING-AND-SURVIVORS.md)
-for exact scope, validation, reproduction and real game captures. Human balance and
+for exact scope, validation, reproduction and real game captures. Vite reports a
+chunk-size advisory for the lazily loaded three.js inspector. Human balance and
 visual-quality playtesting remain open.
 
 ## Design and development
@@ -208,3 +209,11 @@ an unrelated illustration. See [the character-led UX brief](docs/LODSTAR-EXPERIE
 ## Opening and report illustrations
 
 New expeditions open with a short, skippable briefing from Mori, Kerr and Vale, establishing how the Lodestar became stranded and the first priorities. Event reports have a separate illustration layer keyed to the *event*, not the location or system background; the same image follows each decision into the captain's record. For implementation details see [the experience spec](docs/OPENING-REPORT-UX.md).
+
+### Report image quality pass (19 October 2026)
+
+Eight of the narrative dossier illustrations now display cinematic, generated WebP scenes instead of their original SVG first-pass artwork (Silent Courier, mining tug, derelict greenhouse, ancient reservoir, temporal probe, alien settlement, relay control and damaged survey shuttle). WebP assets are 900×507 and remain inside the report or the captain’s record, never as system backgrounds. Original SVG scenes are retained for fallback/history. Four other report illustrations remain vector-based.
+
+## Tactical combat visual and audio pass
+
+The ground-combat interface now shows distinct face portraits for the six starting soldiers, visible equipped gun silhouettes and names, layered Web Audio tactical cues respecting the global mute, and operation-dependent scene lighting and labels. Fifteen authored layouts are available across rescue, sabotage and salvage, up from nine. The core deterministic tactical engine and existing journals remain compatible. See [the ground-combat playtest review](docs/GROUND-COMBAT-PLAYTEST-REVIEW.md) for QA, limits and next priorities.
